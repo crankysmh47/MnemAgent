@@ -10,15 +10,40 @@ services:
     environment:
       - DB_PATH=/app/data/memory_state.db
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
-  openclaw:
-    build: ./openclaw-harness
+  mnemos-mcp-adapter:
+    build:
+      context: ./openclaw-harness/mcp-adapter
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - MNEMOS_URL=http://mnemos-memory:8000
+      - PORT=8001
+    depends_on:
+      mnemos-memory:
+        condition: service_healthy
+    restart: unless-stopped
+
+  openclaw-harness:
+    build:
+      context: ./openclaw-harness
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - MCP_SERVER_URL=http://mnemos-memory:8000
+      - MNEMOS_URL=http://mnemos-memory:8000
+      - MCP_ADAPTER_URL=http://mnemos-mcp-adapter:8001
+      - PORT=3000
     depends_on:
       - mnemos-memory
+      - mnemos-mcp-adapter
+    restart: unless-stopped
 
 volumes:
   mnemos-data:

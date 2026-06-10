@@ -1,0 +1,19 @@
+{
+  "name": "MnemOS Memory Backend",
+  "version": "1.0.0",
+  "description": "Persistent biologically-inspired memory for OpenClaw",
+  "mcp_server": {
+    "transport": "http_sse",
+    "url": "http://localhost:8001/mcp",
+    "capabilities": ["memory_store", "memory_search", "memory_dump", "memory_stats"]
+  },
+  "memory": {
+    "override_builtin": true,
+    "provider": "mnemos"
+  },
+  "llm": {
+    "provider": "qwen",
+    "model": "qwen-plus",
+    "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  }
+}

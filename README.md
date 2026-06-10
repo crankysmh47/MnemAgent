@@ -1,63 +1,100 @@
 # MnemOS
 
-Memory layer for OpenClaw — selective ingestion, UCB retrieval, closed-loop feedback, and mathematical forgetting for the Qwen Global AI Hackathon (Track 1: MemoryAgent).
+Persistent memory layer for OpenClaw — selective ingestion, UCB retrieval, closed-loop feedback, and mathematical forgetting (Qwen Global AI Hackathon, Track 1: MemoryAgent).
+
+## Architecture
+
+```
+User
+  ├─ Chat UI (:3000) ──────────────┐
+  ├─ Memory Visualizer (:3000/viz) │
+  └─ OpenClaw TUI ──► OpenClaw Gateway
+                              │
+                              ▼
+                    MCP Adapter (:8001)
+                              │
+                              ▼
+                    MnemOS Memory Server (:8000)
+                      ├─ Waking (UCB + RWR)
+                      ├─ Dreaming (feedback + decay)
+                      └─ Qwen / OpenAI-compatible LLM
+```
 
 ## Four Pillars
 
-1. **Selective Ingestion** — Salience Auction gates what enters the graph
-2. **Intelligent Retrieval** — UCB Multi-Armed Bandit + RWR associative hops
-3. **Closed-Loop Feedback** — Proximity-based influence tracking adjusts Q_i
-4. **Mathematical Forgetting** — Exponential decay + hard prune floor
+1. **Salience Auction** — gates ingestion by conviction and category
+2. **UCB Retrieval** — `Score_i = Q_i + c × √(ln(T)/(N_i+1))`
+3. **Closed-Loop Feedback** — proximity-based Q_i updates after each response
+4. **Synaptic Downscaling** — decay ×0.85 / hard prune below 0.1
 
 ## Quick Start
 
 ```bash
+git clone <repo>
+cd MnemAgent
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+.venv\Scripts\activate          # Windows
 pip install -r requirements.txt
-cp .env.example .env         # add your QWEN_API_KEY
-cd mcp-memory-server/src
-uvicorn main:app --host 0.0.0.0 --port 8000
+cp .env.example .env            # add API keys
+docker compose up --build
 ```
 
-## Docker
+| Service | URL |
+|---------|-----|
+| Chat UI | http://localhost:3000 |
+| Memory Visualizer | http://localhost:3000/visualizer |
+| MnemOS API | http://localhost:8000 |
+| MCP Adapter | http://localhost:8001 |
+
+### OpenClaw TUI (optional)
 
 ```bash
-cp .env.example .env
-docker-compose up --build
+# Windows
+.\openclaw-harness\setup.ps1
+
+# Linux/Mac
+chmod +x openclaw-harness/setup.sh && ./openclaw-harness/setup.sh
+
+openclaw gateway
+openclaw tui
 ```
 
-- MnemOS API: http://localhost:8000
-- OpenClaw gateway: http://localhost:3000
+Use the shared `user_id` from `~/.openclaw/mnemos-user-id.txt` in the chat UI (`localStorage.mnemos_user_id`) so TUI and web share one memory graph.
 
-## Evaluation Benchmark
+## OpenClaw Integration
 
-Offline dry-run (no API key required):
+MnemOS registers as OpenClaw's memory backend via the **MCP adapter** (`openclaw-harness/mcp-adapter/`). It exposes:
 
-```bash
-python -m eval.run_benchmark --dry-run --mode both
-```
+- `memory_store` — salience-gated fact ingestion
+- `memory_search` — keyword retrieval over `semantic_graph`
+- `memory_dump` — `/memory` brain state
+- `memory_stats` — `/memory --mode stats` UCB table
 
-Live comparison (requires running servers + QWEN_API_KEY):
-
-```bash
-python -m eval.run_benchmark --mode both
-```
-
-## MCP Commands
-
-- `/memory` — brain state dump
-- `/memory --mode stats` — UCB stats table for demo
+Config: `openclaw-harness/openclaw-config/mnemos.config.json`
 
 ## Alibaba Cloud Proof
 
 OSS backup is implemented in [`mcp-memory-server/src/storage/cloud_sync.py`](mcp-memory-server/src/storage/cloud_sync.py).
+
+## Benchmark
+
+```bash
+python -m eval.run_benchmark --dry-run --mode both   # offline
+python -m eval.run_benchmark --mode both             # live (server + API key)
+```
 
 ## Tests
 
 ```bash
 pytest tests/ -v
 ```
+
+## Known Limitations
+
+- Influence detection uses proximity regex (not embedding similarity)
+- OpenClaw TUI integration requires the OpenClaw CLI installed separately
+- UCB timeline in the visualizer approximates historical scores from current state
+- No auth on `/chat` — demo only
 
 ## License
 

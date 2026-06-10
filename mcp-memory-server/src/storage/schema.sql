@@ -35,4 +35,17 @@ CREATE INDEX IF NOT EXISTS idx_graph_user
     ON semantic_graph(user_id, category, base_utility_q DESC)
     WHERE node_weight > 0.1;
 
+CREATE TABLE IF NOT EXISTS memory_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    entity_source TEXT,
+    entity_target TEXT,
+    detail TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_user
+    ON memory_events(user_id, timestamp DESC);
+
 -- vec_memory virtual table is created in db_manager.py after sqlite-vec loads.

@@ -8,8 +8,9 @@ import sqlite3
 from pathlib import Path
 
 from config import settings
-from storage.db_manager import delete_vec_embedding, get_db_connection
+from memory.event_log import log_memory_event
 from memory.waking import store_belief_embedding_sync
+from storage.db_manager import delete_vec_embedding, get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,18 @@ def evaluate_memory_utility_feedback(
                 new_q = min(1.0, new_q + Q_REWARD)
                 influence += 1
                 referenced_count += 1
+                log_memory_event(
+                    user_id,
+                    "influenced",
+                    entity_source=row["entity_source"],
+                    entity_target=row["entity_target"],
+                    detail={
+                        "belief_id": belief_id,
+                        "old_q": row["base_utility_q"],
+                        "new_q": new_q,
+                    },
+                    db_path=db_path,
+                )
             else:
                 new_q = max(0.0, new_q - Q_PENALTY)
 
@@ -152,6 +165,18 @@ def consolidate_and_prune_memory(
                 existing["entity_target"],
                 value,
             )
+            log_memory_event(
+                user_id,
+                "contradiction",
+                entity_source=entity,
+                entity_target=value,
+                detail={
+                    "relation": relation,
+                    "old_value": existing["entity_target"],
+                    "new_value": value,
+                },
+                db_path=db_path,
+            )
 
         conn.execute(
             """
@@ -176,6 +201,41 @@ def consolidate_and_prune_memory(
         ).fetchone()
         belief_id = int(row["id"]) if row else None
 
+        if belief_id is not None and (not existing or existing["entity_target"] == value):
+            log_memory_event(
+                user_id,
+                "new_belief",
+                entity_source=entity,
+                entity_target=str(value),
+                detail={
+                    "relation": relation,
+                    "category": category,
+                    "conviction": conviction,
+                    "belief_id": belief_id,
+                },
+                db_path=db_path,
+            )
+
+        decay_candidates = conn.execute(
+            """
+            SELECT id, entity_source, entity_target, node_weight
+            FROM semantic_graph
+            WHERE user_id = ? AND last_accessed < datetime('now', '-45 minutes')
+            """,
+            (user_id,),
+        ).fetchall()
+        for decay_row in decay_candidates:
+            old_weight = float(decay_row["node_weight"])
+            new_weight = old_weight * settings.DECAY_RATE
+            log_memory_event(
+                user_id,
+                "decayed",
+                entity_source=decay_row["entity_source"],
+                entity_target=decay_row["entity_target"],
+                detail={"old_weight": old_weight, "new_weight": new_weight},
+                db_path=db_path,
+            )
+
         conn.execute(
             """
             UPDATE semantic_graph
@@ -187,12 +247,24 @@ def consolidate_and_prune_memory(
 
         pruned = conn.execute(
             """
-            SELECT id FROM semantic_graph
+            SELECT id, entity_source, entity_target, node_weight
+            FROM semantic_graph
             WHERE user_id = ? AND node_weight < ?
             """,
             (user_id, settings.PRUNE_THRESHOLD),
         ).fetchall()
         for pruned_row in pruned:
+            log_memory_event(
+                user_id,
+                "pruned",
+                entity_source=pruned_row["entity_source"],
+                entity_target=pruned_row["entity_target"],
+                detail={
+                    "belief_id": int(pruned_row["id"]),
+                    "weight": float(pruned_row["node_weight"]),
+                },
+                db_path=db_path,
+            )
             delete_vec_embedding(int(pruned_row["id"]), db_path)
 
         cursor = conn.execute(

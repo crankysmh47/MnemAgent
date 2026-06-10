@@ -12,6 +12,7 @@ import aiohttp
 import networkx as nx
 
 from config import settings
+from memory.event_log import log_memory_event
 from storage.db_manager import VEC_AVAILABLE, get_db_connection, upsert_vec_embedding
 
 logger = logging.getLogger(__name__)
@@ -477,6 +478,24 @@ async def build_optimized_qwen_payload(
         for row in selected[: settings.MAX_INJECTED_FACTS]:
             belief_id = int(row["id"])
             injected_ids.append(belief_id)
+            ucb = _calculate_ucb_score(
+                float(row["base_utility_q"]),
+                int(row["injection_count"]),
+                total_turns,
+            )
+            log_memory_event(
+                user_id,
+                "injected",
+                entity_source=row["entity_source"],
+                entity_target=row["entity_target"],
+                detail={
+                    "belief_id": belief_id,
+                    "q_i": float(row["base_utility_q"]),
+                    "ucb_score": round(ucb, 3),
+                    "turn": total_turns,
+                },
+                db_path=db_path,
+            )
             fact_lines.append(
                 f"- {row['entity_source']} {row['relation']} {row['entity_target']} "
                 f"(Q: {row['base_utility_q']:.2f}, confidence: "

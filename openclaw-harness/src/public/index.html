@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MnemOS Chat</title>
+  <link rel="stylesheet" href="/chat.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>MnemOS</h1>
+    <div class="header-center">user: <span id="userLabel"></span></div>
+    <div class="header-right">
+      <span id="statusDot" class="status-dot" title="Connection"></span>
+      <span id="sessionLabel" style="font-size:0.8rem;color:#8b949e"></span>
+      <button type="button" id="newSessionBtn" class="secondary">New Session</button>
+      <a href="/visualizer" class="btn" style="text-decoration:none">Visualizer</a>
+    </div>
+  </header>
+  <div class="layout">
+    <aside>
+      <h2>🧠 Memory State</h2>
+      <div class="sidebar-actions">
+        <button type="button" id="refreshMemoryBtn">Refresh</button>
+        <button type="button" id="statsBtn" class="secondary">Stats</button>
+      </div>
+      <div id="memoryPanel" class="memory-cards"></div>
+      <div class="session-history">
+        <h2 style="margin-top:1rem">Sessions</h2>
+        <ul id="sessionHistory"></ul>
+      </div>
+    </aside>
+    <main class="chat-main">
+      <div id="sessionBanner" class="session-banner">New session started. Long-term memory persists.</div>
+      <div id="messages"></div>
+      <div class="input-area">
+        <div class="quick-cmds">
+          <button type="button" id="cmdMemory" class="secondary">/memory</button>
+          <button type="button" id="cmdStats" class="secondary">/memory --mode stats</button>
+        </div>
+        <div class="input-row">
+          <textarea id="messageInput" rows="1" placeholder="Message MnemOS… (Enter send, Shift+Enter newline)"></textarea>
+          <button type="button" id="sendBtn">Send</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="/chat.js"></script>
+</body>
+</html>

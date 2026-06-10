@@ -6,12 +6,14 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 from config import settings
 from llm.qwen_client import call_qwen_api, extract_memory_update, strip_memory_tags
 from log_setup import setup_logging
+from memory.api_data import get_events_since, get_graph_data, get_metrics_data, search_memories
 from memory.dreaming import consolidate_and_prune_memory, evaluate_memory_utility_feedback
 from memory.mcp_commands import execute_memory_dump_tool, execute_memory_stats_tool
 from memory.waking import build_optimized_qwen_payload
@@ -35,6 +37,17 @@ class ChatResponse(BaseModel):
     response: str
     user_id: str
     session_id: str
+
+
+class MemoryStoreRequest(BaseModel):
+    """Direct memory store request for MCP adapter."""
+
+    user_id: str
+    entity: str
+    relation: str
+    value: str
+    category: str = "preference"
+    conviction: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
 async def _run_dreaming_phase(
@@ -92,6 +105,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="MnemOS Memory Server", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
@@ -155,3 +174,55 @@ async def chat(request: ChatRequest) -> ChatResponse:
         user_id=request.user_id,
         session_id=request.session_id,
     )
+
+
+@app.get("/api/graph/{user_id}")
+async def api_graph(user_id: str) -> dict:
+    """Return belief graph data for the memory visualizer."""
+    return get_graph_data(user_id)
+
+
+@app.get("/api/events/{user_id}")
+async def api_events(
+    user_id: str,
+    since: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict:
+    """Return memory lifecycle events since an optional timestamp."""
+    return {"events": get_events_since(user_id, since=since, limit=limit)}
+
+
+@app.get("/api/metrics/{user_id}")
+async def api_metrics(user_id: str) -> dict:
+    """Return aggregate metrics and UCB timeline data."""
+    return get_metrics_data(user_id)
+
+
+@app.get("/api/memory/search/{user_id}")
+async def api_memory_search(
+    user_id: str,
+    query: str = Query(..., min_length=1),
+    top_k: int = Query(default=5, ge=1, le=20),
+) -> dict:
+    """Search persistent memory for MCP memory_search."""
+    return {"results": search_memories(user_id, query, top_k=top_k)}
+
+
+@app.post("/api/memory/store")
+async def api_memory_store(request: MemoryStoreRequest) -> dict:
+    """Store a fact via salience auction (MCP memory_store)."""
+    memory_dict = {
+        "entity": request.entity,
+        "relation": request.relation,
+        "value": request.value,
+        "category": request.category,
+        "conviction": request.conviction,
+    }
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(
+        None,
+        consolidate_and_prune_memory,
+        request.user_id,
+        memory_dict,
+    )
+    return {"status": "ok", "stored": True}

@@ -1,53 +1,101 @@
 /**
- * OpenClaw gateway — forwards chat requests to MnemOS memory server.
+ * MnemOS OpenClaw harness — chat UI, API proxy, and visualizer host.
  */
 
-require("dotenv").config();
+require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 
 const PORT = process.env.PORT || 3000;
-const MCP_SERVER_URL = process.env.MCP_SERVER_URL || "http://localhost:8000";
+const MNEMOS_URL = (process.env.MNEMOS_URL || process.env.MCP_SERVER_URL || "http://localhost:8000").replace(/\/$/, "");
+const MCP_ADAPTER_URL = (process.env.MCP_ADAPTER_URL || "http://localhost:8001").replace(/\/$/, "");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
+async function mnemosChat(userId, sessionId, message) {
+  const resp = await axios.post(
+    `${MNEMOS_URL}/chat`,
+    { user_id: userId, session_id: sessionId, message },
+    { timeout: 120000 }
+  );
+  return resp.data;
+}
 
 app.get("/health", async (_req, res) => {
+  const status = { status: "ok", harness: true, mnemos: null, mcp_adapter: null };
   try {
-    const upstream = await axios.get(`${MCP_SERVER_URL}/health`, { timeout: 5000 });
-    res.json({
-      status: "ok",
-      openclaw: true,
-      mnemos: upstream.data,
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: "degraded",
-      openclaw: true,
-      mnemos: "unreachable",
-      error: error.message,
-    });
+    status.mnemos = (await axios.get(`${MNEMOS_URL}/health`, { timeout: 5000 })).data;
+  } catch (err) {
+    status.status = "degraded";
+    status.mnemos_error = err.message;
   }
+  try {
+    status.mcp_adapter = (await axios.get(`${MCP_ADAPTER_URL}/health`, { timeout: 5000 })).data;
+  } catch (err) {
+    status.mcp_adapter_error = err.message;
+  }
+  res.status(status.status === "ok" ? 200 : 503).json(status);
 });
 
 app.post("/chat", async (req, res) => {
   try {
     const { user_id, session_id, message } = req.body;
-    const upstream = await axios.post(
-      `${MCP_SERVER_URL}/chat`,
-      { user_id, session_id, message },
-      { timeout: 60000 }
-    );
-    res.json(upstream.data);
-  } catch (error) {
-    const status = error.response?.status || 502;
-    res.status(status).json({
+    if (!user_id || !session_id || message === undefined) {
+      return res.status(400).json({ error: "user_id, session_id, and message are required" });
+    }
+    const data = await mnemosChat(user_id, session_id, message);
+    res.json(data);
+  } catch (err) {
+    const code = err.response?.status || 503;
+    res.status(code).json({
       error: "Failed to reach MnemOS memory server",
-      detail: error.message,
+      detail: err.message,
     });
   }
+});
+
+app.get("/memory/:uid", async (req, res) => {
+  try {
+    const data = await mnemosChat(req.params.uid, "harness-memory", "/memory");
+    res.json({ response: data.response });
+  } catch (err) {
+    res.status(503).json({ error: err.message });
+  }
+});
+
+app.get("/stats/:uid", async (req, res) => {
+  try {
+    const data = await mnemosChat(req.params.uid, "harness-stats", "/memory --mode stats");
+    res.json({ response: data.response });
+  } catch (err) {
+    res.status(503).json({ error: err.message });
+  }
+});
+
+for (const route of ["graph", "events", "metrics"]) {
+  app.get(`/api/${route}/:uid`, async (req, res) => {
+    try {
+      const suffix = route === "events" ? `?${new URLSearchParams(req.query)}` : "";
+      const url = `${MNEMOS_URL}/api/${route}/${encodeURIComponent(req.params.uid)}${suffix}`;
+      const resp = await axios.get(url, { timeout: 30000 });
+      res.json(resp.data);
+    } catch (err) {
+      res.status(503).json({ error: err.message });
+    }
+  });
+}
+
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/visualizer", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "memory-visualizer.html"));
 });
 
 app.use((err, _req, res, _next) => {
@@ -55,5 +103,5 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`OpenClaw Harness running on port ${PORT}, routing to ${MCP_SERVER_URL}`);
+  console.log(`MnemOS harness on :${PORT} → MnemOS ${MNEMOS_URL}, MCP ${MCP_ADAPTER_URL}`);
 });

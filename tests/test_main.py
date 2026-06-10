@@ -5,21 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
-from main import app
-from storage.db_manager import initialize_database
-
-
-@pytest.fixture
-async def test_client(tmp_path, monkeypatch):
-    db_path = tmp_path / "app_test.db"
-    monkeypatch.setattr("config.settings.DB_PATH", db_path)
-    monkeypatch.setattr("storage.db_manager.settings.DB_PATH", db_path)
-    initialize_database(db_path)
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
