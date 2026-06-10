@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "servers": {
+      "mnemos": {
+        "command": "node",
+        "args": ["REPLACE_WITH_REPO_PATH/mcp-server/src/index.js", "--transport", "stdio"],
+        "env": {
+          "MNEMOS_URL": "http://localhost:8000"
+        }
+      }
+    }
+  }
+}

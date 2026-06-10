@@ -5,20 +5,25 @@ Persistent memory layer for OpenClaw — selective ingestion, UCB retrieval, clo
 ## Architecture
 
 ```
-User
-  ├─ Chat UI (:3000) ──────────────┐
-  ├─ Memory Visualizer (:3000/viz) │
-  └─ OpenClaw TUI ──► OpenClaw Gateway
-                              │
-                              ▼
-                    MCP Adapter (:8001)
-                              │
-                              ▼
-                    MnemOS Memory Server (:8000)
-                      ├─ Waking (UCB + RWR)
-                      ├─ Dreaming (feedback + decay)
-                      └─ Qwen / OpenAI-compatible LLM
+WhatsApp / Telegram / Discord / Slack / WebChat
+                    │
+                    ▼
+           OpenClaw Gateway (:18789)
+         (agent + MCP tool discovery)
+                    │
+        ┌───────────┴───────────┐
+        ▼                       ▼
+  MnemOS MCP Server        Built-in tools
+  (:8001 stdio/http)       (web search, etc.)
+        │
+        ▼
+  MnemOS Memory Backend (:8000)
+    ├─ Waking (UCB + RWR)
+    ├─ Dreaming (feedback + decay)
+    └─ Qwen / OpenAI-compatible LLM
 ```
+
+Legacy web harness at `:3000` remains for chat UI and memory visualizer during development.
 
 ## Four Pillars
 
@@ -29,71 +34,147 @@ User
 
 ## Quick Start
 
+### Docker (recommended)
+
 ```bash
 git clone <repo>
 cd MnemAgent
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-pip install -r requirements.txt
-cp .env.example .env            # add API keys
-docker compose up --build
+cp .env.example .env          # add QWEN_API_KEY
+docker compose up -d --build
 ```
 
 | Service | URL |
 |---------|-----|
-| Chat UI | http://localhost:3000 |
-| Memory Visualizer | http://localhost:3000/visualizer |
 | MnemOS API | http://localhost:8000 |
-| MCP Adapter | http://localhost:8001 |
+| MCP Server | http://localhost:8001 |
+| Chat UI (legacy) | http://localhost:3000 |
+| Visualizer | http://localhost:3000/visualizer |
 
-### OpenClaw TUI (optional)
+### Full OpenClaw setup
 
-```bash
+```powershell
 # Windows
-.\openclaw-harness\setup.ps1
+.\scripts\setup-openclaw.ps1
 
-# Linux/Mac
-chmod +x openclaw-harness/setup.sh && ./openclaw-harness/setup.sh
-
-openclaw gateway
-openclaw tui
+# Linux/macOS
+chmod +x scripts/setup-openclaw.sh && ./scripts/setup-openclaw.sh
 ```
 
-Use the shared `user_id` from `~/.openclaw/mnemos-user-id.txt` in the chat UI (`localStorage.mnemos_user_id`) so TUI and web share one memory graph.
+Then (full onboard + MCP wiring):
 
-## OpenClaw Integration
+```powershell
+.\scripts\onboard-openclaw.ps1
+.\scripts\prove-openclaw.ps1
+```
 
-MnemOS registers as OpenClaw's memory backend via the **MCP adapter** (`openclaw-harness/mcp-adapter/`). It exposes:
+Daily usage:
 
-- `memory_store` — salience-gated fact ingestion
-- `memory_search` — keyword retrieval over `semantic_graph`
-- `memory_dump` — `/memory` brain state
-- `memory_stats` — `/memory --mode stats` UCB table
+```powershell
+openclaw dashboard                    # web UI
+openclaw agent --agent main --message "Remember I prefer Python"
+openclaw tui                          # terminal chat
+```
 
-Config: `openclaw-harness/openclaw-config/mnemos.config.json`
+Architecture:
 
-## Alibaba Cloud Proof
+```
+You → OpenClaw Gateway (:18789)
+        → Agent (OpenRouter free: openrouter/free + R1/Llama/Qwen fallbacks)
+        → mnemos MCP tools (stdio)
+        → mcp-server → MnemOS API (:8000) → SQLite memory
+```
 
-OSS backup is implemented in [`mcp-memory-server/src/storage/cloud_sync.py`](mcp-memory-server/src/storage/cloud_sync.py).
+### Free OpenRouter models
+
+Copy [`openclaw-config/mnemos-free.env.example`](openclaw-config/mnemos-free.env.example) into `.env`.
+OpenClaw model routing is in [`openclaw-config/free-models.patch.json`](openclaw-config/free-models.patch.json)
+(applied automatically by `onboard-openclaw.ps1`).
+
+| Layer | Primary | Fallbacks |
+|-------|---------|-----------|
+| MnemOS chat | `deepseek/deepseek-r1-0528:free` | swap in `.env` |
+| OpenClaw + MCP | `openrouter/free` | R1, Llama 3.3, Qwen 2.5/3 free |
+
+### Project status
+
+**Done (Parts 0–14 + OpenClaw):** memory layer, MCP server, gateway integration, Docker, evals, web harness.
+
+**Remaining (Parts 15–17):** Alibaba Cloud ECS deploy + OSS proof screenshot, demo video, final README polish.
+
+### Add messaging channels
+
+```powershell
+.\scripts\add-telegram.ps1    # fastest — bot token from @BotFather
+.\scripts\add-discord.ps1       # Discord bot token
+.\scripts\add-whatsapp.ps1      # QR code pairing
+```
+
+## MCP Tools
+
+Registered as `mnemos` in OpenClaw (`openclaw mcp set mnemos ...`):
+
+| Tool | Description |
+|------|-------------|
+| `memory_store` | Salience-gated fact ingestion |
+| `memory_search` | Keyword + UCB search over beliefs |
+| `memory_dump` | Full brain state (`/memory`) |
+| `memory_stats` | UCB optimization table |
+| `memory_chat` | Memory-augmented chat route |
+| `memory_bind_user` | Bind channel sender → user_id |
+| `memory_resolve_user` | Resolve or create user binding |
+
+Config templates: [`openclaw-config/openclaw.json`](openclaw-config/openclaw.json), [`workspace-config/`](workspace-config/)
+
+## Agent Workspace
+
+Copy [`workspace-config/`](workspace-config/) to `~/.openclaw/workspace/`:
+
+- `AGENTS.md` — memory rules and MCP tool usage
+- `SOUL.md` — persona
+- `TOOLS.md` — MnemOS endpoints
+- `skills/mnemos-memory/SKILL.md` — memory workflow skill
+
+## REST API (MnemOS backend)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/chat` | POST | Memory-augmented chat |
+| `/api/memory/store` | POST | Store one fact |
+| `/api/memory/store/batch` | POST | Store multiple facts |
+| `/api/memory/search/{user_id}` | GET | Search beliefs |
+| `/api/memory/dump/{user_id}` | GET | Brain state |
+| `/api/memory/stats/{user_id}` | GET | UCB stats |
+| `/api/user/bind` | POST | Channel → user_id binding |
+| `/api/graph/{user_id}` | GET | Visualizer graph data |
 
 ## Benchmark
 
 ```bash
-python -m eval.run_benchmark --dry-run --mode both   # offline
-python -m eval.run_benchmark --mode both             # live (server + API key)
+# Original single-turn benchmark
+python -m eval.run_benchmark --dry-run --mode both
+
+# Multi-step agentic memory advantage benchmark
+python -m eval.run_agentic_benchmark --dry-run --mode both
+python -m eval.run_agentic_benchmark --mode both   # live (needs API key)
 ```
 
 ## Tests
 
 ```bash
 pytest tests/ -v
+.\scripts\integration-test.ps1
+.\scripts\smoke_test.ps1
 ```
+
+## Alibaba Cloud Proof
+
+OSS backup: [`mcp-memory-server/src/storage/cloud_sync.py`](mcp-memory-server/src/storage/cloud_sync.py)
 
 ## Known Limitations
 
 - Influence detection uses proximity regex (not embedding similarity)
-- OpenClaw TUI integration requires the OpenClaw CLI installed separately
-- UCB timeline in the visualizer approximates historical scores from current state
+- OpenClaw CLI must be installed separately for real multi-channel messaging
+- Channel E2E tests require your own bot tokens
 - No auth on `/chat` — demo only
 
 ## License

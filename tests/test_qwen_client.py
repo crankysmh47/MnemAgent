@@ -60,6 +60,26 @@ def test_strip_memory_tags_multiline() -> None:
     assert strip_memory_tags(raw) == "Hi"
 
 
+def test_strip_memory_tags_bare_json() -> None:
+    raw = (
+        'Sure! { "entity": "user", "relation": "has interest in", '
+        '"value": "hackathons", "category": "persona", "conviction": 0.7 }'
+    )
+    assert "entity" not in strip_memory_tags(raw)
+    assert strip_memory_tags(raw).startswith("Sure!")
+
+
+def test_extract_memory_update_bare_json() -> None:
+    raw = (
+        'Hello { "entity": "user", "relation": "prefers", "value": "Python", '
+        '"category": "preference", "conviction": 0.9 } world'
+    )
+    result = extract_memory_update(raw)
+    assert result is not None
+    assert result["entity"] == "user"
+    assert result["value"] == "Python"
+
+
 @pytest.mark.asyncio
 async def test_call_qwen_api_success() -> None:
     mock_resp = AsyncMock()

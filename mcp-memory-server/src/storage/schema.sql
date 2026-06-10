@@ -48,4 +48,17 @@ CREATE TABLE IF NOT EXISTS memory_events (
 CREATE INDEX IF NOT EXISTS idx_events_user
     ON memory_events(user_id, timestamp DESC);
 
+CREATE TABLE IF NOT EXISTS user_bindings (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      TEXT NOT NULL,
+    channel      TEXT NOT NULL,
+    sender_id    TEXT NOT NULL,
+    display_name TEXT,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(channel, sender_id) ON CONFLICT REPLACE
+);
+
+CREATE INDEX IF NOT EXISTS idx_bindings_user
+    ON user_bindings(user_id);
+
 -- vec_memory virtual table is created in db_manager.py after sqlite-vec loads.

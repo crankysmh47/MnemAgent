@@ -1,0 +1,26 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/openrouter/free",
+        "fallbacks": [
+          "openrouter/tngtech/tng-r1t-chimera:free",
+          "openrouter/deepseek/deepseek-r1-0528:free",
+          "openrouter/deepseek/deepseek-r1:free",
+          "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+          "openrouter/qwen/qwen-2.5-72b-instruct:free",
+          "openrouter/qwen/qwen3-coder:free"
+        ]
+      },
+      "models": {
+        "openrouter/openrouter/free": {},
+        "openrouter/tngtech/tng-r1t-chimera:free": {},
+        "openrouter/deepseek/deepseek-r1-0528:free": {},
+        "openrouter/deepseek/deepseek-r1:free": {},
+        "openrouter/meta-llama/llama-3.3-70b-instruct:free": {},
+        "openrouter/qwen/qwen-2.5-72b-instruct:free": {},
+        "openrouter/qwen/qwen3-coder:free": {}
+      }
+    }
+  }
+}

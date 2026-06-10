@@ -55,6 +55,11 @@ Instructions:
    - 0.2: "Maybe Express?" / "Let's try X"
    - Below 0.4: omit the <memory_update> tag entirely
 4. Only after closing the </memory_update> tag, provide your response.
+5. NEVER output raw JSON in your visible response. Memory facts MUST be inside
+   <memory_update>...</memory_update> tags only. Wrong: {{"entity":"user",...}}
+   Right: <memory_update>{{"entity":"user",...}}</memory_update> then your reply.
+6. If you cannot use <memory_update> tags correctly, omit the memory update
+   entirely rather than leaking JSON to the user.
 """
 
 

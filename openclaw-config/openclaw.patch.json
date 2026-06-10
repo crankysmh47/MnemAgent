@@ -1,0 +1,38 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/qwen/qwen3-coder-flash"
+      },
+      "models": {
+        "openrouter/qwen/qwen3-coder-flash": {}
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "openrouter": {
+        "models": [
+          {
+            "id": "qwen/qwen3-coder-flash",
+            "name": "Qwen3 Coder Flash",
+            "contextWindow": 128000,
+            "maxTokens": 4096,
+            "input": ["text"],
+            "reasoning": false
+          }
+        ]
+      }
+    }
+  },
+  "mcp": {
+    "servers": {
+      "mnemos": {
+        "url": "http://127.0.0.1:8001/mcp",
+        "transport": "streamable-http",
+        "connectTimeout": 30,
+        "timeout": 120
+      }
+    }
+  }
+}

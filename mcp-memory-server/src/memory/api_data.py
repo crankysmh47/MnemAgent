@@ -208,6 +208,8 @@ def search_memories(
     user_id: str,
     query: str,
     top_k: int = 5,
+    category: str | None = None,
+    min_confidence: float | None = None,
     db_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     """
@@ -217,17 +219,19 @@ def search_memories(
         user_id: User identifier.
         query: Search text.
         top_k: Maximum results.
+        category: Optional category filter (preference, persona, system_state).
+        min_confidence: Optional minimum node_weight (0-1).
         db_path: Optional database path override.
 
     Returns:
         Matching belief dicts.
     """
     total_turns = get_total_turns(user_id, db_path)
+    min_weight = min_confidence if min_confidence is not None else settings.PRUNE_THRESHOLD
     conn = get_db_connection(db_path)
     try:
         pattern = f"%{query.lower()}%"
-        rows = conn.execute(
-            """
+        sql = """
             SELECT * FROM semantic_graph
             WHERE user_id = ? AND node_weight > ?
               AND (
@@ -235,11 +239,14 @@ def search_memories(
                 OR LOWER(entity_target) LIKE ?
                 OR LOWER(relation) LIKE ?
               )
-            ORDER BY base_utility_q DESC
-            LIMIT ?
-            """,
-            (user_id, settings.PRUNE_THRESHOLD, pattern, pattern, pattern, top_k),
-        ).fetchall()
+        """
+        params: list[Any] = [user_id, min_weight, pattern, pattern, pattern]
+        if category:
+            sql += " AND category = ?"
+            params.append(category)
+        sql += " ORDER BY base_utility_q DESC LIMIT ?"
+        params.append(top_k)
+        rows = conn.execute(sql, params).fetchall()
         return [_belief_row(row, total_turns) for row in rows]
     finally:
         conn.close()

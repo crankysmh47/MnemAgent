@@ -1,0 +1,45 @@
+{
+  "model": {
+    "apiProvider": "openai-compatible",
+    "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "model": "qwen3-coder-flash",
+    "apiKey": "${QWEN_API_KEY}",
+    "reasoning": false,
+    "maxTokens": 4096
+  },
+  "mcp": {
+    "servers": {
+      "mnemos": {
+        "url": "http://localhost:8001/mcp",
+        "transport": "streamable-http",
+        "connectionTimeoutMs": 30000
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": false,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "dmPolicy": "pairing"
+    },
+    "discord": {
+      "enabled": false,
+      "token": "${DISCORD_BOT_TOKEN}",
+      "groupPolicy": "allowlist"
+    },
+    "whatsapp": {
+      "enabled": false,
+      "dmPolicy": "pairing"
+    },
+    "slack": {
+      "enabled": false,
+      "appToken": "${SLACK_APP_TOKEN}",
+      "botToken": "${SLACK_BOT_TOKEN}"
+    }
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "${OPENCLAW_HOME}/workspace"
+    }
+  }
+}

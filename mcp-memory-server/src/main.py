@@ -14,6 +14,7 @@ from config import settings
 from llm.qwen_client import call_qwen_api, extract_memory_update, strip_memory_tags
 from log_setup import setup_logging
 from memory.api_data import get_events_since, get_graph_data, get_metrics_data, search_memories
+from memory.user_bindings import bind_user, list_bindings_for_user
 from memory.dreaming import consolidate_and_prune_memory, evaluate_memory_utility_feedback
 from memory.mcp_commands import execute_memory_dump_tool, execute_memory_stats_tool
 from memory.waking import build_optimized_qwen_payload
@@ -48,6 +49,21 @@ class MemoryStoreRequest(BaseModel):
     value: str
     category: str = "preference"
     conviction: float = Field(default=1.0, ge=0.0, le=1.0)
+
+
+class MemoryBatchStoreRequest(BaseModel):
+    """Batch memory store for multiple facts."""
+
+    user_id: str
+    facts: list[MemoryStoreRequest]
+
+
+class UserBindRequest(BaseModel):
+    """Bind channel sender to canonical user_id."""
+
+    channel: str
+    sender_id: str
+    display_name: str | None = None
 
 
 async def _run_dreaming_phase(
@@ -203,9 +219,69 @@ async def api_memory_search(
     user_id: str,
     query: str = Query(..., min_length=1),
     top_k: int = Query(default=5, ge=1, le=20),
+    category: str | None = Query(default=None),
+    min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
 ) -> dict:
     """Search persistent memory for MCP memory_search."""
-    return {"results": search_memories(user_id, query, top_k=top_k)}
+    return {
+        "results": search_memories(
+            user_id,
+            query,
+            top_k=top_k,
+            category=category,
+            min_confidence=min_confidence,
+        )
+    }
+
+
+@app.get("/api/memory/dump/{user_id}")
+async def api_memory_dump(
+    user_id: str,
+    format: str = Query(default="markdown", pattern="^(text|markdown|json)$"),
+) -> dict:
+    """Return memory dump in agent-friendly format."""
+    dump = execute_memory_dump_tool(user_id)
+    if format == "json":
+        return {"user_id": user_id, "format": "json", "beliefs": dump}
+    if format == "text":
+        return {"user_id": user_id, "format": "text", "response": dump.replace("|", " ").replace("---", "")}
+    return {"user_id": user_id, "format": "markdown", "response": dump}
+
+
+@app.get("/api/memory/stats/{user_id}")
+async def api_memory_stats(
+    user_id: str,
+    format: str = Query(default="markdown", pattern="^(text|markdown|json)$"),
+) -> dict:
+    """Return UCB stats in agent-friendly format."""
+    total_turns = get_total_turns(user_id)
+    stats = execute_memory_stats_tool(user_id, total_turns)
+    if format == "json":
+        return {"user_id": user_id, "format": "json", "stats": stats}
+    if format == "text":
+        return {"user_id": user_id, "format": "text", "response": stats.replace("|", " ")}
+    return {"user_id": user_id, "format": "markdown", "response": stats}
+
+
+@app.post("/api/user/bind")
+async def api_user_bind(request: UserBindRequest) -> dict:
+    """Bind channel sender to canonical MnemOS user_id."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        bind_user,
+        request.channel,
+        request.sender_id,
+        request.display_name,
+    )
+
+
+@app.get("/api/user/bindings/{user_id}")
+async def api_user_bindings(user_id: str) -> dict:
+    """List channel bindings for a canonical user_id."""
+    loop = asyncio.get_running_loop()
+    bindings = await loop.run_in_executor(None, list_bindings_for_user, user_id)
+    return {"user_id": user_id, "bindings": bindings}
 
 
 @app.post("/api/memory/store")
@@ -225,4 +301,35 @@ async def api_memory_store(request: MemoryStoreRequest) -> dict:
         request.user_id,
         memory_dict,
     )
-    return {"status": "ok", "stored": True}
+    return {
+        "status": "ok",
+        "stored": True,
+        "entity": request.entity,
+        "relation": request.relation,
+        "value": request.value,
+    }
+
+
+@app.post("/api/memory/store/batch")
+async def api_memory_store_batch(request: MemoryBatchStoreRequest) -> dict:
+    """Store multiple facts in one request."""
+    loop = asyncio.get_running_loop()
+    stored: list[dict] = []
+    for fact in request.facts:
+        memory_dict = {
+            "entity": fact.entity,
+            "relation": fact.relation,
+            "value": fact.value,
+            "category": fact.category,
+            "conviction": fact.conviction,
+        }
+        await loop.run_in_executor(
+            None,
+            consolidate_and_prune_memory,
+            request.user_id,
+            memory_dict,
+        )
+        stored.append(
+            {"entity": fact.entity, "relation": fact.relation, "value": fact.value}
+        )
+    return {"status": "ok", "stored_count": len(stored), "facts": stored}

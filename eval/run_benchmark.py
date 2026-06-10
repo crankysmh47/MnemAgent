@@ -20,7 +20,7 @@ async def _run(mode: str, server_url: str, output_dir: Path, dry_run: bool) -> N
         print(f"MnemOS average score: {with_report.average_score:.1%}")
 
     if mode in ("without_memory", "both"):
-        baseline_url = server_url if mode == "without_memory" else "http://localhost:8001"
+        baseline_url = server_url if mode == "without_memory" else "http://localhost:8002"
         runner = BenchmarkRunner(baseline_url, "without_memory", dry_run=dry_run)
         without_report = await runner.run_all_scenarios()
         print(f"Baseline average score: {without_report.average_score:.1%}")

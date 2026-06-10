@@ -18,6 +18,13 @@ _MAX_RETRIES = 3
 _FALLBACK_RESPONSE = "I'm having trouble connecting right now. Please try again."
 _MEMORY_TAG_PATTERN = re.compile(r"<memory_update>.*?</memory_update>", re.DOTALL)
 _MEMORY_EXTRACT_PATTERN = re.compile(r"<memory_update>(.*?)</memory_update>", re.DOTALL)
+_BARE_MEMORY_JSON_PATTERN = re.compile(
+    r"\{\s*\"entity\"\s*:\s*\"[^\"]*\"\s*,\s*\"relation\"\s*:\s*\"[^\"]*\""
+    r"\s*,\s*\"value\"\s*:\s*\"[^\"]*\""
+    r"(?:\s*,\s*\"category\"\s*:\s*\"[^\"]*\")?"
+    r"(?:\s*,\s*\"conviction\"\s*:\s*[\d.]+)?\s*\}",
+    re.DOTALL,
+)
 
 
 class QwenAPIError(Exception):
@@ -70,9 +77,25 @@ async def call_qwen_api(payload: dict) -> str:
     return _FALLBACK_RESPONSE
 
 
+def _parse_memory_dict(raw_json: str) -> dict | None:
+    """Validate and return a memory dict from JSON text."""
+    try:
+        parsed = json.loads(raw_json.strip())
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    required = ("entity", "relation", "value")
+    if not all(key in parsed for key in required):
+        return None
+    return parsed
+
+
 def extract_memory_update(response: str) -> dict | None:
     """
     Parse a <memory_update> JSON block from the model response.
+
+    Falls back to bare JSON objects when the model omits XML tags.
 
     Args:
         response: Raw model output.
@@ -81,23 +104,27 @@ def extract_memory_update(response: str) -> dict | None:
         Parsed memory dict or None if missing/invalid.
     """
     match = _MEMORY_EXTRACT_PATTERN.search(response)
-    if not match:
-        return None
-    try:
-        parsed = json.loads(match.group(1).strip())
-    except json.JSONDecodeError:
-        logger.warning("Malformed memory_update JSON: %s", match.group(1)[:200])
-        return None
-    required = ("entity", "relation", "value")
-    if not all(key in parsed for key in required):
-        logger.warning("memory_update missing required keys: %s", parsed.keys())
-        return None
-    return parsed
+    if match:
+        parsed = _parse_memory_dict(match.group(1))
+        if parsed is None:
+            logger.warning("Malformed memory_update JSON: %s", match.group(1)[:200])
+        return parsed
+
+    bare = _BARE_MEMORY_JSON_PATTERN.search(response)
+    if bare:
+        parsed = _parse_memory_dict(bare.group(0))
+        if parsed is not None:
+            logger.warning(
+                "Bare memory JSON without <memory_update> tags — parsed for consolidation"
+            )
+            return parsed
+        logger.warning("Malformed bare memory JSON: %s", bare.group(0)[:200])
+    return None
 
 
 def strip_memory_tags(response: str) -> str:
     """
-    Remove <memory_update> blocks from the model response.
+    Remove <memory_update> blocks and bare memory JSON from the model response.
 
     Args:
         response: Raw model output.
@@ -105,4 +132,6 @@ def strip_memory_tags(response: str) -> str:
     Returns:
         Clean user-facing text.
     """
-    return _MEMORY_TAG_PATTERN.sub("", response).strip()
+    cleaned = _MEMORY_TAG_PATTERN.sub("", response)
+    cleaned = _BARE_MEMORY_JSON_PATTERN.sub("", cleaned)
+    return cleaned.strip()

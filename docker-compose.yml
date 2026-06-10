@@ -16,18 +16,35 @@ services:
       timeout: 5s
       retries: 3
 
+  mnemos-mcp:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - MNEMOS_URL=http://mnemos-memory:8000
+      - MCP_PORT=8001
+    depends_on:
+      mnemos-memory:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Legacy SSE adapter (backward compatible)
   mnemos-mcp-adapter:
     build:
       context: ./openclaw-harness/mcp-adapter
       dockerfile: Dockerfile
     ports:
-      - "8001:8001"
+      - "8002:8001"
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
       - PORT=8001
     depends_on:
       mnemos-memory:
         condition: service_healthy
+    profiles:
+      - legacy
     restart: unless-stopped
 
   openclaw-harness:
@@ -38,11 +55,11 @@ services:
       - "3000:3000"
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
-      - MCP_ADAPTER_URL=http://mnemos-mcp-adapter:8001
+      - MCP_ADAPTER_URL=http://mnemos-mcp:8001
       - PORT=3000
     depends_on:
       - mnemos-memory
-      - mnemos-mcp-adapter
+      - mnemos-mcp
     restart: unless-stopped
 
 volumes:
