@@ -1,0 +1,13 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["mcp-memory-server/src", "."]
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests (no external dependencies)",
+    "integration: Integration tests (may need API keys)",
+    "benchmark: Evaluation benchmark tests",
+]
+
+[tool.coverage.run]
+source = ["mcp-memory-server/src"]
+omit = ["*/test_*", "*/conftest.py"]

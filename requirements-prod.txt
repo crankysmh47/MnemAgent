@@ -1,0 +1,10 @@
+fastapi==0.111.0
+uvicorn==0.30.1
+aiohttp==3.9.5
+sqlite-vec==0.1.1
+networkx==3.3
+numpy==1.26.4
+sentence-transformers==3.0.1
+oss2==2.18.5
+python-dotenv==1.0.1
+pydantic==2.7.4

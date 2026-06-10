@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# Environment & secrets
+.env
+
+# Database & runtime data
+data/
+*.db
+mcp-memory-server/src/data/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Node
+node_modules/
+
+# Eval outputs
+eval/results/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Lock file (optional local pin)
+requirements-lock.txt
+
+# Plan & spec documents (local only)
+MASTERPLAN.md
+Plan2.txt
+Plan.pdf
+Plan.txt
+*.docx
+MnemOS_Hackathon_Report.docx
+DEPENDENCY_NOTES.md

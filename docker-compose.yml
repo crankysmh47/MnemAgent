@@ -1,0 +1,24 @@
+services:
+  mnemos-memory:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - mnemos-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/app/data/memory_state.db
+    restart: unless-stopped
+
+  openclaw:
+    build: ./openclaw-harness
+    ports:
+      - "3000:3000"
+    environment:
+      - MCP_SERVER_URL=http://mnemos-memory:8000
+    depends_on:
+      - mnemos-memory
+
+volumes:
+  mnemos-data:
