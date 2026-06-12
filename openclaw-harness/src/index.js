@@ -1,5 +1,5 @@
 /**
- * MnemOS OpenClaw harness — chat UI, API proxy, and visualizer host.
+ * MnemOS Visualizer Harness — memory graph UI and API proxy.
  */
 
 require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
@@ -17,15 +17,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-async function mnemosChat(userId, sessionId, message) {
-  const resp = await axios.post(
-    `${MNEMOS_URL}/chat`,
-    { user_id: userId, session_id: sessionId, message },
-    { timeout: 120000 }
-  );
-  return resp.data;
-}
-
+// ── Health check ──
 app.get("/health", async (_req, res) => {
   const status = { status: "ok", harness: true, mnemos: null, mcp_adapter: null };
   try {
@@ -42,14 +34,19 @@ app.get("/health", async (_req, res) => {
   res.status(status.status === "ok" ? 200 : 503).json(status);
 });
 
+// ── Chat proxy (API — used by OpenClaw, scripts, and programmatic clients) ──
 app.post("/chat", async (req, res) => {
   try {
     const { user_id, session_id, message } = req.body;
     if (!user_id || !session_id || message === undefined) {
       return res.status(400).json({ error: "user_id, session_id, and message are required" });
     }
-    const data = await mnemosChat(user_id, session_id, message);
-    res.json(data);
+    const resp = await axios.post(
+      `${MNEMOS_URL}/chat`,
+      { user_id, session_id, message },
+      { timeout: 120000 }
+    );
+    res.json(resp.data);
   } catch (err) {
     const code = err.response?.status || 503;
     res.status(code).json({
@@ -59,24 +56,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-app.get("/memory/:uid", async (req, res) => {
-  try {
-    const data = await mnemosChat(req.params.uid, "harness-memory", "/memory");
-    res.json({ response: data.response });
-  } catch (err) {
-    res.status(503).json({ error: err.message });
-  }
-});
-
-app.get("/stats/:uid", async (req, res) => {
-  try {
-    const data = await mnemosChat(req.params.uid, "harness-stats", "/memory --mode stats");
-    res.json({ response: data.response });
-  } catch (err) {
-    res.status(503).json({ error: err.message });
-  }
-});
-
+// ── Memory visualization API proxy ──
 for (const route of ["graph", "events", "metrics"]) {
   app.get(`/api/${route}/:uid`, async (req, res) => {
     try {
@@ -90,18 +70,17 @@ for (const route of ["graph", "events", "metrics"]) {
   });
 }
 
+// ── Visualizer landing page ──
 app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.get("/visualizer", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "memory-visualizer.html"));
-});
-
+// ── Error handler ──
 app.use((err, _req, res, _next) => {
   res.status(500).json({ error: err.message });
 });
 
 app.listen(PORT, () => {
-  console.log(`MnemOS harness on :${PORT} → MnemOS ${MNEMOS_URL}, MCP ${MCP_ADAPTER_URL}`);
+  console.log(`MnemOS visualizer on :${PORT} → MnemOS ${MNEMOS_URL}, MCP ${MCP_ADAPTER_URL}`);
+  console.log(`Open http://localhost:${PORT} to view the memory graph`);
 });

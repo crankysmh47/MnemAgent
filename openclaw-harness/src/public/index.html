@@ -3,51 +3,370 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MnemOS Chat</title>
-  <link rel="stylesheet" href="/chat.css" />
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+  <title>MnemOS — Memory Visualizer</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/visualizer.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <header>
-    <h1>MnemOS</h1>
-    <div class="header-center">user: <span id="userLabel"></span></div>
-    <div class="header-right">
-      <span id="statusDot" class="status-dot" title="Connection"></span>
-      <span id="sessionLabel" style="font-size:0.8rem;color:#8b949e"></span>
-      <button type="button" id="newSessionBtn" class="secondary">New Session</button>
-      <a href="/visualizer" class="btn" style="text-decoration:none">Visualizer</a>
-    </div>
-  </header>
-  <div class="layout">
-    <aside>
-      <h2>🧠 Memory State</h2>
-      <div class="sidebar-actions">
-        <button type="button" id="refreshMemoryBtn">Refresh</button>
-        <button type="button" id="statsBtn" class="secondary">Stats</button>
-      </div>
-      <div id="memoryPanel" class="memory-cards"></div>
-      <div class="session-history">
-        <h2 style="margin-top:1rem">Sessions</h2>
-        <ul id="sessionHistory"></ul>
-      </div>
-    </aside>
-    <main class="chat-main">
-      <div id="sessionBanner" class="session-banner">New session started. Long-term memory persists.</div>
-      <div id="messages"></div>
-      <div class="input-area">
-        <div class="quick-cmds">
-          <button type="button" id="cmdMemory" class="secondary">/memory</button>
-          <button type="button" id="cmdStats" class="secondary">/memory --mode stats</button>
-        </div>
-        <div class="input-row">
-          <textarea id="messageInput" rows="1" placeholder="Message MnemOS… (Enter send, Shift+Enter newline)"></textarea>
-          <button type="button" id="sendBtn">Send</button>
-        </div>
-      </div>
-    </main>
+
+<header>
+  <div class="brand">
+    <span class="icon">🧠</span> MnemOS Visualizer
   </div>
-  <script src="/chat.js"></script>
+
+  <div class="live-indicator" id="liveLabel">
+    <span class="live-dot"></span> Live
+  </div>
+
+  <label>User <input id="userId" placeholder="demo-user" /></label>
+
+  <div class="filter-group" id="categoryFilters">
+    <span class="filter-chip cat-preference active" data-cat="preference">pref</span>
+    <span class="filter-chip cat-persona active" data-cat="persona">persona</span>
+    <span class="filter-chip cat-system_state active" data-cat="system_state">system</span>
+  </div>
+  <div class="filter-group" id="confidenceFilters">
+    <span class="filter-chip conf-high active" data-conf="high">high</span>
+    <span class="filter-chip conf-mid active" data-conf="mid">mid</span>
+    <span class="filter-chip conf-low active" data-conf="low">fading</span>
+  </div>
+
+  <div class="header-controls">
+    <button id="refreshBtn">Refresh</button>
+    <button id="autoBtn" class="secondary">Pause</button>
+    <button id="resetZoomBtn" class="secondary">Reset Zoom</button>
+    <button id="exportBtn" class="secondary">Export JSON</button>
+  </div>
+</header>
+
+<div class="main-grid">
+  <!-- Graph -->
+  <div class="graph-panel">
+    <div class="panel-header">
+      <span>Belief Graph</span>
+      <span id="nodeDetail" style="font-size:0.7rem;color:var(--text-muted);text-transform:none;letter-spacing:0">Click a node for details</span>
+    </div>
+    <svg id="graphSvg"></svg>
+  </div>
+
+  <!-- Metrics sidebar -->
+  <div class="metrics-panel">
+    <div class="stat-cards">
+      <div class="stat-card"><div class="value" id="mBeliefs">0</div><div class="label">Beliefs</div></div>
+      <div class="stat-card"><div class="value" id="mSessions">0</div><div class="label">Sessions</div></div>
+      <div class="stat-card"><div class="value" id="mAvgQ">0</div><div class="label">Avg Q_i</div></div>
+      <div class="stat-card"><div class="value" id="mInjections">0</div><div class="label">Injections</div></div>
+    </div>
+    <canvas id="ucbChart" height="100"></canvas>
+    <canvas id="injChart" height="90"></canvas>
+    <div class="guide-panel">
+      <h3>🧠 Build Memory via OpenClaw</h3>
+      <p>This visualizer shows MnemOS memory in real time. To <strong>create</strong> memories, use OpenClaw:</p>
+      <p><code>openclaw agent --agent main --message "I prefer Python for APIs"</code></p>
+      <p>The memory graph updates live — new beliefs appear as green nodes, contradictions as amber flashes, and stale facts fade to red.</p>
+    </div>
+  </div>
+
+  <!-- Event feed -->
+  <div class="event-feed">
+    <div class="panel-header">
+      <span>Memory Events</span>
+      <span style="font-size:0.65rem;color:var(--text-muted)">new_belief · contradiction · injected · influenced · decayed · pruned</span>
+    </div>
+    <div id="eventFeed"></div>
+  </div>
+</div>
+
+<div class="node-tooltip" id="nodeTooltip"></div>
+
+<script>
+// ── State ──
+const POLL_MS = 3000;
+let autoRefresh = true;
+let lastEventTs = null;
+let ucbChart, injChart;
+let zoom;
+
+function uid() {
+  const params = new URLSearchParams(location.search);
+  return params.get('user') || localStorage.getItem('mnemos_user_id') || 'demo-user';
+}
+
+function confLevel(w) { return w >= 0.85 ? 'high' : w >= 0.55 ? 'mid' : 'low'; }
+
+function nodeColor(w) {
+  if (w >= 0.85) return '#3fb950';
+  if (w >= 0.55) return '#d2991d';
+  return '#da3633';
+}
+
+function filterBeliefs(beliefs) {
+  const activeCats = [...document.querySelectorAll('#categoryFilters .filter-chip.active')].map(e => e.dataset.cat);
+  const activeConfs = [...document.querySelectorAll('#confidenceFilters .filter-chip.active')].map(e => e.dataset.conf);
+  return beliefs.filter(b => activeCats.includes(b.category) && activeConfs.includes(confLevel(b.node_weight)));
+}
+
+async function fetchGraph() {
+  const user = document.getElementById('userId').value.trim() || uid();
+  const r = await fetch(`/api/graph/${encodeURIComponent(user)}`);
+  return r.json();
+}
+
+async function fetchMetrics() {
+  const user = document.getElementById('userId').value.trim() || uid();
+  const r = await fetch(`/api/metrics/${encodeURIComponent(user)}`);
+  return r.json();
+}
+
+async function fetchEvents() {
+  const user = document.getElementById('userId').value.trim() || uid();
+  const q = lastEventTs ? `?since=${encodeURIComponent(lastEventTs)}` : '';
+  const r = await fetch(`/api/events/${encodeURIComponent(user)}${q}`);
+  return r.json();
+}
+
+// ── Graph ──
+function renderGraph(data) {
+  const beliefs = filterBeliefs(data.beliefs || []);
+  const svg = d3.select('#graphSvg');
+  svg.selectAll('*').remove();
+
+  const width = svg.node().clientWidth || 700;
+  const height = 390;
+  svg.attr('viewBox', [0, 0, width, height]);
+
+  const tt = d3.select('#nodeTooltip');
+
+  const g = svg.append('g');
+  zoom = d3.zoom().scaleExtent([0.25, 3.5]).on('zoom', (e) => g.attr('transform', e.transform));
+  svg.call(zoom);
+
+  const nodes = beliefs.map(b => ({
+    ...b,
+    label: (b.entity_source || '').slice(0, 14),
+    r: 6 + (b.base_utility_q || 0) * 18,
+  }));
+
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const links = (data.edges || [])
+    .filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))
+    .map(e => ({ source: e.source, target: e.target, weight: e.weight || 0.5 }));
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(90))
+    .force('charge', d3.forceManyBody().strength(-250))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(d => d.r + 4));
+
+  const link = g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke', '#252b36')
+    .attr('stroke-width', d => 1 + d.weight)
+    .attr('stroke-opacity', 0.6);
+
+  const node = g.append('g').selectAll('g').data(nodes).join('g');
+
+  // Glow effect for high-Q nodes
+  node.append('circle')
+    .attr('r', d => d.r + 4)
+    .attr('fill', d => d.base_utility_q > 0.7 ? nodeColor(d.node_weight) : 'transparent')
+    .attr('opacity', 0.12);
+
+  node.append('circle')
+    .attr('r', d => d.r)
+    .attr('fill', d => nodeColor(d.node_weight))
+    .attr('stroke', '#e6edf3')
+    .attr('stroke-width', d => 1 + (d.conviction_score || 0) * 2.5)
+    .attr('stroke-opacity', 0.4)
+    .style('cursor', 'pointer')
+    .on('mouseenter', function(e, d) {
+      d3.select(this).attr('stroke-opacity', 1).attr('stroke-width', 3);
+      tt.classed('visible', true)
+        .style('left', (e.pageX + 12) + 'px')
+        .style('top', (e.pageY - 12) + 'px')
+        .html(`<strong>${d.entity_source}</strong> ${d.relation} ${d.entity_target}<br/>
+               Q=${d.base_utility_q.toFixed(2)} &nbsp; N=${d.injection_count} &nbsp; UCB=${(d.ucb_score||0).toFixed(3)}<br/>
+               conf=${confLevel(d.node_weight)} &nbsp; cat=${d.category}`);
+    })
+    .on('mouseleave', function() {
+      d3.select(this).attr('stroke-opacity', 0.4).attr('stroke-width', d => 1 + (d.conviction_score || 0) * 2.5);
+      tt.classed('visible', false);
+    })
+    .on('click', (_, d) => {
+      document.getElementById('nodeDetail').textContent =
+        `${d.entity_source} ${d.relation} ${d.entity_target} | Q=${d.base_utility_q.toFixed(2)} N=${d.injection_count} UCB=${(d.ucb_score||0).toFixed(3)}`;
+    })
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+  // Labels on nodes
+  node.append('text')
+    .text(d => d.label)
+    .attr('text-anchor', 'middle')
+    .attr('dy', d => d.r + 12)
+    .attr('fill', '#8b949e')
+    .attr('font-size', '9px')
+    .attr('font-family', 'system-ui, sans-serif');
+
+  sim.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+
+// ── Metrics ──
+function renderMetrics(m, graph) {
+  document.getElementById('mBeliefs').textContent = m.total_beliefs ?? 0;
+  document.getElementById('mSessions').textContent = m.total_sessions ?? 0;
+  document.getElementById('mAvgQ').textContent = (m.avg_q_i ?? 0).toFixed(2);
+  document.getElementById('mInjections').textContent = m.total_injections ?? 0;
+
+  const tl = m.ucb_timeline || { turns: [], series: {} };
+  const palette = ['#58a6ff', '#3fb950', '#d2991d', '#a371f7', '#da3633', '#39d2c0'];
+  const datasets = Object.entries(tl.series || {}).map(([label, data], i) => ({
+    label, data,
+    borderColor: palette[i % palette.length],
+    borderWidth: 2,
+    fill: false,
+    tension: 0.3,
+    pointRadius: 0,
+  }));
+
+  if (ucbChart) ucbChart.destroy();
+  ucbChart = new Chart(document.getElementById('ucbChart'), {
+    type: 'line',
+    data: { labels: tl.turns || [], datasets },
+    options: {
+      animation: { duration: 400 },
+      plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true, pointStyleWidth: 8 } } },
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: '#1a1f2b' } },
+        y: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: '#1a1f2b' }, title: { display: true, text: 'UCB Score', color: '#8b949e' } },
+      },
+      interaction: { intersect: false, mode: 'index' },
+    },
+  });
+
+  const beliefs = filterBeliefs(graph.beliefs || [])
+    .sort((a, b) => b.injection_count - a.injection_count)
+    .slice(0, 12);
+  if (injChart) injChart.destroy();
+  injChart = new Chart(document.getElementById('injChart'), {
+    type: 'bar',
+    data: {
+      labels: beliefs.map(b => (b.entity_source || '').slice(0, 10)),
+      datasets: [{
+        label: 'Injections (N_i)',
+        data: beliefs.map(b => b.injection_count),
+        backgroundColor: beliefs.map(b => nodeColor(b.node_weight)),
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      animation: { duration: 400 },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: '#1a1f2b' } },
+        y: { ticks: { color: '#8b949e', font: { size: 9 } } },
+      },
+    },
+  });
+}
+
+// ── Events ──
+const EVENT_ICONS = {
+  new_belief: '🟢', contradiction: '⚡', injected: '💉',
+  influenced: '✅', decayed: '📉', pruned: '🗑️',
+};
+
+function formatEvent(ev) {
+  const t = (ev.timestamp || '').slice(11, 19);
+  const icon = EVENT_ICONS[ev.event_type] || '•';
+  const typeName = ev.event_type.toUpperCase();
+  const body = [ev.entity_source, ev.entity_target ? `→ ${ev.entity_target}` : '']
+    .filter(Boolean).join(' ');
+  return `<div class="ev ${ev.event_type}"><span class="ev-time">[${t}]</span>${icon} ${typeName}  ${body}</div>`;
+}
+
+function prependEvents(events) {
+  if (!events?.length) return;
+  const feed = document.getElementById('eventFeed');
+  events.reverse().forEach(ev => {
+    feed.insertAdjacentHTML('afterbegin', formatEvent(ev));
+    if (ev.timestamp) lastEventTs = ev.timestamp;
+  });
+  while (feed.children.length > 100) feed.lastChild.remove();
+}
+
+// ── Main refresh ──
+async function refresh() {
+  try {
+    const [graph, metrics, evData] = await Promise.all([
+      fetchGraph(), fetchMetrics(), fetchEvents()
+    ]);
+    renderGraph(graph);
+    renderMetrics(metrics, graph);
+    prependEvents(evData.events || []);
+    document.getElementById('liveLabel').innerHTML = '<span class="live-dot"></span> Live';
+  } catch (e) {
+    document.getElementById('liveLabel').innerHTML = '⚠ Error';
+    console.error(e);
+  }
+}
+
+// ── Init ──
+document.getElementById('userId').value = uid();
+
+document.getElementById('refreshBtn').onclick = refresh;
+
+document.getElementById('autoBtn').onclick = () => {
+  autoRefresh = !autoRefresh;
+  document.getElementById('autoBtn').textContent = autoRefresh ? 'Pause' : 'Resume';
+};
+
+document.getElementById('resetZoomBtn').onclick = () => {
+  d3.select('#graphSvg').transition().duration(400)
+    .call(zoom.transform, d3.zoomIdentity);
+};
+
+document.getElementById('exportBtn').onclick = async () => {
+  const data = await fetchGraph();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mnemos-graph-${Date.now()}.json`;
+  a.click();
+};
+
+// Filter chip toggles
+document.querySelectorAll('.filter-chip').forEach(el => {
+  el.addEventListener('click', () => {
+    el.classList.toggle('active');
+    refresh();
+  });
+});
+
+// Tab visibility
+document.addEventListener('visibilitychange', () => {
+  const label = document.getElementById('liveLabel');
+  label.innerHTML = document.hidden
+    ? '⏸ Paused (tab hidden)'
+    : '<span class="live-dot"></span> Live';
+});
+
+// Kickoff
+refresh();
+const pollTimer = setInterval(() => {
+  if (autoRefresh && !document.hidden) refresh();
+}, POLL_MS);
+
+// Clean up interval on page unload
+window.addEventListener('beforeunload', () => clearInterval(pollTimer));
+</script>
 </body>
 </html>
