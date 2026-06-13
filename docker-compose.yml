@@ -56,6 +56,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    volumes:
+      - ./openclaw-harness/src/public:/app/src/public:ro
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
       - MCP_ADAPTER_URL=http://mnemos-mcp:8001

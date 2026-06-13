@@ -3,78 +3,85 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MnemOS — Memory Visualizer</title>
+  <title>MnemOS — Living Memory Atlas</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/visualizer.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
 
 <header>
   <div class="brand">
-    <span class="icon">🧠</span> MnemOS Visualizer
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3C8 3 5 6 4.5 9.5C3.5 9.2 2.5 10 2.5 11.5C2.5 13 3.5 14 4.5 14C4.2 15.5 5 17 6.5 17.5C7 19 8.5 20 10.5 20C11 21.5 12.5 22 14 21.5C16 21.5 18 20 19 18C21 17.5 22 15.5 21.5 13.5C22.5 12.5 22.5 10.5 21 9.5C20.5 6 17.5 3 14 3C13.3 3 12.6 3 12 3Z" fill="#EDD5C8" stroke="#C9956A" stroke-width="0.8"/>
+        <path d="M12 6C10 6 8.5 8 8.5 10M12 6C14 6 15.5 8 15.5 10M12 10V16M9 13H15" stroke="#D4A017" stroke-width="0.7" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div>MnemOS</div>
+      <div class="brand-sub">Memory Atlas</div>
+    </div>
   </div>
 
   <div class="live-indicator" id="liveLabel">
-    <span class="live-dot"></span> Live
+    <span class="live-dot"></span> Synaptic stream
   </div>
 
-  <label>User <input id="userId" placeholder="demo-user" /></label>
+  <label>User <input id="userId" placeholder="demo-brain" /></label>
 
   <div class="filter-group" id="categoryFilters">
-    <span class="filter-chip cat-preference active" data-cat="preference">pref</span>
-    <span class="filter-chip cat-persona active" data-cat="persona">persona</span>
-    <span class="filter-chip cat-system_state active" data-cat="system_state">system</span>
+    <span class="filter-chip cat-preference active" data-cat="preference">Preferences</span>
+    <span class="filter-chip cat-persona active" data-cat="persona">Persona</span>
+    <span class="filter-chip cat-system_state active" data-cat="system_state">System</span>
   </div>
   <div class="filter-group" id="confidenceFilters">
-    <span class="filter-chip conf-high active" data-conf="high">high</span>
-    <span class="filter-chip conf-mid active" data-conf="mid">mid</span>
-    <span class="filter-chip conf-low active" data-conf="low">fading</span>
+    <span class="filter-chip conf-high active" data-conf="high">Vivid</span>
+    <span class="filter-chip conf-mid active" data-conf="mid">Stable</span>
+    <span class="filter-chip conf-low active" data-conf="low">Fading</span>
   </div>
 
   <div class="header-controls">
-    <button id="refreshBtn">Refresh</button>
-    <button id="autoBtn" class="secondary">Pause</button>
-    <button id="resetZoomBtn" class="secondary">Reset Zoom</button>
-    <button id="exportBtn" class="secondary">Export JSON</button>
+    <button id="refreshBtn" type="button">Refresh</button>
+    <button id="autoBtn" class="secondary" type="button">Pause</button>
+    <button id="resetZoomBtn" class="secondary" type="button">Reset view</button>
+    <button id="exportBtn" class="secondary" type="button">Export</button>
   </div>
 </header>
 
 <div class="main-grid">
-  <!-- Graph -->
   <div class="graph-panel">
     <div class="panel-header">
-      <span>Belief Graph</span>
-      <span id="nodeDetail" style="font-size:0.7rem;color:var(--text-muted);text-transform:none;letter-spacing:0">Click a node for details</span>
+      <span><span class="panel-title-accent">Cortical</span> belief map</span>
+      <span id="nodeDetail" style="font-size:0.72rem;color:var(--text-muted);text-transform:none;letter-spacing:0;font-weight:500">Select a memory node</span>
     </div>
     <svg id="graphSvg"></svg>
   </div>
 
-  <!-- Metrics sidebar -->
   <div class="metrics-panel">
     <div class="stat-cards">
-      <div class="stat-card"><div class="value" id="mBeliefs">0</div><div class="label">Beliefs</div></div>
+      <div class="stat-card"><div class="value" id="mBeliefs">0</div><div class="label">Memories</div></div>
       <div class="stat-card"><div class="value" id="mSessions">0</div><div class="label">Sessions</div></div>
-      <div class="stat-card"><div class="value" id="mAvgQ">0</div><div class="label">Avg Q_i</div></div>
-      <div class="stat-card"><div class="value" id="mInjections">0</div><div class="label">Injections</div></div>
+      <div class="stat-card"><div class="value" id="mAvgQ">0</div><div class="label">Avg utility</div></div>
+      <div class="stat-card"><div class="value" id="mInjections">0</div><div class="label">Recalls</div></div>
     </div>
     <canvas id="ucbChart" height="100"></canvas>
     <canvas id="injChart" height="90"></canvas>
     <div class="guide-panel">
-      <h3>🧠 Build Memory via OpenClaw</h3>
-      <p>This visualizer shows MnemOS memory in real time. To <strong>create</strong> memories, use OpenClaw:</p>
+      <h3>How memories form</h3>
+      <p>Each golden node is a stored belief. Bright pulses travel along synapses when memories are recalled — vivid nodes glow strongest.</p>
+      <p>Teach the brain via OpenClaw:</p>
       <p><code>openclaw agent --agent main --message "I prefer Python for APIs"</code></p>
-      <p>The memory graph updates live — new beliefs appear as green nodes, contradictions as amber flashes, and stale facts fade to red.</p>
+      <p>Watch new nodes appear in the cortical map and golden traces flow between related facts.</p>
     </div>
   </div>
 
-  <!-- Event feed -->
   <div class="event-feed">
     <div class="panel-header">
-      <span>Memory Events</span>
-      <span style="font-size:0.65rem;color:var(--text-muted)">new_belief · contradiction · injected · influenced · decayed · pruned</span>
+      <span>Memory stream</span>
+      <span style="font-size:0.65rem;color:var(--text-dim);font-weight:500;text-transform:none;letter-spacing:0">stored · updated · recalled · faded</span>
     </div>
     <div id="eventFeed"></div>
   </div>
@@ -83,24 +90,34 @@
 <div class="node-tooltip" id="nodeTooltip"></div>
 
 <script>
-// ── State ──
 const POLL_MS = 3000;
 let autoRefresh = true;
 let lastEventTs = null;
 let ucbChart, injChart;
 let zoom;
+let particleLoopId = null;
+let flowParticles = [];
+
+const CHART_GRID = 'rgba(180, 150, 120, 0.14)';
+const CHART_TICK = '#7A6E62';
 
 function uid() {
   const params = new URLSearchParams(location.search);
-  return params.get('user') || localStorage.getItem('mnemos_user_id') || 'demo-user';
+  return params.get('user') || localStorage.getItem('mnemos_user_id') || 'demo-brain';
 }
 
 function confLevel(w) { return w >= 0.85 ? 'high' : w >= 0.55 ? 'mid' : 'low'; }
 
-function nodeColor(w) {
-  if (w >= 0.85) return '#3fb950';
-  if (w >= 0.55) return '#d2991d';
-  return '#da3633';
+function nodeFill(w) {
+  if (w >= 0.85) return '#F0C75A';
+  if (w >= 0.55) return '#D4A86A';
+  return '#C4B09A';
+}
+
+function nodeStroke(w) {
+  if (w >= 0.85) return '#C9920A';
+  if (w >= 0.55) return '#A87848';
+  return '#9A8878';
 }
 
 function filterBeliefs(beliefs) {
@@ -128,26 +145,105 @@ async function fetchEvents() {
   return r.json();
 }
 
-// ── Graph ──
+async function seedDemoBrain() {
+  const facts = [
+    { entity: "language", relation: "prefers", value: "Python", category: "preference", conviction: 1.0 },
+    { entity: "framework", relation: "uses", value: "FastAPI", category: "system_state", conviction: 0.9 },
+    { entity: "database", relation: "uses", value: "PostgreSQL", category: "system_state", conviction: 0.9 },
+    { entity: "deployment", relation: "uses", value: "AWS", category: "system_state", conviction: 0.85 },
+    { entity: "code_style", relation: "prefers", value: "minimal-comments", category: "preference", conviction: 0.8 },
+    { entity: "affiliation", relation: "is", value: "FAST_student", category: "persona", conviction: 0.95 },
+    { entity: "editor", relation: "prefers", value: "VS_Code", category: "preference", conviction: 0.7 },
+    { entity: "architecture", relation: "prefers", value: "microservices", category: "system_state", conviction: 0.75 },
+  ];
+
+  try {
+    await fetch('/api/memory/store/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: 'demo-brain', facts })
+    });
+    await fetch('/api/memory/store', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: 'demo-brain', entity: "framework", relation: "uses",
+        value: "Express", category: "system_state", conviction: 0.9
+      })
+    });
+    await fetch('/api/memory/store', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: 'demo-brain', entity: "framework", relation: "uses",
+        value: "FastAPI", category: "system_state", conviction: 0.9
+      })
+    });
+  } catch (e) {
+    console.debug('Seed note:', e.message);
+  }
+}
+
+function brainPath(cx, cy, scale) {
+  const s = scale || 1;
+  return `M ${cx} ${cy - 95*s}
+    C ${cx - 120*s} ${cy - 110*s}, ${cx - 145*s} ${cy - 40*s}, ${cx - 130*s} ${cy + 20*s}
+    C ${cx - 150*s} ${cy + 55*s}, ${cx - 115*s} ${cy + 95*s}, ${cx - 70*s} ${cy + 105*s}
+    C ${cx - 45*s} ${cy + 118*s}, ${cx - 15*s} ${cy + 115*s}, ${cx} ${cy + 108*s}
+    C ${cx + 15*s} ${cy + 115*s}, ${cx + 45*s} ${cy + 118*s}, ${cx + 70*s} ${cy + 105*s}
+    C ${cx + 115*s} ${cy + 95*s}, ${cx + 150*s} ${cy + 55*s}, ${cx + 130*s} ${cy + 20*s}
+    C ${cx + 145*s} ${cy - 40*s}, ${cx + 120*s} ${cy - 110*s}, ${cx} ${cy - 95*s} Z`;
+}
+
 function renderGraph(data) {
+  if (particleLoopId) cancelAnimationFrame(particleLoopId);
+  flowParticles = [];
+
   const beliefs = filterBeliefs(data.beliefs || []);
   const svg = d3.select('#graphSvg');
   svg.selectAll('*').remove();
 
   const width = svg.node().clientWidth || 700;
-  const height = 390;
+  const height = svg.node()?.parentElement?.clientHeight - 44 || 390;
   svg.attr('viewBox', [0, 0, width, height]);
 
-  const tt = d3.select('#nodeTooltip');
+  const defs = svg.append('defs');
+  const grad = defs.append('linearGradient').attr('id', 'goldFlowGradient').attr('x1', '0%').attr('y1', '0%').attr('x2', '100%').attr('y2', '0%');
+  grad.append('stop').attr('offset', '0%').attr('stop-color', '#F0C75A').attr('stop-opacity', 0.1);
+  grad.append('stop').attr('offset', '50%').attr('stop-color', '#E8B923').attr('stop-opacity', 0.85);
+  grad.append('stop').attr('offset', '100%').attr('stop-color', '#F0C75A').attr('stop-opacity', 0.1);
 
+  const glow = defs.append('filter').attr('id', 'softGlow').attr('x', '-30%').attr('y', '-30%').attr('width', '160%').attr('height', '160%');
+  glow.append('feGaussianBlur').attr('stdDeviation', '2.5').attr('result', 'b');
+  glow.append('feMerge').selectAll('feMergeNode').data(['b', 'SourceGraphic']).join('feMergeNode').attr('in', d => d);
+
+  const pGlow = defs.append('filter').attr('id', 'particleGlow').attr('x', '-80%').attr('y', '-80%').attr('width', '260%').attr('height', '260%');
+  pGlow.append('feGaussianBlur').attr('stdDeviation', '2').attr('result', 'b');
+  pGlow.append('feMerge').selectAll('feMergeNode').data(['b', 'SourceGraphic']).join('feMergeNode').attr('in', d => d);
+
+  const nGlow = defs.append('filter').attr('id', 'nodeGlow').attr('x', '-40%').attr('y', '-40%').attr('width', '180%').attr('height', '180%');
+  nGlow.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'b');
+  nGlow.append('feMerge').selectAll('feMergeNode').data(['b', 'SourceGraphic']).join('feMergeNode').attr('in', d => d);
+
+  const tt = d3.select('#nodeTooltip');
   const g = svg.append('g');
-  zoom = d3.zoom().scaleExtent([0.25, 3.5]).on('zoom', (e) => g.attr('transform', e.transform));
+  zoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', (e) => g.attr('transform', e.transform));
   svg.call(zoom);
 
-  const nodes = beliefs.map(b => ({
+  const cx = width / 2;
+  const cy = height / 2 + 8;
+  const scale = Math.min(width, height) / 520;
+
+  g.append('path').attr('d', brainPath(cx, cy, scale)).attr('class', 'brain-outline');
+  g.append('path').attr('d', `M ${cx} ${cy - 90*scale} Q ${cx - 8*scale} ${cy + 10*scale} ${cx} ${cy + 100*scale}`).attr('class', 'sulcus');
+  g.append('path').attr('d', `M ${cx - 55*scale} ${cy - 30*scale} Q ${cx - 20*scale} ${cy + 20*scale} ${cx - 50*scale} ${cy + 70*scale}`).attr('class', 'sulcus');
+  g.append('path').attr('d', `M ${cx + 55*scale} ${cy - 30*scale} Q ${cx + 20*scale} ${cy + 20*scale} ${cx + 50*scale} ${cy + 70*scale}`).attr('class', 'sulcus');
+
+  const nodes = beliefs.map((b, i) => ({
     ...b,
-    label: (b.entity_source || '').slice(0, 14),
-    r: 6 + (b.base_utility_q || 0) * 18,
+    label: (b.entity_source || '').slice(0, 12),
+    r: 7 + (b.base_utility_q || 0) * 14,
+    hemisphere: i % 2 === 0 ? -1 : 1,
   }));
 
   const nodeIds = new Set(nodes.map(n => n.id));
@@ -156,70 +252,114 @@ function renderGraph(data) {
     .map(e => ({ source: e.source, target: e.target, weight: e.weight || 0.5 }));
 
   const sim = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(90))
-    .force('charge', d3.forceManyBody().strength(-250))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => d.r + 4));
+    .force('link', d3.forceLink(links).id(d => d.id).distance(75).strength(0.55))
+    .force('charge', d3.forceManyBody().strength(-180))
+    .force('center', d3.forceCenter(cx, cy))
+    .force('collision', d3.forceCollide().radius(d => d.r + 6))
+    .force('x', d3.forceX(d => cx + d.hemisphere * 55 * scale).strength(0.12))
+    .force('y', d3.forceY(cy).strength(0.04));
 
-  const link = g.append('g').selectAll('line').data(links).join('line')
-    .attr('stroke', '#252b36')
-    .attr('stroke-width', d => 1 + d.weight)
-    .attr('stroke-opacity', 0.6);
+  const linkLayer = g.append('g');
+  const linkGroup = linkLayer.selectAll('g').data(links).join('g');
 
-  const node = g.append('g').selectAll('g').data(nodes).join('g');
+  linkGroup.append('line').attr('class', 'synapse-track')
+    .attr('stroke-width', d => 1.2 + d.weight * 1.5);
 
-  // Glow effect for high-Q nodes
+  linkGroup.append('line').attr('class', 'synapse-flow')
+    .attr('stroke-width', d => 0.8 + d.weight * 0.6)
+    .attr('stroke-dasharray', '4 10');
+
+  const particleLayer = g.append('g');
+  const particleSel = particleLayer.selectAll('circle').data(
+    links.flatMap((link, li) =>
+      [0, 1, 2].map(pi => ({
+        link,
+        id: `${li}-${pi}`,
+        t: (pi + 1) / 4 + Math.random() * 0.2,
+        speed: 0.003 + Math.random() * 0.004,
+        r: 2 + Math.random() * 1.5,
+      }))
+    )
+  ).join('circle')
+    .attr('class', 'memory-particle')
+    .attr('fill', '#F0C75A')
+    .attr('r', d => d.r);
+
+  const nodeLayer = g.append('g');
+  const node = nodeLayer.selectAll('g').data(nodes).join('g');
+
   node.append('circle')
-    .attr('r', d => d.r + 4)
-    .attr('fill', d => d.base_utility_q > 0.7 ? nodeColor(d.node_weight) : 'transparent')
-    .attr('opacity', 0.12);
+    .attr('class', d => (d.base_utility_q || 0) > 0.55 ? 'neuron-halo' : '')
+    .attr('r', d => d.r + 5)
+    .attr('fill', d => nodeFill(d.node_weight))
+    .attr('opacity', 0.2);
 
   node.append('circle')
+    .attr('class', 'neuron-body')
     .attr('r', d => d.r)
-    .attr('fill', d => nodeColor(d.node_weight))
-    .attr('stroke', '#e6edf3')
-    .attr('stroke-width', d => 1 + (d.conviction_score || 0) * 2.5)
-    .attr('stroke-opacity', 0.4)
+    .attr('fill', d => nodeFill(d.node_weight))
+    .attr('stroke', d => nodeStroke(d.node_weight))
+    .attr('stroke-width', 1.5 + (d.conviction_score || 0) * 1.5)
     .style('cursor', 'pointer')
     .on('mouseenter', function(e, d) {
-      d3.select(this).attr('stroke-opacity', 1).attr('stroke-width', 3);
+      d3.select(this).attr('stroke-width', 3);
       tt.classed('visible', true)
-        .style('left', (e.pageX + 12) + 'px')
-        .style('top', (e.pageY - 12) + 'px')
+        .style('left', (e.pageX + 14) + 'px')
+        .style('top', (e.pageY - 14) + 'px')
         .html(`<strong>${d.entity_source}</strong> ${d.relation} ${d.entity_target}<br/>
-               Q=${d.base_utility_q.toFixed(2)} &nbsp; N=${d.injection_count} &nbsp; UCB=${(d.ucb_score||0).toFixed(3)}<br/>
-               conf=${confLevel(d.node_weight)} &nbsp; cat=${d.category}`);
+               utility ${d.base_utility_q.toFixed(2)} · recalled ${d.injection_count}× · UCB ${(d.ucb_score||0).toFixed(3)}<br/>
+               ${confLevel(d.node_weight)} · ${d.category}`);
     })
-    .on('mouseleave', function() {
-      d3.select(this).attr('stroke-opacity', 0.4).attr('stroke-width', d => 1 + (d.conviction_score || 0) * 2.5);
+    .on('mouseleave', function(_, d) {
+      d3.select(this).attr('stroke-width', 1.5 + (d.conviction_score || 0) * 1.5);
       tt.classed('visible', false);
     })
     .on('click', (_, d) => {
       document.getElementById('nodeDetail').textContent =
-        `${d.entity_source} ${d.relation} ${d.entity_target} | Q=${d.base_utility_q.toFixed(2)} N=${d.injection_count} UCB=${(d.ucb_score||0).toFixed(3)}`;
+        `${d.entity_source} ${d.relation} ${d.entity_target} · Q=${d.base_utility_q.toFixed(2)} · ${d.injection_count} recalls`;
     })
     .call(d3.drag()
-      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.25).restart(); d.fx = d.x; d.fy = d.y; })
       .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
       .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
 
-  // Labels on nodes
   node.append('text')
+    .attr('class', 'node-label')
     .text(d => d.label)
     .attr('text-anchor', 'middle')
-    .attr('dy', d => d.r + 12)
-    .attr('fill', '#8b949e')
-    .attr('font-size', '9px')
-    .attr('font-family', 'system-ui, sans-serif');
+    .attr('dy', d => d.r + 13);
 
-  sim.on('tick', () => {
-    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  function tickGraph() {
+    linkGroup.selectAll('line')
+      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
     node.attr('transform', d => `translate(${d.x},${d.y})`);
-  });
+
+    particleSel.each(function(d) {
+      const sx = d.link.source.x;
+      const sy = d.link.source.y;
+      const tx = d.link.target.x;
+      const ty = d.link.target.y;
+      if (sx == null) return;
+      d3.select(this)
+        .attr('cx', sx + (tx - sx) * d.t)
+        .attr('cy', sy + (ty - sy) * d.t);
+    });
+  }
+
+  sim.on('tick', tickGraph);
+
+  function animateFlow() {
+    particleSel.each(function(d) {
+      d.t += d.speed;
+      if (d.t > 1) d.t = 0;
+    });
+    tickGraph();
+    particleLoopId = requestAnimationFrame(animateFlow);
+  }
+  animateFlow();
 }
 
-// ── Metrics ──
 function renderMetrics(m, graph) {
   document.getElementById('mBeliefs').textContent = m.total_beliefs ?? 0;
   document.getElementById('mSessions').textContent = m.total_sessions ?? 0;
@@ -227,13 +367,13 @@ function renderMetrics(m, graph) {
   document.getElementById('mInjections').textContent = m.total_injections ?? 0;
 
   const tl = m.ucb_timeline || { turns: [], series: {} };
-  const palette = ['#58a6ff', '#3fb950', '#d2991d', '#a371f7', '#da3633', '#39d2c0'];
+  const palette = ['#E8B923', '#D4A86A', '#C9920A', '#C4B09A', '#A89888', '#8B7355'];
   const datasets = Object.entries(tl.series || {}).map(([label, data], i) => ({
     label, data,
     borderColor: palette[i % palette.length],
     borderWidth: 2,
     fill: false,
-    tension: 0.3,
+    tension: 0.35,
     pointRadius: 0,
   }));
 
@@ -243,10 +383,10 @@ function renderMetrics(m, graph) {
     data: { labels: tl.turns || [], datasets },
     options: {
       animation: { duration: 400 },
-      plugins: { legend: { labels: { color: '#8b949e', font: { size: 10 }, usePointStyle: true, pointStyleWidth: 8 } } },
+      plugins: { legend: { labels: { color: CHART_TICK, font: { size: 10 }, usePointStyle: true } } },
       scales: {
-        x: { ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: '#1a1f2b' } },
-        y: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: '#1a1f2b' }, title: { display: true, text: 'UCB Score', color: '#8b949e' } },
+        x: { ticks: { color: CHART_TICK, font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: CHART_GRID } },
+        y: { ticks: { color: CHART_TICK, font: { size: 9 } }, grid: { color: CHART_GRID }, title: { display: true, text: 'Recall utility', color: CHART_TICK, font: { size: 10 } } },
       },
       interaction: { intersect: false, mode: 'index' },
     },
@@ -261,9 +401,10 @@ function renderMetrics(m, graph) {
     data: {
       labels: beliefs.map(b => (b.entity_source || '').slice(0, 10)),
       datasets: [{
-        label: 'Injections (N_i)',
+        label: 'Recalls',
         data: beliefs.map(b => b.injection_count),
-        backgroundColor: beliefs.map(b => nodeColor(b.node_weight)),
+        backgroundColor: beliefs.map(b => nodeFill(b.node_weight)),
+        borderRadius: 8,
       }],
     },
     options: {
@@ -271,26 +412,28 @@ function renderMetrics(m, graph) {
       animation: { duration: 400 },
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: '#1a1f2b' } },
-        y: { ticks: { color: '#8b949e', font: { size: 9 } } },
+        x: { ticks: { color: CHART_TICK, font: { size: 9 } }, grid: { color: CHART_GRID } },
+        y: { ticks: { color: CHART_TICK, font: { size: 9 } } },
       },
     },
   });
 }
 
-// ── Events ──
-const EVENT_ICONS = {
-  new_belief: '🟢', contradiction: '⚡', injected: '💉',
-  influenced: '✅', decayed: '📉', pruned: '🗑️',
+const EVENT_LABELS = {
+  new_belief: 'stored',
+  contradiction: 'updated',
+  injected: 'recalled',
+  influenced: 'linked',
+  decayed: 'faded',
+  pruned: 'forgotten',
 };
 
 function formatEvent(ev) {
   const t = (ev.timestamp || '').slice(11, 19);
-  const icon = EVENT_ICONS[ev.event_type] || '•';
-  const typeName = ev.event_type.toUpperCase();
+  const label = EVENT_LABELS[ev.event_type] || ev.event_type;
   const body = [ev.entity_source, ev.entity_target ? `→ ${ev.entity_target}` : '']
     .filter(Boolean).join(' ');
-  return `<div class="ev ${ev.event_type}"><span class="ev-time">[${t}]</span>${icon} ${typeName}  ${body}</div>`;
+  return `<div class="ev ${ev.event_type}"><span class="ev-time">${t}</span> ${label} · ${body}</div>`;
 }
 
 function prependEvents(events) {
@@ -303,7 +446,6 @@ function prependEvents(events) {
   while (feed.children.length > 100) feed.lastChild.remove();
 }
 
-// ── Main refresh ──
 async function refresh() {
   try {
     const [graph, metrics, evData] = await Promise.all([
@@ -312,61 +454,60 @@ async function refresh() {
     renderGraph(graph);
     renderMetrics(metrics, graph);
     prependEvents(evData.events || []);
-    document.getElementById('liveLabel').innerHTML = '<span class="live-dot"></span> Live';
+    document.getElementById('liveLabel').innerHTML = '<span class="live-dot"></span> Synaptic stream';
   } catch (e) {
-    document.getElementById('liveLabel').innerHTML = '⚠ Error';
+    document.getElementById('liveLabel').textContent = 'Offline';
     console.error(e);
   }
 }
 
-// ── Init ──
 document.getElementById('userId').value = uid();
-
 document.getElementById('refreshBtn').onclick = refresh;
-
 document.getElementById('autoBtn').onclick = () => {
   autoRefresh = !autoRefresh;
   document.getElementById('autoBtn').textContent = autoRefresh ? 'Pause' : 'Resume';
 };
-
 document.getElementById('resetZoomBtn').onclick = () => {
   d3.select('#graphSvg').transition().duration(400)
     .call(zoom.transform, d3.zoomIdentity);
 };
-
 document.getElementById('exportBtn').onclick = async () => {
   const data = await fetchGraph();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `mnemos-graph-${Date.now()}.json`;
+  a.download = `mnemos-memory-${Date.now()}.json`;
   a.click();
 };
 
-// Filter chip toggles
 document.querySelectorAll('.filter-chip').forEach(el => {
-  el.addEventListener('click', () => {
-    el.classList.toggle('active');
-    refresh();
-  });
+  el.addEventListener('click', () => { el.classList.toggle('active'); refresh(); });
 });
 
-// Tab visibility
 document.addEventListener('visibilitychange', () => {
   const label = document.getElementById('liveLabel');
   label.innerHTML = document.hidden
-    ? '⏸ Paused (tab hidden)'
-    : '<span class="live-dot"></span> Live';
+    ? 'Paused'
+    : '<span class="live-dot"></span> Synaptic stream';
 });
 
-// Kickoff
 refresh();
+
+if (!localStorage.getItem('mnemos_seeded_brain_v3')) {
+  seedDemoBrain().then(() => {
+    localStorage.setItem('mnemos_seeded_brain_v3', '1');
+    refresh();
+  });
+}
+
 const pollTimer = setInterval(() => {
   if (autoRefresh && !document.hidden) refresh();
 }, POLL_MS);
 
-// Clean up interval on page unload
-window.addEventListener('beforeunload', () => clearInterval(pollTimer));
+window.addEventListener('beforeunload', () => {
+  clearInterval(pollTimer);
+  if (particleLoopId) cancelAnimationFrame(particleLoopId);
+});
 </script>
 </body>
 </html>

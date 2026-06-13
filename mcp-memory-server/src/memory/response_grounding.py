@@ -27,7 +27,7 @@ _HEDGED_TEACH_RE = re.compile(
 )
 
 
-def record_hedged_teach_rejections(user_id: str, user_input: str, db_path) -> None:
+def record_hedged_teach_rejections(user_id: str, user_input: str, db_path=None) -> None:
     """
     Log salience rejections for hedged teach statements even when the LLM emits skip.
 
