@@ -154,7 +154,7 @@ if (Test-OpenClawInstalled) {
     }
 
     # Free model bundle
-    $freePatch = Join-Path $Root "openclaw-config\free-models.patch.json"
+    $freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
     if (Test-Path $freePatch) {
         Step "Apply free model bundle" {
             Get-Content $freePatch -Raw | openclaw config patch --stdin 2>&1 | Out-Null

@@ -155,7 +155,7 @@ if check_openclaw; then
     "
 
     # Free model bundle
-    FREE_PATCH="$ROOT/openclaw-config/free-models.patch.json"
+    FREE_PATCH="$ROOT/config/openclaw/free-models.patch.json"
     if [ -f "$FREE_PATCH" ]; then
         step "Apply free model bundle" bash -c "
             cat '$FREE_PATCH' | openclaw config patch --stdin >/dev/null 2>&1

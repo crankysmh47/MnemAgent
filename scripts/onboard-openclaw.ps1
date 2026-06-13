@@ -22,9 +22,9 @@ $baseUrl = Get-DotEnvValue "QWEN_BASE_URL"
 $modelId = Get-DotEnvValue "QWEN_MODEL"
 if (-not $apiKey) { throw "QWEN_API_KEY missing in .env" }
 if (-not $baseUrl) { $baseUrl = "https://openrouter.ai/api/v1" }
-# OpenClaw: free router + fallbacks (see openclaw-config/free-models.patch.json)
+# OpenClaw: free router + fallbacks (see config/openclaw/free-models.patch.json)
 $onboardModel = "openrouter/free"
-$freePatch = Join-Path $Root "openclaw-config\free-models.patch.json"
+$freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
 
 Write-Host "LLM: OpenRouter free bundle via $baseUrl"
 
@@ -46,7 +46,7 @@ Pop-Location
 
 # Workspace
 New-Item -ItemType Directory -Force -Path (Join-Path $WorkspaceDir "skills\mnemos-memory") | Out-Null
-Copy-Item (Join-Path $Root "workspace-config\*") $WorkspaceDir -Recurse -Force
+Copy-Item (Join-Path $Root "config\workspace\*") $WorkspaceDir -Recurse -Force
 $mcpWs = @{
   mcp = @{
     servers = @{

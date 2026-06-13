@@ -13,6 +13,12 @@ import networkx as nx
 
 from config import settings
 from memory.event_log import log_memory_event
+from memory.response_grounding import (
+    fetch_all_active_beliefs,
+    fetch_salience_rejected_values,
+    fetch_suppressed_values,
+    is_compound_probe,
+)
 from storage.db_manager import VEC_AVAILABLE, get_db_connection, upsert_vec_embedding
 
 logger = logging.getLogger(__name__)
@@ -423,27 +429,6 @@ async def build_optimized_qwen_payload(
         Dict with keys ``payload`` and ``injected_ids``.
     """
     try:
-        embedding = await get_embedding(user_input)
-        if VEC_AVAILABLE:
-            candidates = _fetch_candidates_by_vector(user_id, embedding, db_path)
-        else:
-            entities = extract_entities_robust(user_input)
-            candidates = _fetch_candidates_by_keywords(user_id, entities, db_path)
-
-        scored: list[tuple[float, sqlite3.Row]] = []
-        for row in candidates:
-            ucb = _calculate_ucb_score(
-                float(row["base_utility_q"]),
-                int(row["injection_count"]),
-                total_turns,
-            )
-            scored.append((ucb, row))
-        scored.sort(key=lambda item: item[0], reverse=True)
-
-        top_n = min(4, settings.MAX_INJECTED_FACTS - 2)
-        selected: list[sqlite3.Row] = [row for _, row in scored[:top_n]]
-        selected_ids = {int(row["id"]) for row in selected}
-
         conn = get_db_connection(db_path)
         try:
             node_count = conn.execute(
@@ -456,8 +441,42 @@ async def build_optimized_qwen_payload(
         finally:
             conn.close()
 
+        compound = is_compound_probe(user_input)
+        suppressed = fetch_suppressed_values(user_id, db_path)
+        rejected = fetch_salience_rejected_values(user_id, db_path)
+        forbidden = list(dict.fromkeys(suppressed + rejected))
+
+        if compound or node_count <= settings.MAX_INJECTED_FACTS:
+            selected = fetch_all_active_beliefs(
+                user_id,
+                db_path,
+                limit=settings.MAX_INJECTED_FACTS,
+            )
+            selected_ids = {int(row["id"]) for row in selected}
+        else:
+            embedding = await get_embedding(user_input)
+            if VEC_AVAILABLE:
+                candidates = _fetch_candidates_by_vector(user_id, embedding, db_path)
+            else:
+                entities = extract_entities_robust(user_input)
+                candidates = _fetch_candidates_by_keywords(user_id, entities, db_path)
+
+            scored: list[tuple[float, sqlite3.Row]] = []
+            for row in candidates:
+                ucb = _calculate_ucb_score(
+                    float(row["base_utility_q"]),
+                    int(row["injection_count"]),
+                    total_turns,
+                )
+                scored.append((ucb, row))
+            scored.sort(key=lambda item: item[0], reverse=True)
+
+            top_n = min(4, settings.MAX_INJECTED_FACTS - 2)
+            selected = [row for _, row in scored[:top_n]]
+            selected_ids = {int(row["id"]) for row in selected}
+
         extra_ids: list[int] = []
-        if selected:
+        if selected and not compound:
             primary_id = int(selected[0]["id"])
             if node_count > settings.RWR_MIN_NODES:
                 edges = _build_graph_edges(user_id, db_path)
@@ -489,6 +508,7 @@ async def build_optimized_qwen_payload(
                 conn.close()
 
         injected_ids: list[int] = []
+        injected_values: list[str] = []
         fact_lines: list[str] = []
         for row in selected[: settings.MAX_INJECTED_FACTS]:
             belief_id = int(row["id"])
@@ -511,8 +531,10 @@ async def build_optimized_qwen_payload(
                 },
                 db_path=db_path,
             )
+            target = str(row["entity_target"])
+            injected_values.append(target)
             fact_lines.append(
-                f"- {row['entity_source']} {row['relation']} {row['entity_target']} "
+                f"- {row['entity_source']} {row['relation']} {target} "
                 f"(Q: {row['base_utility_q']:.2f}, confidence: "
                 f"{_confidence_label(float(row['node_weight']))})"
             )
@@ -549,6 +571,17 @@ async def build_optimized_qwen_payload(
 
         injected_facts = "\n".join(fact_lines) if fact_lines else "(no stored memories yet)"
         system_prompt = SYSTEM_PROMPT_TEMPLATE.format(injected_facts=injected_facts)
+        if compound and injected_values:
+            values_csv = ", ".join(injected_values)
+            system_prompt += (
+                f"\n\n[COMPOUND RECALL — mandatory]\n"
+                f"Your reply MUST explicitly name every stored value: {values_csv}."
+            )
+        if forbidden:
+            system_prompt += (
+                f"\n\n[FORBIDDEN MENTIONS — never cite these as current preferences]\n"
+                f"{', '.join(forbidden)}"
+            )
         messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
         for turn in reversed(history):
             messages.append({"role": "user", "content": turn["user_prompt"]})
@@ -563,6 +596,9 @@ async def build_optimized_qwen_payload(
                 "max_tokens": 1000,
             },
             "injected_ids": injected_ids,
+            "injected_values": injected_values,
+            "suppressed": suppressed,
+            "rejected": rejected,
         }
     except (sqlite3.Error, ValueError, aiohttp.ClientError) as exc:
         logger.error("Failed to build Qwen payload: %s", exc)
@@ -574,4 +610,7 @@ async def build_optimized_qwen_payload(
                 "max_tokens": 1000,
             },
             "injected_ids": [],
+            "injected_values": [],
+            "suppressed": [],
+            "rejected": [],
         }

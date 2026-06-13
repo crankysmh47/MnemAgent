@@ -21,12 +21,12 @@ echo "Installing MnemOS MCP server..."
 (cd "$ROOT/mcp-server" && npm install)
 
 mkdir -p "$WORKSPACE_DIR/skills/mnemos-memory"
-cp "$ROOT/workspace-config/AGENTS.md" "$WORKSPACE_DIR/"
-cp "$ROOT/workspace-config/SOUL.md" "$WORKSPACE_DIR/"
-cp "$ROOT/workspace-config/TOOLS.md" "$WORKSPACE_DIR/"
-cp "$ROOT/workspace-config/IDENTITY.md" "$WORKSPACE_DIR/"
-cp "$ROOT/workspace-config/USER.md" "$WORKSPACE_DIR/"
-cp "$ROOT/workspace-config/skills/mnemos-memory/SKILL.md" "$WORKSPACE_DIR/skills/mnemos-memory/"
+cp "$ROOT/config/workspace/AGENTS.md" "$WORKSPACE_DIR/"
+cp "$ROOT/config/workspace/SOUL.md" "$WORKSPACE_DIR/"
+cp "$ROOT/config/workspace/TOOLS.md" "$WORKSPACE_DIR/"
+cp "$ROOT/config/workspace/IDENTITY.md" "$WORKSPACE_DIR/"
+cp "$ROOT/config/workspace/USER.md" "$WORKSPACE_DIR/"
+cp "$ROOT/config/workspace/skills/mnemos-memory/SKILL.md" "$WORKSPACE_DIR/skills/mnemos-memory/"
 echo "Workspace files copied to $WORKSPACE_DIR"
 
 MCP_PATH="$ROOT/mcp-server/src/index.js"

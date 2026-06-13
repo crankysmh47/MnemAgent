@@ -147,6 +147,14 @@ def consolidate_and_prune_memory(
 
     if conviction < SALIENCE_MIN_CONVICTION and category != "system_state":
         logger.info("Salience Auction rejected: low conviction (%.2f)", conviction)
+        log_memory_event(
+            user_id,
+            "salience_rejected",
+            entity_source=entity,
+            entity_target=str(value),
+            detail={"conviction": conviction, "category": category},
+            db_path=db_path,
+        )
         return
 
     conn = get_db_connection(db_path)

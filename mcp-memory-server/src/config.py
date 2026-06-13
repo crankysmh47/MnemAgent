@@ -103,7 +103,7 @@ class Settings:
         """
         if not self.QWEN_API_KEY or self.QWEN_API_KEY == _PLACEHOLDER_API_KEY:
             raise ValueError(
-                "QWEN_API_KEY is not configured. Copy .env.example to .env and set a real key."
+                "QWEN_API_KEY is not configured. Copy config/env.template to .env and set a real key."
             )
 
     def __repr__(self) -> str:

@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-128%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-136%20passing-brightgreen.svg)](tests/)
 
 **Persistent memory layer for AI agents** — selective ingestion via salience auction, UCB-based retrieval, closed-loop feedback, and mathematical forgetting. Built for the **Qwen Global AI Hackathon, Track 1: MemoryAgent**.
 
@@ -14,7 +14,7 @@
 # 1. Clone and configure
 git clone <repo-url>
 cd MnemAgent
-cp .env.example .env   # add your QWEN_API_KEY (free OpenRouter key works)
+cp config/env.template .env   # add your QWEN_API_KEY (free OpenRouter key works)
 
 # 2. Launch everything (Docker + OpenClaw + MCP)
 .\scripts\launch.ps1
@@ -57,7 +57,7 @@ WhatsApp / Telegram / Discord / WebChat
           (single-file memory state)
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 
 ## The Four Pillars
 
@@ -132,7 +132,7 @@ Key metrics tracked: **context efficiency**, **forgetting accuracy**, **recall p
 ## Tests
 
 ```bash
-pytest tests/ -v                          # 128 unit + integration tests
+pytest tests/ -v                          # 136 unit + integration tests
 .\scripts\integration-test.ps1            # 10 API/MCP/harness checks
 .\scripts\submission-test.ps1             # Full submission verification
 ```

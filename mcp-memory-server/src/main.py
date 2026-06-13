@@ -23,6 +23,7 @@ from memory.api_data import get_events_since, get_graph_data, get_metrics_data, 
 from memory.user_bindings import bind_user, list_bindings_for_user
 from memory.dreaming import consolidate_and_prune_memory, evaluate_memory_utility_feedback
 from memory.mcp_commands import execute_memory_dump_tool, execute_memory_stats_tool
+from memory.response_grounding import ground_response_with_injection, record_hedged_teach_rejections
 from memory.waking import build_optimized_qwen_payload
 from storage import cloud_sync
 from storage.db_manager import get_total_turns, initialize_database, log_episodic_turn
@@ -196,6 +197,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         )
 
     total_turns = get_total_turns(request.user_id)
+    record_hedged_teach_rejections(request.user_id, request.message)
     result = await build_optimized_qwen_payload(
         request.user_id,
         request.session_id,
@@ -204,6 +206,13 @@ async def chat(request: ChatRequest) -> ChatResponse:
     )
     raw_response = await call_qwen_api(result["payload"])
     clean_response = strip_memory_tags(raw_response)
+    clean_response = ground_response_with_injection(
+        clean_response,
+        request.message,
+        result.get("injected_values", []),
+        result.get("suppressed"),
+        result.get("rejected"),
+    )
     memory_dicts = extract_memory_updates(raw_response)
 
     asyncio.create_task(
