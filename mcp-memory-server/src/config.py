@@ -75,6 +75,16 @@ class Settings:
     DECAY_RATE: float = field(default_factory=lambda: _env_float("DECAY_RATE", 0.85))
     PRUNE_THRESHOLD: float = field(default_factory=lambda: _env_float("PRUNE_THRESHOLD", 0.1))
     MAX_INJECTED_FACTS: int = field(default_factory=lambda: _env_int("MAX_INJECTED_FACTS", 6))
+    EXTRACTION_MODEL: str = field(
+        default_factory=lambda: _env_str("EXTRACTION_MODEL", "")
+    )
+    ENABLE_DREAMING_EXTRACTION: bool = field(
+        default_factory=lambda: _env_str("ENABLE_DREAMING_EXTRACTION", "true").lower()
+        in ("1", "true", "yes")
+    )
+    EXTRACTION_MIN_CONVICTION: float = field(
+        default_factory=lambda: _env_float("EXTRACTION_MIN_CONVICTION", 0.4)
+    )
     HOST: str = field(default_factory=lambda: _env_str("HOST", "0.0.0.0"))
     PORT: int = field(default_factory=lambda: _env_int("PORT", 8000))
     LOG_LEVEL: str = field(default_factory=lambda: _env_str("LOG_LEVEL", "INFO"))

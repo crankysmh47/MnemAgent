@@ -11,7 +11,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import settings
-from llm.qwen_client import call_qwen_api, extract_memory_update, strip_memory_tags
+from llm.qwen_client import (
+    call_qwen_api,
+    extract_facts_from_conversation,
+    extract_memory_updates,
+    strip_memory_tags,
+)
+from memory.waking import PROMPT_VERSION
 from log_setup import setup_logging
 from memory.api_data import get_events_since, get_graph_data, get_metrics_data, search_memories
 from memory.user_bindings import bind_user, list_bindings_for_user
@@ -72,12 +78,13 @@ async def _run_dreaming_phase(
     user_prompt: str,
     clean_response: str,
     injected_ids: list[int],
-    memory_dict: dict | None,
+    memory_dicts: list[dict] | dict | None,
 ) -> None:
     """
     Run feedback, consolidation, episodic logging, and optional cloud sync.
 
     Blocking DB functions are dispatched to the default thread pool executor.
+    Supports multiple memory dicts (multi-fact extraction) or a single dict.
     """
     try:
         loop = asyncio.get_running_loop()
@@ -88,13 +95,34 @@ async def _run_dreaming_phase(
             clean_response,
             injected_ids,
         )
-        if memory_dict is not None:
-            await loop.run_in_executor(
-                None,
-                consolidate_and_prune_memory,
-                user_id,
-                memory_dict,
+        if memory_dicts is not None:
+            # Normalize to list
+            items = (
+                memory_dicts if isinstance(memory_dicts, list)
+                else [memory_dicts]
             )
+            for memory_dict in items:
+                if memory_dict is not None:
+                    await loop.run_in_executor(
+                        None,
+                        consolidate_and_prune_memory,
+                        user_id,
+                        memory_dict,
+                    )
+        elif settings.ENABLE_DREAMING_EXTRACTION:
+            fallback_facts = await extract_facts_from_conversation(
+                user_prompt,
+                clean_response,
+            )
+            for fact in fallback_facts:
+                conviction = float(fact.get("conviction", 0.5))
+                if conviction >= settings.EXTRACTION_MIN_CONVICTION:
+                    await loop.run_in_executor(
+                        None,
+                        consolidate_and_prune_memory,
+                        user_id,
+                        fact,
+                    )
         await loop.run_in_executor(
             None,
             log_episodic_turn,
@@ -132,7 +160,11 @@ app.add_middleware(
 @app.get("/health")
 async def health() -> dict[str, str]:
     """Health check endpoint."""
-    return {"status": "ok", "service": "mnemos"}
+    return {
+        "status": "ok",
+        "service": "mnemos",
+        "prompt_version": PROMPT_VERSION,
+    }
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -172,7 +204,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
     )
     raw_response = await call_qwen_api(result["payload"])
     clean_response = strip_memory_tags(raw_response)
-    memory_dict = extract_memory_update(raw_response)
+    memory_dicts = extract_memory_updates(raw_response)
 
     asyncio.create_task(
         _run_dreaming_phase(
@@ -181,7 +213,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
             request.message,
             clean_response,
             result["injected_ids"],
-            memory_dict,
+            memory_dicts if memory_dicts else None,
         )
     )
 

@@ -1,6 +1,9 @@
 services:
   mnemos-memory:
-    build: .
+    build:
+      context: .
+      args:
+        PROMPT_VERSION: v2-mandatory-skip
     ports:
       - "8000:8000"
     volumes:

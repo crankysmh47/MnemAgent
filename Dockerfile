@@ -17,6 +17,10 @@ RUN pip install --upgrade pip \
 
 COPY mcp-memory-server/src/ .
 
+# Surface in image metadata — change to force rebuild when prompt/logic changes.
+ARG PROMPT_VERSION=v2-mandatory-skip
+ENV MNEMOS_PROMPT_VERSION=${PROMPT_VERSION}
+
 RUN mkdir -p /app/data
 
 EXPOSE 8000

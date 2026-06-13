@@ -11,7 +11,9 @@ import pytest
 
 from llm.qwen_client import (
     call_qwen_api,
+    extract_facts_from_conversation,
     extract_memory_update,
+    extract_memory_updates,
     strip_memory_tags,
 )
 
@@ -78,6 +80,54 @@ def test_extract_memory_update_bare_json() -> None:
     assert result is not None
     assert result["entity"] == "user"
     assert result["value"] == "Python"
+
+
+def test_extract_memory_update_skip() -> None:
+    raw = '<memory_update>{"skip": true}</memory_update> Hello'
+    assert extract_memory_update(raw) is None
+    assert extract_memory_updates(raw) == []
+
+
+def test_extract_memory_updates_jsonl() -> None:
+    raw = """<memory_update>
+{"entity":"a","relation":"r","value":"1","category":"preference","conviction":1.0}
+{"entity":"b","relation":"r","value":"2","category":"preference","conviction":1.0}
+</memory_update>
+Reply here"""
+    facts = extract_memory_updates(raw)
+    assert len(facts) == 2
+    assert facts[0]["entity"] == "a"
+    assert facts[1]["entity"] == "b"
+
+
+@pytest.mark.asyncio
+async def test_extract_facts_from_conversation() -> None:
+    mock_resp = AsyncMock()
+    mock_resp.status = 200
+    mock_resp.json = AsyncMock(
+        return_value={
+            "choices": [
+                {
+                    "message": {
+                        "content": '[{"entity":"theme","relation":"prefers","value":"moonlight-amber","category":"preference","conviction":1.0}]'
+                    }
+                }
+            ]
+        }
+    )
+    mock_session = MagicMock()
+    mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("llm.qwen_client.aiohttp.ClientSession", return_value=mock_session):
+        facts = await extract_facts_from_conversation(
+            "My theme is moonlight-amber",
+            "Got it!",
+        )
+    assert len(facts) == 1
+    assert facts[0]["value"] == "moonlight-amber"
 
 
 @pytest.mark.asyncio
