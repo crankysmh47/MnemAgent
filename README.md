@@ -28,7 +28,7 @@ openclaw tui                                 # terminal chat
 openclaw mcp probe mnemos                    # verify MCP tools
 ```
 
-Open http://localhost:3000/visualizer to watch your memory graph form in real time.
+Open http://localhost:3000?user=demo-brain to watch the pre-seeded memory graph (32 beliefs, golden synapses).
 
 **Daily startup** (after first setup):
 ```bash
@@ -135,6 +135,10 @@ Nodes inactive > 45 minutes decay x 0.85. Below 0.1 weight: hard prune. The grap
 # Dry-run (offline, instant)
 python -m eval.run_benchmark --dry-run --mode both
 
+```bash
+# MnemBench — long-running memory benchmark (10 scenarios)
+python -m eval.mnembench --dry-run --mode both
+
 # Multi-step agentic benchmark (trajectory metrics)
 python -m eval.run_agentic_benchmark --dry-run --mode both
 
@@ -158,13 +162,16 @@ pwsh scripts/submission-test.ps1          # Full submission verification
 |------|--------|
 | Core memory layer (4 pillars) | Complete |
 | MCP server (7 tools) | Complete |
-| OpenClaw gateway integration | Complete |
-| Docker deployment | Complete |
-| Memory visualizer | Complete |
-| 25-scenario eval suite | Complete |
-| Agentic benchmark (trajectory metrics) | Complete |
-| Alibaba Cloud ECS + OSS | Deferred (Plan B: local + ngrok) |
-| Demo video | Pending |
+| OpenClaw integration (`scripts/setup.sh`) | Complete |
+| Docker deployment (3 services) | Complete |
+| Brain-theme visualizer (32 demo memories) | Complete |
+| 25-scenario single-turn eval | Complete |
+| 4-scenario agentic eval (86.5% vs 64.6%) | Complete |
+| MnemBench (10 scenarios, 171+ steps) | Complete |
+| REPORT.md + ARCHITECTURE.md + SETUP.md | Complete |
+| 136 tests, 81% coverage | Complete |
+| One-command setup | `bash scripts/setup.sh` |
+| Default model | qwen-turbo (quota-friendly) |
 
 ## Alibaba Cloud Integration
 

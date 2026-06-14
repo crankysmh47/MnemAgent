@@ -191,6 +191,15 @@ MCP_OK=true
 log_cyan "       Waiting for services (this may take a moment) ..."
 wait_health "http://127.0.0.1:8000/health" "MnemOS memory (:8000)" 120 || MEM_OK=false
 wait_health "http://127.0.0.1:8001/health" "MnemOS MCP  (:8001)"   90  || MCP_OK=false
+wait_health "http://127.0.0.1:3000/health" "Visualizer  (:3000)"   90  || true
+
+# Seed demo-brain for visualizer (32 beliefs, golden synapse graph)
+seed_demo_brain() {
+    curl -sf -X POST "http://127.0.0.1:3000/api/demo/seed" \
+        -H "Content-Type: application/json" \
+        -d '{"force":false}' >/dev/null 2>&1 || return 1
+}
+step "Seed demo-brain visualizer" seed_demo_brain
 
 if [ "$MEM_OK" = false ] || [ "$MCP_OK" = false ]; then
     log_red "  Some Docker services failed to start."
@@ -361,8 +370,8 @@ echo ""
 echo -e "  ${BOLD}Services Running${NC}"
 log_gray "    o Memory API:  http://localhost:8000/docs"
 log_gray "    o MCP Server:  http://localhost:8001/health"
-log_gray "    o Web Harness: http://localhost:3000"
-log_gray "    o Visualizer:  http://localhost:3000/visualizer"
+log_gray "    o Web Harness: http://localhost:3000?user=demo-brain"
+log_gray "    o Visualizer:  http://localhost:3000?user=demo-brain"
 log_gray "    o Gateway:     http://localhost:18789"
 echo ""
 
@@ -384,8 +393,8 @@ echo ""
 # Try to open the visualizer in the browser
 if [ "$STEP_OK" = true ]; then
     if [[ "$(uname)" == "Darwin" ]]; then
-        open "http://localhost:3000/visualizer" 2>/dev/null || true
+        open "http://localhost:3000?user=demo-brain" 2>/dev/null || true
     elif [[ "$(uname)" == "Linux" ]]; then
-        xdg-open "http://localhost:3000/visualizer" 2>/dev/null || true
+        xdg-open "http://localhost:3000?user=demo-brain" 2>/dev/null || true
     fi
 fi

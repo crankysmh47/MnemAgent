@@ -123,7 +123,10 @@ function nodeStroke(w) {
 function filterBeliefs(beliefs) {
   const activeCats = [...document.querySelectorAll('#categoryFilters .filter-chip.active')].map(e => e.dataset.cat);
   const activeConfs = [...document.querySelectorAll('#confidenceFilters .filter-chip.active')].map(e => e.dataset.conf);
-  return beliefs.filter(b => activeCats.includes(b.category) && activeConfs.includes(confLevel(b.node_weight)));
+  return beliefs.filter(b => {
+    const cat = (b.category || '').toLowerCase().replace(/s$/, '');
+    return activeCats.some(ac => cat === ac || cat.startsWith(ac)) && activeConfs.includes(confLevel(b.node_weight));
+  });
 }
 
 async function fetchGraph() {
@@ -145,42 +148,27 @@ async function fetchEvents() {
   return r.json();
 }
 
-async function seedDemoBrain() {
-  const facts = [
-    { entity: "language", relation: "prefers", value: "Python", category: "preference", conviction: 1.0 },
-    { entity: "framework", relation: "uses", value: "FastAPI", category: "system_state", conviction: 0.9 },
-    { entity: "database", relation: "uses", value: "PostgreSQL", category: "system_state", conviction: 0.9 },
-    { entity: "deployment", relation: "uses", value: "AWS", category: "system_state", conviction: 0.85 },
-    { entity: "code_style", relation: "prefers", value: "minimal-comments", category: "preference", conviction: 0.8 },
-    { entity: "affiliation", relation: "is", value: "FAST_student", category: "persona", conviction: 0.95 },
-    { entity: "editor", relation: "prefers", value: "VS_Code", category: "preference", conviction: 0.7 },
-    { entity: "architecture", relation: "prefers", value: "microservices", category: "system_state", conviction: 0.75 },
-  ];
-
+async function ensureDemoBrainSeeded() {
   try {
-    await fetch('/api/memory/store/batch', {
+    const user = document.getElementById('userId').value.trim() || uid();
+    if (user !== 'demo-brain') return;
+
+    const status = await fetch('/api/demo/status').then(r => r.json());
+    if ((status.beliefs || 0) >= 8) return;
+
+    const result = await fetch('/api/demo/seed', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: 'demo-brain', facts })
-    });
-    await fetch('/api/memory/store', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: 'demo-brain', entity: "framework", relation: "uses",
-        value: "Express", category: "system_state", conviction: 0.9
-      })
-    });
-    await fetch('/api/memory/store', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: 'demo-brain', entity: "framework", relation: "uses",
-        value: "FastAPI", category: "system_state", conviction: 0.9
-      })
-    });
+      body: JSON.stringify({ force: false }),
+    }).then(r => r.json());
+
+    if (result.error) {
+      console.warn('Demo seed failed:', result.error);
+      return;
+    }
+    console.info(`Demo brain: ${result.beliefs} beliefs, ${result.edges} edges`);
   } catch (e) {
-    console.debug('Seed note:', e.message);
+    console.warn('Demo seed unavailable:', e.message);
   }
 }
 
@@ -493,12 +481,7 @@ document.addEventListener('visibilitychange', () => {
 
 refresh();
 
-if (!localStorage.getItem('mnemos_seeded_brain_v3')) {
-  seedDemoBrain().then(() => {
-    localStorage.setItem('mnemos_seeded_brain_v3', '1');
-    refresh();
-  });
-}
+ensureDemoBrainSeeded().then(() => refresh());
 
 const pollTimer = setInterval(() => {
   if (autoRefresh && !document.hidden) refresh();

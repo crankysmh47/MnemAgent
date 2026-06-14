@@ -97,11 +97,14 @@ Run-Check "MnemOS MCP (:8001)" {
 Run-Check "Web Harness (:3000)" -IsWarning {
     $r = Invoke-RestMethod -Uri "http://127.0.0.1:3000/health" -TimeoutSec 5
     if ($r.status -ne "ok") { throw "status: $($r.status)" }
+    if (($r.demo_brain.beliefs -as [int]) -lt 8) {
+        throw "demo-brain has $($r.demo_brain.beliefs) beliefs (expected >= 8)"
+    }
 }
 
 # ── 2. UNIT TESTS ─────────────────────────────────────────────────────────
 Write-Section "2. Unit Tests (pytest)"
-Write-Host "  Running all unit tests (128 expected)..."
+Write-Host "  Running all unit tests (136 expected)..."
 Write-Host ""
 
 $unitOut = ""

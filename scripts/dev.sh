@@ -76,6 +76,12 @@ log_cyan "       Waiting for services ..."
 wait_health "http://127.0.0.1:8000/health" "MnemOS memory (:8000)" 60
 wait_health "http://127.0.0.1:8001/health" "MnemOS MCP  (:8001)"   45
 
+# Ensure demo-brain is populated for the visualizer
+curl -sf -X POST "http://127.0.0.1:3000/api/demo/seed" \
+    -H "Content-Type: application/json" \
+    -d '{"force":false}' >/dev/null 2>&1 || \
+    log_yellow "  Demo seed skipped (harness not ready yet — open http://localhost:3000?user=demo-brain)"
+
 # ── Gateway ──────────────────────────────────────────────────────────────────
 log_cyan "[2/3] OpenClaw gateway..."
 if check_openclaw; then
