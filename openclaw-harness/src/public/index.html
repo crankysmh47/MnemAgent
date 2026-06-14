@@ -143,8 +143,8 @@ function filterBeliefs(beliefs) {
 
 function graphSize() {
   const vp = document.getElementById('graphViewport');
-  const width = Math.max(vp?.clientWidth || 0, 480);
-  const height = Math.max(vp?.clientHeight || 0, 360);
+  const width = Math.max(vp?.clientWidth || 0, 560);
+  const height = Math.max(vp?.clientHeight || 0, 460);
   return { width, height };
 }
 
@@ -206,6 +206,47 @@ function brainPath(cx, cy, scale) {
     C ${cx + 15*s} ${cy + 115*s}, ${cx + 45*s} ${cy + 118*s}, ${cx + 70*s} ${cy + 105*s}
     C ${cx + 115*s} ${cy + 95*s}, ${cx + 150*s} ${cy + 55*s}, ${cx + 130*s} ${cy + 20*s}
     C ${cx + 145*s} ${cy - 40*s}, ${cx + 120*s} ${cy - 110*s}, ${cx} ${cy - 95*s} Z`;
+}
+
+/** Scale brain silhouette to fit node count and viewport. */
+function computeBrainScale(nodeCount, width, height) {
+  const vmin = Math.min(width, height);
+  const base = vmin / 340;
+  const perNode = Math.sqrt(Math.max(nodeCount, 1)) * 0.055;
+  const scale = base * (0.92 + perNode + Math.max(0, nodeCount - 12) * 0.022);
+  const max = vmin / 175;
+  return Math.min(Math.max(scale, 0.85), max);
+}
+
+function brainBounds(cx, cy, scale) {
+  return { cx, cy, rx: 128 * scale, ry: 108 * scale, scale };
+}
+
+/** Keep nodes inside the brain ellipse (soft boundary). */
+function forceBrainContain(cx, cy, rx, ry, margin = 0.78) {
+  let nodes;
+  function force(alpha) {
+    for (const node of nodes) {
+      const dx = (node.x - cx) / rx;
+      const dy = (node.y - cy) / ry;
+      const d2 = dx * dx + dy * dy;
+      const limit = margin * margin;
+      if (d2 > limit) {
+        const d = Math.sqrt(d2);
+        const pull = ((d - margin) / d) * 0.35 * alpha;
+        node.vx -= dx * pull;
+        node.vy -= dy * pull;
+      }
+    }
+  }
+  force.initialize = (n) => { nodes = n; };
+  return force;
+}
+
+function nodeRadius(b, total) {
+  const base = 5 + (b.base_utility_q || 0.5) * 3.5;
+  const shrink = Math.max(0, total - 18) * 0.06;
+  return Math.max(4, base - shrink);
 }
 
 function categoryHue(cat) {
@@ -287,55 +328,63 @@ function renderGraph(data) {
 
   const cx = width / 2;
   const cy = height / 2;
-  const scale = Math.min(width, height) / 520;
+  const n = beliefs.length;
+  const brainScale = computeBrainScale(n, width, height);
+  const bounds = brainBounds(cx, cy, brainScale);
   const tt = d3.select('#nodeTooltip');
   const root = svg.append('g').attr('class', 'graph-root');
 
-  zoom = d3.zoom().scaleExtent([0.5, 2.8]).on('zoom', (e) => {
+  zoom = d3.zoom().scaleExtent([0.45, 3]).on('zoom', (e) => {
     root.attr('transform', e.transform);
   });
   svg.call(zoom);
 
   const defs = root.append('defs');
   const clipId = 'brain-clip';
+  const brainD = brainPath(cx, cy, brainScale);
   defs.append('clipPath').attr('id', clipId)
-    .append('path').attr('d', brainPath(cx, cy, scale));
+    .append('path').attr('d', brainD);
 
   const bgLayer = root.append('g').attr('class', 'bg-layer');
-  bgLayer.append('path').attr('d', brainPath(cx, cy, scale)).attr('class', 'brain-fill');
-  bgLayer.append('path').attr('d', brainPath(cx, cy, scale)).attr('class', 'brain-outline');
-  bgLayer.append('path').attr('d', `M ${cx} ${cy - 88*scale} Q ${cx - 6*scale} ${cy + 8*scale} ${cx} ${cy + 98*scale}`).attr('class', 'sulcus');
-  bgLayer.append('path').attr('d', `M ${cx - 52*scale} ${cy - 28*scale} Q ${cx - 18*scale} ${cy + 18*scale} ${cx - 48*scale} ${cy + 68*scale}`).attr('class', 'sulcus');
-  bgLayer.append('path').attr('d', `M ${cx + 52*scale} ${cy - 28*scale} Q ${cx + 18*scale} ${cy + 18*scale} ${cx + 48*scale} ${cy + 68*scale}`).attr('class', 'sulcus');
+  bgLayer.append('path').attr('d', brainD).attr('class', 'brain-fill');
+  bgLayer.append('path').attr('d', brainD).attr('class', 'brain-outline');
+  const s = brainScale;
+  bgLayer.append('path').attr('d', `M ${cx} ${cy - 88*s} Q ${cx - 6*s} ${cy + 8*s} ${cx} ${cy + 98*s}`).attr('class', 'sulcus');
+  bgLayer.append('path').attr('d', `M ${cx - 52*s} ${cy - 28*s} Q ${cx - 18*s} ${cy + 18*s} ${cx - 48*s} ${cy + 68*s}`).attr('class', 'sulcus');
+  bgLayer.append('path').attr('d', `M ${cx + 52*s} ${cy - 28*s} Q ${cx + 18*s} ${cy + 18*s} ${cx + 48*s} ${cy + 68*s}`).attr('class', 'sulcus');
 
   const graphG = root.append('g').attr('clip-path', `url(#${clipId})`);
 
+  const initR = bounds.rx * 0.55;
   const nodes = beliefs.map((b, i) => {
     const cat = normalizeCategory(b.category);
     const hemisphere = cat === 'persona' ? -1 : cat === 'preference' ? 1 : 0;
-    const angle = (i / beliefs.length) * Math.PI * 2;
-    const spread = 0.35 + (i % 5) * 0.08;
+    const angle = (i / n) * Math.PI * 2;
+    const ring = initR * (0.35 + (i % 7) * 0.08);
     return {
       ...b,
       cat,
       hemisphere,
-      r: 5 + (b.base_utility_q || 0.5) * 4,
-      x: cx + Math.cos(angle) * width * spread * 0.14,
-      y: cy + Math.sin(angle) * height * spread * 0.12,
+      r: nodeRadius(b, n),
+      x: cx + Math.cos(angle) * ring + hemisphere * bounds.rx * 0.12,
+      y: cy + Math.sin(angle) * ring * 0.82,
     };
   });
 
   const links = deriveLinks(nodes, data.edges || []);
+  const charge = -Math.min(140, 48 + n * 1.8);
+  const linkDist = Math.max(28, 38 - n * 0.15);
 
   const sim = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).distance(d => 42 + (1 - d.weight) * 30).strength(0.35))
-    .force('charge', d3.forceManyBody().strength(-95))
-    .force('center', d3.forceCenter(cx, cy).strength(0.08))
-    .force('collision', d3.forceCollide().radius(d => d.r + 7))
-    .force('x', d3.forceX(d => cx + d.hemisphere * width * 0.14).strength(0.04))
-    .force('y', d3.forceY(cy).strength(0.03))
-    .alpha(0.9)
-    .alphaDecay(0.028);
+    .force('link', d3.forceLink(links).distance(linkDist).strength(0.32))
+    .force('charge', d3.forceManyBody().strength(charge))
+    .force('center', d3.forceCenter(cx, cy).strength(0.06))
+    .force('collision', d3.forceCollide().radius(d => d.r + 5))
+    .force('x', d3.forceX(d => cx + d.hemisphere * bounds.rx * 0.22).strength(0.035))
+    .force('y', d3.forceY(cy).strength(0.025))
+    .force('contain', forceBrainContain(cx, cy, bounds.rx, bounds.ry, 0.76))
+    .alpha(0.95)
+    .alphaDecay(0.032);
 
   const linkLayer = graphG.append('g').attr('class', 'link-layer');
   const linkPaths = linkLayer.selectAll('path.synapse')
@@ -432,6 +481,11 @@ function renderGraph(data) {
   }
   tick();
   if (particles.length) animateFlow();
+
+  sim.on('end', () => {
+    document.getElementById('nodeDetail').textContent =
+      `${n} nodes · ${links.length} synapses · brain ×${brainScale.toFixed(2)}`;
+  });
 
   // Legend
   const legend = root.append('g').attr('class', 'graph-legend').attr('transform', `translate(16, ${height - 72})`);
@@ -576,7 +630,7 @@ async function refresh() {
         `${total} memories hidden by filters — enable all filter chips`;
     } else {
       document.getElementById('nodeDetail').textContent =
-        `${visible} nodes · ${edgeCount} synapses — drag to explore`;
+        `${visible} nodes · ${edgeCount} synapses — settling layout…`;
     }
   } catch (e) {
     errors.push('render');

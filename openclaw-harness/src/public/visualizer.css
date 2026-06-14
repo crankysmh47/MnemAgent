@@ -190,8 +190,8 @@ button.secondary:hover {
 /* ── Layout ── */
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 320px;
-  grid-template-rows: minmax(420px, 1fr) auto;
+  grid-template-columns: 1fr 300px;
+  grid-template-rows: minmax(520px, 1fr) auto;
   gap: 0.85rem;
   padding: 0.85rem;
   height: calc(100vh - 62px);
@@ -209,7 +209,7 @@ button.secondary:hover {
   flex-direction: column;
   position: relative;
   box-shadow: var(--shadow-lift);
-  min-height: 420px;
+  min-height: 520px;
 }
 
 .brain-canvas {
@@ -228,7 +228,7 @@ button.secondary:hover {
 
 .graph-viewport {
   flex: 1 1 auto;
-  min-height: 400px;
+  min-height: 460px;
   height: 100%;
   position: relative;
   z-index: 1;
