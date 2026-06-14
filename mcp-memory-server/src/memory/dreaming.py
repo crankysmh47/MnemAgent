@@ -122,18 +122,111 @@ def evaluate_memory_utility_feedback(
         conn.close()
 
 
+def _run_decay_and_prune(user_id: str, db_path: Path | None = None) -> None:
+    """Decay inactive nodes and hard-prune beliefs below the weight threshold."""
+    conn = get_db_connection(db_path)
+    try:
+        decay_candidates = conn.execute(
+            """
+            SELECT id, entity_source, entity_target, node_weight
+            FROM semantic_graph
+            WHERE user_id = ? AND last_accessed < datetime('now', '-45 minutes')
+            """,
+            (user_id,),
+        ).fetchall()
+        for decay_row in decay_candidates:
+            old_weight = float(decay_row["node_weight"])
+            new_weight = old_weight * settings.DECAY_RATE
+            log_memory_event(
+                user_id,
+                "decayed",
+                entity_source=decay_row["entity_source"],
+                entity_target=decay_row["entity_target"],
+                detail={"old_weight": old_weight, "new_weight": new_weight},
+                db_path=db_path,
+            )
+
+        conn.execute(
+            """
+            UPDATE semantic_graph
+            SET node_weight = node_weight * ?
+            WHERE user_id = ? AND last_accessed < datetime('now', '-45 minutes')
+            """,
+            (settings.DECAY_RATE, user_id),
+        )
+
+        pruned = conn.execute(
+            """
+            SELECT id, entity_source, entity_target, node_weight
+            FROM semantic_graph
+            WHERE user_id = ? AND node_weight < ?
+            """,
+            (user_id, settings.PRUNE_THRESHOLD),
+        ).fetchall()
+        for pruned_row in pruned:
+            log_memory_event(
+                user_id,
+                "pruned",
+                entity_source=pruned_row["entity_source"],
+                entity_target=pruned_row["entity_target"],
+                detail={
+                    "belief_id": int(pruned_row["id"]),
+                    "weight": float(pruned_row["node_weight"]),
+                },
+                db_path=db_path,
+            )
+            delete_vec_embedding(int(pruned_row["id"]), db_path)
+
+        cursor = conn.execute(
+            "DELETE FROM semantic_graph WHERE user_id = ? AND node_weight < ?",
+            (user_id, settings.PRUNE_THRESHOLD),
+        )
+        if cursor.rowcount:
+            logger.info("Hard pruned %s beliefs for user=%s", cursor.rowcount, user_id)
+
+        conn.commit()
+    except sqlite3.Error as exc:
+        logger.error("Decay/prune failed: %s", exc)
+    finally:
+        conn.close()
+
+
+def refresh_belief_vitality(user_id: str, db_path: Path | None = None) -> int:
+    """Reset node weights and access time — used after demo batch seeding."""
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            UPDATE semantic_graph
+            SET node_weight = 1.0, last_accessed = CURRENT_TIMESTAMP
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        )
+        conn.commit()
+        return cursor.rowcount
+    except sqlite3.Error as exc:
+        logger.error("Vitality refresh failed: %s", exc)
+        return 0
+    finally:
+        conn.close()
+
+
 def consolidate_and_prune_memory(
     user_id: str,
     memory_dict: dict,
     db_path: Path | None = None,
+    *,
+    run_maintenance: bool = True,
 ) -> None:
     """
-    Apply salience gate, upsert belief, decay inactive nodes, and hard prune.
+    Apply salience gate, upsert belief, optionally decay inactive nodes and hard prune.
 
     Args:
         user_id: User identifier.
         memory_dict: Parsed memory_update with entity, relation, value, category, conviction.
         db_path: Optional database path override.
+        run_maintenance: When False, skip decay/prune (for batch/demo seeding).
     """
     entity = memory_dict.get("entity")
     relation = memory_dict.get("relation")
@@ -224,70 +317,15 @@ def consolidate_and_prune_memory(
                 db_path=db_path,
             )
 
-        decay_candidates = conn.execute(
-            """
-            SELECT id, entity_source, entity_target, node_weight
-            FROM semantic_graph
-            WHERE user_id = ? AND last_accessed < datetime('now', '-45 minutes')
-            """,
-            (user_id,),
-        ).fetchall()
-        for decay_row in decay_candidates:
-            old_weight = float(decay_row["node_weight"])
-            new_weight = old_weight * settings.DECAY_RATE
-            log_memory_event(
-                user_id,
-                "decayed",
-                entity_source=decay_row["entity_source"],
-                entity_target=decay_row["entity_target"],
-                detail={"old_weight": old_weight, "new_weight": new_weight},
-                db_path=db_path,
-            )
-
-        conn.execute(
-            """
-            UPDATE semantic_graph
-            SET node_weight = node_weight * ?
-            WHERE user_id = ? AND last_accessed < datetime('now', '-45 minutes')
-            """,
-            (settings.DECAY_RATE, user_id),
-        )
-
-        pruned = conn.execute(
-            """
-            SELECT id, entity_source, entity_target, node_weight
-            FROM semantic_graph
-            WHERE user_id = ? AND node_weight < ?
-            """,
-            (user_id, settings.PRUNE_THRESHOLD),
-        ).fetchall()
-        for pruned_row in pruned:
-            log_memory_event(
-                user_id,
-                "pruned",
-                entity_source=pruned_row["entity_source"],
-                entity_target=pruned_row["entity_target"],
-                detail={
-                    "belief_id": int(pruned_row["id"]),
-                    "weight": float(pruned_row["node_weight"]),
-                },
-                db_path=db_path,
-            )
-            delete_vec_embedding(int(pruned_row["id"]), db_path)
-
-        cursor = conn.execute(
-            "DELETE FROM semantic_graph WHERE user_id = ? AND node_weight < ?",
-            (user_id, settings.PRUNE_THRESHOLD),
-        )
-        if cursor.rowcount:
-            logger.info("Hard pruned %s beliefs for user=%s", cursor.rowcount, user_id)
-
         conn.commit()
     except sqlite3.Error as exc:
         logger.error("Consolidation failed: %s", exc)
         return
     finally:
         conn.close()
+
+    if run_maintenance:
+        _run_decay_and_prune(user_id, db_path)
 
     if belief_id is not None:
         store_belief_embedding_sync(belief_id, entity, relation, value, db_path)

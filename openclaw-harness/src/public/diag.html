@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MnemOS Visualizer Diagnostics</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; background: #faf7f2; color: #3d3429; }
+    .ok { color: #2d6a4f; } .bad { color: #9b2226; } .warn { color: #ca6702; }
+    pre { background: #fff; border: 1px solid #ddd; padding: 1rem; border-radius: 8px; overflow: auto; }
+    a { color: #b8860b; }
+  </style>
+</head>
+<body>
+  <h1>MnemOS Visualizer Diagnostics</h1>
+  <p>If the main visualizer looks blank, this page shows what the server can reach.</p>
+  <ul id="checks"></ul>
+  <h2>Graph sample</h2>
+  <pre id="graph">Loading…</pre>
+  <p><a href="/?user=demo-brain">Open visualizer →</a></p>
+  <script>
+    const checks = document.getElementById('checks');
+    const graphEl = document.getElementById('graph');
+    function li(text, cls) {
+      const el = document.createElement('li');
+      el.className = cls;
+      el.textContent = text;
+      checks.appendChild(el);
+    }
+    async function run() {
+      li(`Page origin: ${location.origin}`, 'ok');
+      li(`Build stamp expected: v2026-06-14`, 'ok');
+      try {
+        const h = await fetch('/health').then(r => r.json());
+        li(`Harness health: ${h.status} (demo-brain: ${h.demo_brain?.beliefs ?? '?'} beliefs)`, h.status === 'ok' ? 'ok' : 'bad');
+      } catch (e) { li(`Harness health FAILED: ${e.message}`, 'bad'); }
+      try {
+        const g = await fetch('/api/graph/demo-brain').then(r => r.json());
+        li(`Graph API: ${g.beliefs?.length ?? 0} beliefs`, (g.beliefs?.length ?? 0) > 0 ? 'ok' : 'warn');
+        graphEl.textContent = JSON.stringify({ beliefs: g.beliefs?.length, sample: g.beliefs?.slice(0, 3) }, null, 2);
+      } catch (e) {
+        li(`Graph API FAILED: ${e.message}`, 'bad');
+        graphEl.textContent = String(e);
+      }
+      try {
+        const d3 = await fetch('/vendor/d3/d3.min.js');
+        li(`D3 bundle: HTTP ${d3.status}, ${d3.headers.get('content-length') || '?'} bytes`, d3.ok ? 'ok' : 'bad');
+      } catch (e) { li(`D3 FAILED: ${e.message}`, 'bad'); }
+    }
+    run();
+  </script>
+</body>
+</html>

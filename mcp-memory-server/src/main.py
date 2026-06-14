@@ -26,7 +26,11 @@ from memory.api_data import (
     search_memories,
 )
 from memory.user_bindings import bind_user, list_bindings_for_user
-from memory.dreaming import consolidate_and_prune_memory, evaluate_memory_utility_feedback
+from memory.dreaming import (
+    consolidate_and_prune_memory,
+    evaluate_memory_utility_feedback,
+    refresh_belief_vitality,
+)
 from memory.mcp_commands import execute_memory_dump_tool, execute_memory_stats_tool
 from memory.response_grounding import ground_response_with_injection, record_hedged_teach_rejections
 from memory.waking import build_optimized_qwen_payload
@@ -68,6 +72,8 @@ class MemoryBatchStoreRequest(BaseModel):
 
     user_id: str
     facts: list[MemoryStoreRequest]
+    skip_maintenance: bool = False
+    refresh_vitality: bool = False
 
 
 class UserBindRequest(BaseModel):
@@ -361,6 +367,7 @@ async def api_memory_store_batch(request: MemoryBatchStoreRequest) -> dict:
     """Store multiple facts in one request."""
     loop = asyncio.get_running_loop()
     stored: list[dict] = []
+    skip_maintenance = request.skip_maintenance or request.refresh_vitality
     for fact in request.facts:
         memory_dict = {
             "entity": fact.entity,
@@ -369,13 +376,24 @@ async def api_memory_store_batch(request: MemoryBatchStoreRequest) -> dict:
             "category": fact.category,
             "conviction": fact.conviction,
         }
-        await loop.run_in_executor(
-            None,
-            consolidate_and_prune_memory,
-            request.user_id,
-            memory_dict,
-        )
+
+        def _store_one(uid: str = request.user_id, payload: dict = memory_dict) -> None:
+            consolidate_and_prune_memory(uid, payload, run_maintenance=not skip_maintenance)
+
+        await loop.run_in_executor(None, _store_one)
         stored.append(
             {"entity": fact.entity, "relation": fact.relation, "value": fact.value}
         )
-    return {"status": "ok", "stored_count": len(stored), "facts": stored}
+
+    refreshed = 0
+    if request.refresh_vitality:
+        refreshed = await loop.run_in_executor(
+            None, refresh_belief_vitality, request.user_id
+        )
+
+    return {
+        "status": "ok",
+        "stored_count": len(stored),
+        "facts": stored,
+        "vitality_refreshed": refreshed,
+    }

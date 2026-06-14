@@ -4,6 +4,9 @@
  */
 
 const DEMO_USER_ID = "demo-brain";
+const DEMO_TARGET_COUNT = 62;
+const BATCH_CHUNK = 12;
+const BATCH_TIMEOUT_MS = 600000;
 
 const DEMO_CORE = [
   // Phoenix project cluster
@@ -82,47 +85,79 @@ const DEMO_LINKS = [
 
 const DEMO_FACTS = [...DEMO_CORE, ...DEMO_LINKS];
 
-async function storeBatch(axios, mnemosUrl, userId, facts) {
+function factKey(fact) {
+  return `${fact.entity}|${fact.relation}`;
+}
+
+async function storeBatch(axios, mnemosUrl, userId, facts, { refreshVitality = false } = {}) {
   const payload = facts.map((fact) => ({ ...fact, user_id: userId }));
-  await axios.post(
-    `${mnemosUrl}/api/memory/store/batch`,
-    { user_id: userId, facts: payload },
-    { timeout: 120000 }
-  );
+  for (let i = 0; i < payload.length; i += BATCH_CHUNK) {
+    const chunk = payload.slice(i, i + BATCH_CHUNK);
+    const isLast = i + BATCH_CHUNK >= payload.length;
+    await axios.post(
+      `${mnemosUrl}/api/memory/store/batch`,
+      {
+        user_id: userId,
+        facts: chunk,
+        skip_maintenance: true,
+        refresh_vitality: refreshVitality && isLast,
+      },
+      { timeout: BATCH_TIMEOUT_MS }
+    );
+  }
 }
 
 async function seedDemoBrain(axios, mnemosUrl, { force = false } = {}) {
   const userId = DEMO_USER_ID;
   const graphUrl = `${mnemosUrl}/api/graph/${encodeURIComponent(userId)}`;
 
+  const existingKeys = new Set();
   let beliefCount = 0;
   try {
     const existing = await axios.get(graphUrl, { timeout: 30000 });
     beliefCount = existing.data?.beliefs?.length ?? 0;
-    if (!force && beliefCount >= 8) {
-      await storeBatch(axios, mnemosUrl, userId, DEMO_LINKS);
-      const graph = await axios.get(graphUrl, { timeout: 30000 });
-      return {
-        user_id: userId,
-        seeded: false,
-        reason: "links_merged",
-        beliefs: graph.data?.beliefs?.length ?? 0,
-        edges: graph.data?.edges?.length ?? 0,
-      };
-    }
+    (existing.data?.beliefs || []).forEach((b) => {
+      existingKeys.add(`${b.entity_source}|${b.relation}`);
+    });
   } catch {
     // proceed with seed if graph check fails
   }
 
-  await storeBatch(axios, mnemosUrl, userId, DEMO_FACTS);
+  const missing = DEMO_FACTS.filter((f) => !existingKeys.has(factKey(f)));
+  const needsSeed = force || missing.length > 0 || beliefCount < DEMO_TARGET_COUNT - 2;
+
+  if (!needsSeed) {
+    const graph = await axios.get(graphUrl, { timeout: 30000 });
+    return {
+      user_id: userId,
+      seeded: false,
+      reason: "complete",
+      expected: DEMO_TARGET_COUNT,
+      beliefs: graph.data?.beliefs?.length ?? 0,
+      edges: graph.data?.edges?.length ?? 0,
+    };
+  }
+
+  const toStore = force ? DEMO_FACTS : missing;
+  await storeBatch(axios, mnemosUrl, userId, toStore, { refreshVitality: true });
 
   const graph = await axios.get(graphUrl, { timeout: 30000 });
   return {
     user_id: userId,
     seeded: true,
+    reason: force ? "force_reseed" : "missing_facts",
+    added: toStore.length,
+    expected: DEMO_TARGET_COUNT,
     beliefs: graph.data?.beliefs?.length ?? 0,
     edges: graph.data?.edges?.length ?? 0,
   };
 }
 
-module.exports = { DEMO_USER_ID, DEMO_CORE, DEMO_LINKS, DEMO_FACTS, seedDemoBrain };
+module.exports = {
+  DEMO_USER_ID,
+  DEMO_CORE,
+  DEMO_LINKS,
+  DEMO_FACTS,
+  DEMO_TARGET_COUNT,
+  seedDemoBrain,
+};

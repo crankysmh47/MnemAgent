@@ -157,6 +157,10 @@ const visualizerPage = (_req, res) => {
 };
 app.get("/", visualizerPage);
 app.get("/visualizer", visualizerPage);
+app.get("/diag", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.sendFile(path.join(__dirname, "public", "diag.html"));
+});
 
 // ── Error handler ──
 app.use((err, _req, res, _next) => {
