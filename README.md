@@ -8,24 +8,41 @@
 
 > Standard RAG agents suffer from proactive interference (stale facts drown out current ones) and naive storage (garbage accumulates). MnemOS rejects garbage at ingestion and forces stale facts out mathematically. The retrieval system learns which memories are actually useful.
 
-## Quick Start
+---
 
-```powershell
-# 1. Clone and configure
+## Quick Start — One Command
+
+```bash
 git clone <repo-url>
 cd MnemAgent
-cp config/env.template .env   # add your QWEN_API_KEY (free OpenRouter key works)
+bash scripts/setup.sh
+```
 
-# 2. Launch everything (Docker + OpenClaw + MCP)
-.\scripts\launch.ps1
+That's it. The script checks prerequisites, starts Docker containers, installs OpenClaw, registers the MnemOS MCP toolset (7 tools), and prints quick-start commands.
 
-# 3. Use it
+After setup completes:
+```bash
 openclaw dashboard                           # web UI
 openclaw agent --agent main --message "Remember I prefer Python for APIs"
 openclaw tui                                 # terminal chat
+openclaw mcp probe mnemos                    # verify MCP tools
 ```
 
-After setup: open http://localhost:3000 to watch your memory graph form in real time.
+Open http://localhost:3000/visualizer to watch your memory graph form in real time.
+
+**Daily startup** (after first setup):
+```bash
+bash scripts/dev.sh
+```
+
+> **Windows users**: Run the above commands from WSL (Ubuntu), or use `.\scripts\launch.ps1` in PowerShell.
+
+---
+
+## Setup Guides
+
+- [docs/SETUP.md](docs/SETUP.md) — Detailed setup guide with prerequisites, troubleshooting, and model switching
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Full system design
 
 ## Architecture
 
@@ -57,8 +74,6 @@ WhatsApp / Telegram / Discord / WebChat
           (single-file memory state)
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
-
 ## The Four Pillars
 
 ### 1. Salience Auction — Ingestion Gate
@@ -66,7 +81,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 Facts are scored on novelty, utility, and conviction BEFORE storage. Only high-conviction or system-critical facts enter the graph. Everything else is logged and discarded.
 
 ```
-Store if: conviction ≥ 0.4  OR  category == 'system_state'
+Store if: conviction >= 0.4  OR  category == 'system_state'
 Reject otherwise
 ```
 
@@ -76,13 +91,13 @@ Qwen emits `<memory_update>` XML before its response. The interceptor strips the
 
 ### 3. UCB Retrieval — Multi-Armed Bandit
 
-`Score_i = Q_i + c × √(ln(T) / (N_i + 1))`
+`Score_i = Q_i + c x sqrt(ln(T) / (N_i + 1))`
 
 Dormant memories are mathematically forced to resurface. The retrieval system learns which memories are useful through closed-loop feedback.
 
 ### 4. Synaptic Downscaling — Mathematical Forgetting
 
-Nodes inactive > 45 minutes decay × 0.85. Below 0.1 weight: hard prune. The graph stays small, current, and relevant forever.
+Nodes inactive > 45 minutes decay x 0.85. Below 0.1 weight: hard prune. The graph stays small, current, and relevant forever.
 
 ## Service Map
 
@@ -101,7 +116,7 @@ Nodes inactive > 45 minutes decay × 0.85. Below 0.1 weight: hard prune. The gra
 | `memory_dump` | Full brain state (`/memory`) |
 | `memory_stats` | UCB optimization table |
 | `memory_chat` | Memory-augmented chat route |
-| `memory_bind_user` | Bind channel sender → user_id |
+| `memory_bind_user` | Bind channel sender to user_id |
 | `memory_resolve_user` | Resolve/create user binding |
 
 ## Evaluation Benchmarks
@@ -133,23 +148,23 @@ Key metrics tracked: **context efficiency**, **forgetting accuracy**, **recall p
 
 ```bash
 pytest tests/ -v                          # 136 unit + integration tests
-.\scripts\integration-test.ps1            # 10 API/MCP/harness checks
-.\scripts\submission-test.ps1             # Full submission verification
+pwsh scripts/integration-test.ps1         # 10 API/MCP/harness checks
+pwsh scripts/submission-test.ps1          # Full submission verification
 ```
 
 ## Project Status
 
 | Item | Status |
 |------|--------|
-| Core memory layer (4 pillars) | ✅ Complete |
-| MCP server (7 tools) | ✅ Complete |
-| OpenClaw gateway integration | ✅ Complete |
-| Docker deployment | ✅ Complete |
-| Memory visualizer | ✅ Complete |
-| 25-scenario eval suite | ✅ Complete |
-| Agentic benchmark (trajectory metrics) | ✅ Complete |
-| Alibaba Cloud ECS + OSS | ⬜ Deferred (Plan B: local + ngrok) |
-| Demo video | ⬜ Pending |
+| Core memory layer (4 pillars) | Complete |
+| MCP server (7 tools) | Complete |
+| OpenClaw gateway integration | Complete |
+| Docker deployment | Complete |
+| Memory visualizer | Complete |
+| 25-scenario eval suite | Complete |
+| Agentic benchmark (trajectory metrics) | Complete |
+| Alibaba Cloud ECS + OSS | Deferred (Plan B: local + ngrok) |
+| Demo video | Pending |
 
 ## Alibaba Cloud Integration
 
