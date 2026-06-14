@@ -59,6 +59,7 @@
     </div>
     <div class="graph-viewport" id="graphViewport">
       <svg id="graphSvg" role="img" aria-label="Memory belief graph"></svg>
+      <div class="graph-vignette" aria-hidden="true"></div>
     </div>
   </div>
 
@@ -73,7 +74,7 @@
     <canvas id="injChart" height="90"></canvas>
     <div class="guide-panel">
       <h3>How memories form</h3>
-      <p>Each golden node is a stored belief. Bright pulses travel along synapses when memories are recalled — vivid nodes glow strongest.</p>
+      <p>Each dot is a stored belief — gold preferences, rose persona, blue system facts. Hover for details; golden pulses flow along synapses.</p>
       <p>Teach the brain via OpenClaw:</p>
       <p><code>openclaw agent --agent main --message "I prefer Python for APIs"</code></p>
       <p>Watch new nodes appear in the cortical map and golden traces flow between related facts.</p>
@@ -207,15 +208,60 @@ function brainPath(cx, cy, scale) {
     C ${cx + 145*s} ${cy - 40*s}, ${cx + 120*s} ${cy - 110*s}, ${cx} ${cy - 95*s} Z`;
 }
 
-function layoutRadial(nodes, cx, cy, maxR) {
-  const n = nodes.length || 1;
-  const rx = maxR * 0.82;
-  const ry = maxR * 0.52;
-  nodes.forEach((node, i) => {
-    const a = (2 * Math.PI * i) / n - Math.PI / 2;
-    node.x = cx + rx * Math.cos(a);
-    node.y = cy + ry * Math.sin(a);
+function categoryHue(cat) {
+  const c = normalizeCategory(cat);
+  if (c === 'persona') return { fill: '#E8B4A8', stroke: '#C4785A', glow: 'rgba(196, 120, 90, 0.35)' };
+  if (c === 'system_state') return { fill: '#C9D4E8', stroke: '#6B8BB5', glow: 'rgba(107, 139, 181, 0.35)' };
+  return { fill: '#F0C75A', stroke: '#C9920A', glow: 'rgba(212, 160, 23, 0.4)' };
+}
+
+function deriveLinks(nodes, apiEdges) {
+  const byId = new Map(nodes.map(n => [Number(n.id), n]));
+  const seen = new Set();
+  const links = [];
+
+  const add = (a, b, weight) => {
+    if (!a || !b || a.id === b.id) return;
+    const key = [Math.min(a.id, b.id), Math.max(a.id, b.id)].join('-');
+    if (seen.has(key)) return;
+    seen.add(key);
+    links.push({ source: a, target: b, weight });
+  };
+
+  (apiEdges || []).forEach(e => {
+    add(byId.get(Number(e.source)), byId.get(Number(e.target)), e.weight || 0.6);
   });
+
+  // Shared-entity synapses (makes the network feel connected)
+  const byEntity = new Map();
+  nodes.forEach(n => {
+    const key = (n.entity_source || '').toLowerCase();
+    if (!key) return;
+    if (!byEntity.has(key)) byEntity.set(key, []);
+    byEntity.get(key).push(n);
+  });
+  byEntity.forEach(group => {
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        add(group[i], group[j], 0.45);
+      }
+    }
+  });
+
+  return links;
+}
+
+function synapsePath(d) {
+  const sx = d.source.x, sy = d.source.y;
+  const tx = d.target.x, ty = d.target.y;
+  const mx = (sx + tx) / 2;
+  const my = (sy + ty) / 2;
+  const dx = tx - sx, dy = ty - sy;
+  const dist = Math.hypot(dx, dy) || 1;
+  const bend = Math.min(28, dist * 0.22);
+  const cx = mx - (dy / dist) * bend;
+  const cy = my + (dx / dist) * bend;
+  return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`;
 }
 
 function renderGraph(data) {
@@ -226,6 +272,7 @@ function renderGraph(data) {
   if (!beliefs.length && (data.beliefs || []).length) {
     beliefs = data.beliefs || [];
   }
+
   const svg = d3.select('#graphSvg');
   svg.selectAll('*').remove();
   svg.on('.zoom', null);
@@ -234,153 +281,170 @@ function renderGraph(data) {
   svg
     .attr('width', width)
     .attr('height', height)
-    .attr('viewBox', `0 0 ${width} ${height}`)
-    .attr('preserveAspectRatio', 'xMidYMid meet');
+    .attr('viewBox', `0 0 ${width} ${height}`);
 
   if (!beliefs.length) return;
-
-  const tt = d3.select('#nodeTooltip');
-  const root = svg.append('g').attr('class', 'graph-root');
-  zoom = d3.zoom().scaleExtent([0.35, 2.5]).on('zoom', (e) => {
-    root.attr('transform', e.transform);
-  });
-  svg.call(zoom);
 
   const cx = width / 2;
   const cy = height / 2;
   const scale = Math.min(width, height) / 520;
-  const maxR = Math.min(width, height) * 0.36;
+  const tt = d3.select('#nodeTooltip');
+  const root = svg.append('g').attr('class', 'graph-root');
 
-  root.append('path').attr('d', brainPath(cx, cy, scale)).attr('class', 'brain-outline');
-  root.append('path').attr('d', `M ${cx} ${cy - 90*scale} Q ${cx - 8*scale} ${cy + 10*scale} ${cx} ${cy + 100*scale}`).attr('class', 'sulcus');
-  root.append('path').attr('d', `M ${cx - 55*scale} ${cy - 30*scale} Q ${cx - 20*scale} ${cy + 20*scale} ${cx - 50*scale} ${cy + 70*scale}`).attr('class', 'sulcus');
-  root.append('path').attr('d', `M ${cx + 55*scale} ${cy - 30*scale} Q ${cx + 20*scale} ${cy + 20*scale} ${cx + 50*scale} ${cy + 70*scale}`).attr('class', 'sulcus');
+  zoom = d3.zoom().scaleExtent([0.5, 2.8]).on('zoom', (e) => {
+    root.attr('transform', e.transform);
+  });
+  svg.call(zoom);
 
-  const nodes = beliefs.map((b, i) => ({
-    ...b,
-    label: (b.entity_source || 'mem').slice(0, 11),
-    r: Math.max(12, 10 + (b.base_utility_q || 0) * 6),
-    x: cx,
-    y: cy,
-    idx: i,
-  }));
-  layoutRadial(nodes, cx, cy, maxR);
+  const defs = root.append('defs');
+  const clipId = 'brain-clip';
+  defs.append('clipPath').attr('id', clipId)
+    .append('path').attr('d', brainPath(cx, cy, scale));
 
-  const nodeById = new Map(nodes.map(n => [Number(n.id), n]));
-  const links = (data.edges || [])
-    .map(e => ({
-      source: nodeById.get(Number(e.source)),
-      target: nodeById.get(Number(e.target)),
-      weight: e.weight || 0.5,
-    }))
-    .filter(l => l.source && l.target);
+  const bgLayer = root.append('g').attr('class', 'bg-layer');
+  bgLayer.append('path').attr('d', brainPath(cx, cy, scale)).attr('class', 'brain-fill');
+  bgLayer.append('path').attr('d', brainPath(cx, cy, scale)).attr('class', 'brain-outline');
+  bgLayer.append('path').attr('d', `M ${cx} ${cy - 88*scale} Q ${cx - 6*scale} ${cy + 8*scale} ${cx} ${cy + 98*scale}`).attr('class', 'sulcus');
+  bgLayer.append('path').attr('d', `M ${cx - 52*scale} ${cy - 28*scale} Q ${cx - 18*scale} ${cy + 18*scale} ${cx - 48*scale} ${cy + 68*scale}`).attr('class', 'sulcus');
+  bgLayer.append('path').attr('d', `M ${cx + 52*scale} ${cy - 28*scale} Q ${cx + 18*scale} ${cy + 18*scale} ${cx + 48*scale} ${cy + 68*scale}`).attr('class', 'sulcus');
 
-  const linkLayer = root.append('g').attr('class', 'link-layer');
-  linkLayer.selectAll('line.synapse-track')
+  const graphG = root.append('g').attr('clip-path', `url(#${clipId})`);
+
+  const nodes = beliefs.map((b, i) => {
+    const cat = normalizeCategory(b.category);
+    const hemisphere = cat === 'persona' ? -1 : cat === 'preference' ? 1 : 0;
+    const angle = (i / beliefs.length) * Math.PI * 2;
+    const spread = 0.35 + (i % 5) * 0.08;
+    return {
+      ...b,
+      cat,
+      hemisphere,
+      r: 5 + (b.base_utility_q || 0.5) * 4,
+      x: cx + Math.cos(angle) * width * spread * 0.14,
+      y: cy + Math.sin(angle) * height * spread * 0.12,
+    };
+  });
+
+  const links = deriveLinks(nodes, data.edges || []);
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).distance(d => 42 + (1 - d.weight) * 30).strength(0.35))
+    .force('charge', d3.forceManyBody().strength(-95))
+    .force('center', d3.forceCenter(cx, cy).strength(0.08))
+    .force('collision', d3.forceCollide().radius(d => d.r + 7))
+    .force('x', d3.forceX(d => cx + d.hemisphere * width * 0.14).strength(0.04))
+    .force('y', d3.forceY(cy).strength(0.03))
+    .alpha(0.9)
+    .alphaDecay(0.028);
+
+  const linkLayer = graphG.append('g').attr('class', 'link-layer');
+  const linkPaths = linkLayer.selectAll('path.synapse')
     .data(links)
-    .join('line')
-    .attr('class', 'synapse-track')
-    .attr('x1', d => d.source.x)
-    .attr('y1', d => d.source.y)
-    .attr('x2', d => d.target.x)
-    .attr('y2', d => d.target.y)
-    .attr('stroke-width', d => 1.5 + d.weight);
+    .join('path')
+    .attr('class', 'synapse')
+    .attr('fill', 'none')
+    .attr('stroke-width', d => 0.8 + d.weight * 1.2);
 
-  linkLayer.selectAll('line.synapse-flow')
-    .data(links)
-    .join('line')
-    .attr('class', 'synapse-flow')
-    .attr('x1', d => d.source.x)
-    .attr('y1', d => d.source.y)
-    .attr('x2', d => d.target.x)
-    .attr('y2', d => d.target.y)
-    .attr('stroke-width', d => 1 + d.weight * 0.5)
-    .attr('stroke-dasharray', '5 8');
-
-  const particleLayer = root.append('g').attr('class', 'particle-layer');
-  const particles = links.flatMap((link, li) =>
-    [0, 1].map(pi => ({
-      link,
-      id: `${li}-${pi}`,
-      t: (pi + 1) / 3,
-      speed: 0.004 + Math.random() * 0.003,
-    }))
+  const particleLayer = graphG.append('g').attr('class', 'particle-layer');
+  const particles = links.slice(0, 24).flatMap((link, li) =>
+    [{ link, id: `${li}-a`, t: Math.random(), speed: 0.003 + Math.random() * 0.003 }]
   );
   const particleSel = particleLayer.selectAll('circle')
     .data(particles, d => d.id)
     .join('circle')
     .attr('class', 'memory-particle')
-    .attr('r', 3)
-    .attr('fill', '#F0C75A');
+    .attr('r', 2.5);
 
-  const nodeLayer = root.append('g').attr('class', 'node-layer');
+  const nodeLayer = graphG.append('g').attr('class', 'node-layer');
   const nodeG = nodeLayer.selectAll('g.node')
     .data(nodes, d => d.id)
     .join('g')
     .attr('class', 'node')
-    .attr('transform', d => `translate(${d.x},${d.y})`);
+    .style('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
 
   nodeG.append('circle')
-    .attr('class', 'neuron-halo')
-    .attr('r', d => d.r + 6)
-    .attr('fill', d => nodeFill(d.node_weight))
-    .attr('fill-opacity', 0.25)
-    .attr('stroke', 'none');
+    .attr('class', 'neuron-glow')
+    .attr('r', d => d.r + 5)
+    .attr('fill', d => categoryHue(d.category).glow);
 
   nodeG.append('circle')
     .attr('class', 'neuron-body')
     .attr('r', d => d.r)
-    .attr('fill', d => nodeFill(d.node_weight))
-    .attr('stroke', d => nodeStroke(d.node_weight))
-    .attr('stroke-width', 2.5)
-    .style('cursor', 'pointer')
+    .attr('fill', d => categoryHue(d.category).fill)
+    .attr('stroke', d => categoryHue(d.category).stroke)
+    .attr('stroke-width', 1.8)
     .on('mouseenter', function(e, d) {
-      d3.select(this).attr('stroke-width', 4);
+      d3.select(this.parentNode).classed('node-active', true);
       tt.classed('visible', true)
-        .style('left', `${e.pageX + 14}px`)
-        .style('top', `${e.pageY - 14}px`)
-        .html(`<strong>${d.entity_source}</strong> ${d.relation} ${d.entity_target}<br/>
-               utility ${(d.base_utility_q || 0).toFixed(2)} · recalled ${d.injection_count || 0}×<br/>
-               ${confLevel(d.node_weight)} · ${d.category}`);
+        .style('left', `${Math.min(e.pageX + 12, window.innerWidth - 300)}px`)
+        .style('top', `${e.pageY - 12}px`)
+        .html(`<span class="tt-cat">${normalizeCategory(d.category)}</span>
+               <strong>${d.entity_source}</strong> <span class="tt-rel">${d.relation}</span> ${d.entity_target}
+               <div class="tt-meta">utility ${(d.base_utility_q || 0).toFixed(2)} · ${d.injection_count || 0} recalls</div>`);
     })
     .on('mouseleave', function() {
-      d3.select(this).attr('stroke-width', 2.5);
+      d3.select(this.parentNode).classed('node-active', false);
       tt.classed('visible', false);
     })
     .on('click', (_, d) => {
       document.getElementById('nodeDetail').textContent =
-        `${d.entity_source} ${d.relation} ${d.entity_target} · Q=${(d.base_utility_q || 0).toFixed(2)}`;
+        `${d.entity_source} → ${d.entity_target}`;
     });
 
-  nodeG.append('text')
-    .attr('class', 'node-label')
-    .attr('text-anchor', 'middle')
-    .attr('dy', d => d.r + 14)
-    .text(d => d.label);
+  function pointOnPath(link, t) {
+    const sx = link.source.x, sy = link.source.y;
+    const tx = link.target.x, ty = link.target.y;
+    const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+    const dx = tx - sx, dy = ty - sy;
+    const dist = Math.hypot(dx, dy) || 1;
+    const bend = Math.min(28, dist * 0.22);
+    const cpx = mx - (dy / dist) * bend;
+    const cpy = my + (dx / dist) * bend;
+    const u = 1 - t;
+    return {
+      x: u * u * sx + 2 * u * t * cpx + t * t * tx,
+      y: u * u * sy + 2 * u * t * cpy + t * t * ty,
+    };
+  }
 
-  function paintParticles() {
+  function tick() {
+    linkPaths.attr('d', synapsePath);
+    nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
     particleSel.each(function(d) {
-      const sx = d.link.source.x;
-      const sy = d.link.source.y;
-      const tx = d.link.target.x;
-      const ty = d.link.target.y;
-      d3.select(this)
-        .attr('cx', sx + (tx - sx) * d.t)
-        .attr('cy', sy + (ty - sy) * d.t);
+      const p = pointOnPath(d.link, d.t);
+      d3.select(this).attr('cx', p.x).attr('cy', p.y).attr('fill', categoryHue(d.link.source.category).stroke);
     });
   }
+
+  sim.on('tick', tick);
 
   function animateFlow() {
     particles.forEach(d => {
       d.t += d.speed;
       if (d.t > 1) d.t = 0;
     });
-    paintParticles();
+    tick();
     particleLoopId = requestAnimationFrame(animateFlow);
   }
-
-  paintParticles();
+  tick();
   if (particles.length) animateFlow();
+
+  // Legend
+  const legend = root.append('g').attr('class', 'graph-legend').attr('transform', `translate(16, ${height - 72})`);
+  [
+    { label: 'Persona', color: '#E8B4A8', stroke: '#C4785A' },
+    { label: 'System', color: '#C9D4E8', stroke: '#6B8BB5' },
+    { label: 'Preference', color: '#F0C75A', stroke: '#C9920A' },
+  ].forEach((item, i) => {
+    const g = legend.append('g').attr('transform', `translate(0, ${i * 20})`);
+    g.append('circle').attr('r', 5).attr('cx', 6).attr('cy', 6).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 1.2);
+    g.append('text').attr('x', 18).attr('y', 10).attr('class', 'legend-text').text(item.label);
+  });
+  legend.append('text').attr('y', 68).attr('class', 'legend-hint').text('Hover nodes · drag to rearrange');
 }
 
 function renderMetrics(m, graph) {

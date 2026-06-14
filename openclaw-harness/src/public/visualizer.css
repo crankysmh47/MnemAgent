@@ -232,7 +232,18 @@ button.secondary:hover {
   height: 100%;
   position: relative;
   z-index: 1;
-  background: rgba(255, 252, 248, 0.35);
+  background:
+    radial-gradient(ellipse 70% 65% at 50% 48%, rgba(255, 248, 235, 0.9), rgba(243, 232, 218, 0.5)),
+    linear-gradient(165deg, #FBF6EF 0%, #F0E6D8 100%);
+  border-radius: 0 0 24px 24px;
+}
+
+.graph-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 0 0 24px 24px;
+  box-shadow: inset 0 0 80px rgba(120, 90, 60, 0.06);
 }
 
 #graphSvg {
@@ -243,7 +254,72 @@ button.secondary:hover {
   height: 100%;
   min-height: 400px;
   cursor: grab;
-  background: transparent;
+}
+
+#graphSvg:active { cursor: grabbing; }
+
+/* ── D3 graph ── */
+.brain-fill {
+  fill: rgba(255, 252, 245, 0.55);
+  stroke: none;
+}
+
+.brain-outline {
+  fill: none;
+  stroke: rgba(180, 140, 110, 0.22);
+  stroke-width: 2;
+}
+
+.sulcus {
+  fill: none;
+  stroke: rgba(180, 150, 130, 0.14);
+  stroke-width: 1.2;
+}
+
+.synapse {
+  stroke: rgba(200, 155, 60, 0.42);
+  stroke-linecap: round;
+  transition: stroke-opacity 0.2s;
+}
+
+.memory-particle {
+  opacity: 0.85;
+  filter: drop-shadow(0 0 3px rgba(240, 199, 90, 0.8));
+}
+
+.node .neuron-glow {
+  opacity: 0.35;
+  transition: opacity 0.2s, r 0.2s;
+}
+
+.node .neuron-body {
+  transition: stroke-width 0.15s, filter 0.15s;
+}
+
+.node.node-active .neuron-glow {
+  opacity: 0.7;
+}
+
+.node.node-active .neuron-body {
+  stroke-width: 2.8;
+  filter: drop-shadow(0 0 6px rgba(212, 160, 23, 0.5));
+}
+
+.legend-text {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 600;
+}
+
+.legend-hint {
+  fill: var(--text-dim);
+  font-size: 9px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.graph-legend {
+  pointer-events: none;
 }
 
 .panel-header {
@@ -261,56 +337,6 @@ button.secondary:hover {
 
 .panel-title-accent {
   color: var(--gold);
-}
-
-#graphSvg:active { cursor: grabbing; }
-
-/* ── D3 graph layers ── */
-.brain-outline {
-  fill: rgba(237, 213, 200, 0.35);
-  stroke: rgba(200, 160, 140, 0.25);
-  stroke-width: 1.5;
-}
-
-.sulcus {
-  fill: none;
-  stroke: rgba(200, 160, 140, 0.18);
-  stroke-width: 1;
-}
-
-.synapse-track {
-  stroke: rgba(212, 160, 23, 0.35);
-  stroke-linecap: round;
-}
-
-.synapse-flow {
-  stroke: #E8B923;
-  stroke-opacity: 0.75;
-  stroke-linecap: round;
-}
-
-.memory-particle {
-  opacity: 0.95;
-}
-
-.neuron-body {
-  opacity: 1;
-}
-
-.node-layer {
-  pointer-events: all;
-}
-
-.neuron-halo {
-  pointer-events: none;
-}
-
-.node-label {
-  fill: #7A6E62;
-  font-size: 10px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-weight: 600;
-  pointer-events: none;
 }
 
 /* ── Tooltip ── */
@@ -331,7 +357,23 @@ button.secondary:hover {
 }
 
 .node-tooltip.visible { opacity: 1; }
-.node-tooltip strong { color: var(--gold); }
+.node-tooltip strong { color: var(--text); font-size: 0.82rem; }
+.node-tooltip .tt-cat {
+  display: inline-block;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+.node-tooltip .tt-rel { color: var(--text-muted); font-weight: 500; }
+.node-tooltip .tt-meta {
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
 
 /* ── Metrics ── */
 .metrics-panel {
