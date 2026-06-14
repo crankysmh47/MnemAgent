@@ -177,15 +177,15 @@ function normalizeCategory(raw) {
 }
 
 function nodeFill(w) {
-  if (w >= 0.85) return '#f0c040';
-  if (w >= 0.65) return '#ad9550';
-  return '#605848';
+  if (w >= 0.85) return '#E8B923';
+  if (w >= 0.65) return '#C9956A';
+  return '#B8A088';
 }
 
 function nodeStroke(w) {
-  if (w >= 0.85) return '#b89020';
-  if (w >= 0.65) return '#7a6528';
-  return '#3a3020';
+  if (w >= 0.85) return '#C9920A';
+  if (w >= 0.65) return '#A87848';
+  return '#8A7060';
 }
 
 function confLevel(beliefOrWeight) {
@@ -670,9 +670,9 @@ function nodeRadius(b, total) {
 
 function categoryHue(cat) {
   const c = normalizeCategory(cat);
-  if (c === 'persona') return { fill: '#e07070', stroke: '#a04545', glow: 'rgba(224,112,112,0.35)' };
-  if (c === 'system_state') return { fill: '#5b9bd5', stroke: '#3a70a0', glow: 'rgba(91,155,213,0.30)' };
-  return { fill: '#f0c040', stroke: '#b89020', glow: 'rgba(240,192,64,0.35)' };
+  if (c === 'persona') return { fill: '#E8B4A8', stroke: '#C4785A', glow: 'rgba(196, 120, 90, 0.38)' };
+  if (c === 'system_state') return { fill: '#A8C4E8', stroke: '#5B8BB5', glow: 'rgba(91, 139, 181, 0.35)' };
+  return { fill: '#F0C75A', stroke: '#C9920A', glow: 'rgba(212, 160, 23, 0.42)' };
 }
 
 function deriveLinks(nodes) {
@@ -1033,9 +1033,9 @@ function renderGraph(data) {
     .attr('rx', 10)
     .attr('class', 'legend-bg');
   [
-    { label: 'Preference', color: '#f0c040', stroke: '#b89020' },
-    { label: 'System', color: '#5b9bd5', stroke: '#3a70a0' },
-    { label: 'Persona', color: '#e07070', stroke: '#a04545' },
+    { label: 'Preference', color: '#F0C75A', stroke: '#C9920A' },
+    { label: 'System', color: '#A8C4E8', stroke: '#5B8BB5' },
+    { label: 'Persona', color: '#E8B4A8', stroke: '#C4785A' },
   ].forEach((item, i) => {
     const g = legend.append('g').attr('transform', `translate(0, ${i * 28})`);
     g.append('circle').attr('r', 7).attr('cx', 10).attr('cy', 10).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 2.5);
@@ -1082,9 +1082,9 @@ function renderMetrics(m, graph) {
 
   const catLegend = document.getElementById('catLegend');
   const catItems = [
-    { key: 'preference', label: 'Preferences', color: '#f0c040' },
-    { key: 'persona', label: 'Persona', color: '#e07070' },
-    { key: 'system_state', label: 'System', color: '#5b9bd5' },
+    { key: 'preference', label: 'Preferences', color: '#F0C75A' },
+    { key: 'persona', label: 'Persona', color: '#E8B4A8' },
+    { key: 'system_state', label: 'System', color: '#A8C4E8' },
   ].filter(item => summary.cats[item.key] > 0);
   catLegend.innerHTML = catItems.map(item =>
     `<div class="mini-legend-row"><span class="swatch" style="background:${item.color}"></span>${item.label} <strong>${summary.cats[item.key]}</strong></div>`
