@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MnemOS — Living Memory Atlas</title>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/vendor/d3/d3.min.js"></script>
+  <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/visualizer.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -103,7 +103,8 @@ const CHART_TICK = '#7A6E62';
 
 function uid() {
   const params = new URLSearchParams(location.search);
-  return params.get('user') || localStorage.getItem('mnemos_user_id') || 'demo-brain';
+  // Visualizer is a demo — default to demo-brain (ignore OpenClaw session UUID)
+  return params.get('user') || 'demo-brain';
 }
 
 function confLevel(w) { return w >= 0.85 ? 'high' : w >= 0.55 ? 'mid' : 'low'; }
@@ -129,23 +130,29 @@ function filterBeliefs(beliefs) {
   });
 }
 
+async function apiGet(path) {
+  const r = await fetch(path);
+  const data = await r.json();
+  if (!r.ok || data.error) {
+    throw new Error(data.error || `HTTP ${r.status}`);
+  }
+  return data;
+}
+
 async function fetchGraph() {
   const user = document.getElementById('userId').value.trim() || uid();
-  const r = await fetch(`/api/graph/${encodeURIComponent(user)}`);
-  return r.json();
+  return apiGet(`/api/graph/${encodeURIComponent(user)}`);
 }
 
 async function fetchMetrics() {
   const user = document.getElementById('userId').value.trim() || uid();
-  const r = await fetch(`/api/metrics/${encodeURIComponent(user)}`);
-  return r.json();
+  return apiGet(`/api/metrics/${encodeURIComponent(user)}`);
 }
 
 async function fetchEvents() {
   const user = document.getElementById('userId').value.trim() || uid();
   const q = lastEventTs ? `?since=${encodeURIComponent(lastEventTs)}` : '';
-  const r = await fetch(`/api/events/${encodeURIComponent(user)}${q}`);
-  return r.json();
+  return apiGet(`/api/events/${encodeURIComponent(user)}${q}`);
 }
 
 async function ensureDemoBrainSeeded() {
@@ -354,6 +361,8 @@ function renderMetrics(m, graph) {
   document.getElementById('mAvgQ').textContent = (m.avg_q_i ?? 0).toFixed(2);
   document.getElementById('mInjections').textContent = m.total_injections ?? 0;
 
+  if (typeof Chart === 'undefined') return;
+
   const tl = m.ucb_timeline || { turns: [], series: {} };
   const palette = ['#E8B923', '#D4A86A', '#C9920A', '#C4B09A', '#A89888', '#8B7355'];
   const datasets = Object.entries(tl.series || {}).map(([label, data], i) => ({
@@ -434,28 +443,85 @@ function prependEvents(events) {
   while (feed.children.length > 100) feed.lastChild.remove();
 }
 
+function setLiveStatus(mode, detail) {
+  const label = document.getElementById('liveLabel');
+  if (mode === 'ok') {
+    label.innerHTML = '<span class="live-dot"></span> Synaptic stream';
+  } else if (mode === 'paused') {
+    label.textContent = 'Paused';
+  } else {
+    label.textContent = detail ? `Offline · ${detail}` : 'Offline';
+  }
+}
+
 async function refresh() {
+  if (typeof d3 === 'undefined') {
+    setLiveStatus('err', 'D3 failed to load');
+    document.getElementById('nodeDetail').textContent = 'Hard refresh (Ctrl+Shift+R) or rebuild Docker';
+    return;
+  }
+
+  let graph = { beliefs: [], edges: [] };
+  let errors = [];
+
   try {
-    const [graph, metrics, evData] = await Promise.all([
-      fetchGraph(), fetchMetrics(), fetchEvents()
-    ]);
-    renderGraph(graph);
-    renderMetrics(metrics, graph);
-    prependEvents(evData.events || []);
-    document.getElementById('liveLabel').innerHTML = '<span class="live-dot"></span> Synaptic stream';
+    graph = await fetchGraph();
   } catch (e) {
-    document.getElementById('liveLabel').textContent = 'Offline';
-    console.error(e);
+    errors.push('graph');
+    console.error('fetchGraph', e);
+  }
+
+  try {
+    renderGraph(graph);
+    const visible = filterBeliefs(graph.beliefs || []).length;
+    const total = (graph.beliefs || []).length;
+    if (total === 0) {
+      document.getElementById('nodeDetail').textContent =
+        'No memories — click Refresh or open ?user=demo-brain';
+    } else if (visible === 0) {
+      document.getElementById('nodeDetail').textContent =
+        `${total} memories hidden by filters — enable all filter chips`;
+    }
+  } catch (e) {
+    errors.push('render');
+    console.error('renderGraph', e);
+  }
+
+  try {
+    const metrics = await fetchMetrics();
+    renderMetrics(metrics, graph);
+  } catch (e) {
+    errors.push('metrics');
+    console.error('fetchMetrics', e);
+  }
+
+  try {
+    const evData = await fetchEvents();
+    prependEvents(evData.events || []);
+  } catch (e) {
+    errors.push('events');
+    console.error('fetchEvents', e);
+  }
+
+  if (errors.length) {
+    setLiveStatus('err', errors.join(', '));
+  } else {
+    setLiveStatus('ok');
   }
 }
 
 document.getElementById('userId').value = uid();
+document.getElementById('userId').addEventListener('change', refresh);
+document.getElementById('userId').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') refresh();
+});
 document.getElementById('refreshBtn').onclick = refresh;
 document.getElementById('autoBtn').onclick = () => {
   autoRefresh = !autoRefresh;
   document.getElementById('autoBtn').textContent = autoRefresh ? 'Pause' : 'Resume';
 };
 document.getElementById('resetZoomBtn').onclick = () => {
+  if (!zoom) return;
   d3.select('#graphSvg').transition().duration(400)
     .call(zoom.transform, d3.zoomIdentity);
 };
@@ -473,10 +539,8 @@ document.querySelectorAll('.filter-chip').forEach(el => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  const label = document.getElementById('liveLabel');
-  label.innerHTML = document.hidden
-    ? 'Paused'
-    : '<span class="live-dot"></span> Synaptic stream';
+  if (document.hidden) setLiveStatus('paused');
+  else refresh();
 });
 
 refresh();

@@ -18,6 +18,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+// Bundled viz deps (avoid CDN failures → "Offline" in browser)
+app.use("/vendor/d3", express.static(path.join(__dirname, "../node_modules/d3/dist")));
+app.use(
+  "/vendor/chart.js",
+  express.static(path.join(__dirname, "../node_modules/chart.js/dist"))
+);
 
 // ── Health check ──
 app.get("/health", async (_req, res) => {
