@@ -209,6 +209,7 @@ button.secondary:hover {
   flex-direction: column;
   position: relative;
   box-shadow: var(--shadow-lift);
+  min-height: 420px;
 }
 
 .brain-canvas {
@@ -226,18 +227,21 @@ button.secondary:hover {
 }
 
 .graph-viewport {
-  flex: 1;
-  min-height: 360px;
+  flex: 1 1 auto;
+  min-height: 400px;
+  height: 100%;
   position: relative;
   z-index: 1;
-  overflow: hidden;
+  background: rgba(255, 252, 248, 0.35);
 }
 
 #graphSvg {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 360px;
+  min-height: 400px;
   cursor: grab;
   background: transparent;
 }
@@ -275,31 +279,30 @@ button.secondary:hover {
 }
 
 .synapse-track {
-  stroke: rgba(212, 160, 23, 0.12);
+  stroke: rgba(212, 160, 23, 0.35);
   stroke-linecap: round;
 }
 
 .synapse-flow {
-  stroke: url(#goldFlowGradient);
+  stroke: #E8B923;
+  stroke-opacity: 0.75;
   stroke-linecap: round;
-  filter: url(#softGlow);
 }
 
 .memory-particle {
-  filter: url(#particleGlow);
+  opacity: 0.95;
 }
 
 .neuron-body {
-  filter: url(#nodeGlow);
+  opacity: 1;
+}
+
+.node-layer {
+  pointer-events: all;
 }
 
 .neuron-halo {
-  animation: neuron-pulse 3.5s ease-in-out infinite;
-}
-
-@keyframes neuron-pulse {
-  0%, 100% { opacity: 0.2; }
-  45% { opacity: 0.55; }
+  pointer-events: none;
 }
 
 .node-label {
