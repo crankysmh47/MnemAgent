@@ -57,7 +57,9 @@
       <span><span class="panel-title-accent">Cortical</span> belief map</span>
       <span id="nodeDetail" style="font-size:0.72rem;color:var(--text-muted);text-transform:none;letter-spacing:0;font-weight:500">Select a memory node</span>
     </div>
-    <svg id="graphSvg"></svg>
+    <div class="graph-viewport" id="graphViewport">
+      <svg id="graphSvg" role="img" aria-label="Memory belief graph"></svg>
+    </div>
   </div>
 
   <div class="metrics-panel">
@@ -121,13 +123,28 @@ function nodeStroke(w) {
   return '#9A8878';
 }
 
+function normalizeCategory(raw) {
+  const cat = (raw || '').toLowerCase();
+  if (cat === 'preferences') return 'preference';
+  if (cat === 'system_state' || cat === 'system') return 'system_state';
+  if (cat === 'persona') return 'persona';
+  return cat.replace(/s$/, '');
+}
+
 function filterBeliefs(beliefs) {
   const activeCats = [...document.querySelectorAll('#categoryFilters .filter-chip.active')].map(e => e.dataset.cat);
   const activeConfs = [...document.querySelectorAll('#confidenceFilters .filter-chip.active')].map(e => e.dataset.conf);
   return beliefs.filter(b => {
-    const cat = (b.category || '').toLowerCase().replace(/s$/, '');
+    const cat = normalizeCategory(b.category);
     return activeCats.some(ac => cat === ac || cat.startsWith(ac)) && activeConfs.includes(confLevel(b.node_weight));
   });
+}
+
+function graphSize() {
+  const vp = document.getElementById('graphViewport');
+  const width = Math.max(vp?.clientWidth || 0, 480);
+  const height = Math.max(vp?.clientHeight || 0, 360);
+  return { width, height };
 }
 
 async function apiGet(path) {
@@ -198,9 +215,13 @@ function renderGraph(data) {
   const svg = d3.select('#graphSvg');
   svg.selectAll('*').remove();
 
-  const width = svg.node().clientWidth || 700;
-  const height = svg.node()?.parentElement?.clientHeight - 44 || 390;
-  svg.attr('viewBox', [0, 0, width, height]);
+  const { width, height } = graphSize();
+  svg
+    .attr('width', width)
+    .attr('height', height)
+    .attr('viewBox', [0, 0, width, height]);
+
+  if (!beliefs.length) return;
 
   const defs = svg.append('defs');
   const grad = defs.append('linearGradient').attr('id', 'goldFlowGradient').attr('x1', '0%').attr('y1', '0%').attr('x2', '100%').attr('y2', '0%');
@@ -237,22 +258,30 @@ function renderGraph(data) {
   const nodes = beliefs.map((b, i) => ({
     ...b,
     label: (b.entity_source || '').slice(0, 12),
-    r: 7 + (b.base_utility_q || 0) * 14,
+    r: 8 + (b.base_utility_q || 0) * 10,
     hemisphere: i % 2 === 0 ? -1 : 1,
+    x: cx + (Math.random() - 0.5) * 80,
+    y: cy + (Math.random() - 0.5) * 80,
   }));
 
-  const nodeIds = new Set(nodes.map(n => n.id));
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
   const links = (data.edges || [])
-    .filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))
-    .map(e => ({ source: e.source, target: e.target, weight: e.weight || 0.5 }));
+    .filter(e => nodeById.has(e.source) && nodeById.has(e.target))
+    .map(e => ({
+      source: nodeById.get(e.source),
+      target: nodeById.get(e.target),
+      weight: e.weight || 0.5,
+    }));
 
   const sim = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(75).strength(0.55))
-    .force('charge', d3.forceManyBody().strength(-180))
+    .force('link', d3.forceLink(links).distance(90).strength(0.45))
+    .force('charge', d3.forceManyBody().strength(-220))
     .force('center', d3.forceCenter(cx, cy))
-    .force('collision', d3.forceCollide().radius(d => d.r + 6))
-    .force('x', d3.forceX(d => cx + d.hemisphere * 55 * scale).strength(0.12))
-    .force('y', d3.forceY(cy).strength(0.04));
+    .force('collision', d3.forceCollide().radius(d => d.r + 8))
+    .force('x', d3.forceX(d => cx + d.hemisphere * 60 * scale).strength(0.1))
+    .force('y', d3.forceY(cy).strength(0.06))
+    .alpha(1)
+    .alphaDecay(0.025);
 
   const linkLayer = g.append('g');
   const linkGroup = linkLayer.selectAll('g').data(links).join('g');
@@ -475,12 +504,16 @@ async function refresh() {
     renderGraph(graph);
     const visible = filterBeliefs(graph.beliefs || []).length;
     const total = (graph.beliefs || []).length;
+    const edgeCount = (graph.edges || []).length;
     if (total === 0) {
       document.getElementById('nodeDetail').textContent =
         'No memories — click Refresh or open ?user=demo-brain';
     } else if (visible === 0) {
       document.getElementById('nodeDetail').textContent =
         `${total} memories hidden by filters — enable all filter chips`;
+    } else {
+      document.getElementById('nodeDetail').textContent =
+        `${visible} nodes · ${edgeCount} synapses — drag to explore`;
     }
   } catch (e) {
     errors.push('render');
@@ -546,6 +579,10 @@ document.addEventListener('visibilitychange', () => {
 refresh();
 
 ensureDemoBrainSeeded().then(() => refresh());
+
+window.addEventListener('resize', () => {
+  if (autoRefresh) refresh();
+});
 
 const pollTimer = setInterval(() => {
   if (autoRefresh && !document.hidden) refresh();

@@ -219,10 +219,27 @@ button.secondary:hover {
   opacity: 0.55;
 }
 
-.graph-panel > .panel-header,
-.graph-panel > #graphSvg {
+.graph-panel > .panel-header {
   position: relative;
   z-index: 1;
+  flex-shrink: 0;
+}
+
+.graph-viewport {
+  flex: 1;
+  min-height: 360px;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+}
+
+#graphSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  cursor: grab;
+  background: transparent;
 }
 
 .panel-header {
@@ -240,14 +257,6 @@ button.secondary:hover {
 
 .panel-title-accent {
   color: var(--gold);
-}
-
-#graphSvg {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-  cursor: grab;
-  background: transparent;
 }
 
 #graphSvg:active { cursor: grabbing; }
@@ -289,13 +298,13 @@ button.secondary:hover {
 }
 
 @keyframes neuron-pulse {
-  0%, 100% { opacity: 0.15; transform: scale(1); }
-  45% { opacity: 0.45; transform: scale(1.08); }
+  0%, 100% { opacity: 0.2; }
+  45% { opacity: 0.55; }
 }
 
 .node-label {
-  fill: var(--text-muted);
-  font-size: 9px;
+  fill: #7A6E62;
+  font-size: 10px;
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 600;
   pointer-events: none;
