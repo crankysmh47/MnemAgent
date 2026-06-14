@@ -462,8 +462,6 @@ function drawBrainDecorations(parent, cx, cy, scale) {
   const brainD = brainPath(cx, cy, scale);
   parent.append('path').attr('d', brainD).attr('class', 'brain-fill');
   parent.append('path').attr('d', brainD).attr('class', 'brain-outline');
-  /* sulci omitted for clean look */
-  });
   return brainD;
 }
 
