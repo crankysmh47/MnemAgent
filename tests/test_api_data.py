@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from memory.api_data import get_events_since, get_graph_data, get_metrics_data, search_memories
+from memory.api_data import _build_graph_edges, get_events_since, get_graph_data, get_metrics_data, search_memories
 from memory.dreaming import consolidate_and_prune_memory
 from memory.event_log import log_memory_event
 def test_memory_events_table_exists(initialized_db) -> None:
@@ -35,6 +35,36 @@ def test_metrics_api(initialized_db) -> None:
     metrics = get_metrics_data("u1", initialized_db)
     assert "total_beliefs" in metrics
     assert "ucb_timeline" in metrics
+
+
+def test_graph_edges_sparse_not_clique(initialized_db) -> None:
+    facts = [
+        ("phoenix", "lead", "Sarah", "persona"),
+        ("phoenix", "deadline", "March_15", "system_state"),
+        ("phoenix", "auth", "Auth0", "system_state"),
+        ("backend", "language", "Python", "system_state"),
+        ("language", "prefers", "Python", "preference"),
+    ]
+    for entity, relation, value, category in facts:
+        consolidate_and_prune_memory(
+            "u1",
+            {
+                "entity": entity,
+                "relation": relation,
+                "value": value,
+                "category": category,
+                "conviction": 0.9,
+            },
+            initialized_db,
+        )
+
+    graph = get_graph_data("u1", initialized_db)
+    beliefs = graph["beliefs"]
+    edges = graph["edges"]
+    max_clique = len(beliefs) * (len(beliefs) - 1) // 2
+    assert len(edges) < max_clique
+    assert any(e.get("kind") == "cluster" for e in edges)
+    assert len(edges) >= len(beliefs) - 1
 
 
 def test_search_memories(initialized_db) -> None:

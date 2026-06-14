@@ -19,7 +19,12 @@ from llm.qwen_client import (
 )
 from memory.waking import PROMPT_VERSION
 from log_setup import setup_logging
-from memory.api_data import get_events_since, get_graph_data, get_metrics_data, search_memories
+from memory.api_data import (
+    get_events_since,
+    get_graph_data,
+    get_metrics_data,
+    search_memories,
+)
 from memory.user_bindings import bind_user, list_bindings_for_user
 from memory.dreaming import consolidate_and_prune_memory, evaluate_memory_utility_feedback
 from memory.mcp_commands import execute_memory_dump_tool, execute_memory_stats_tool

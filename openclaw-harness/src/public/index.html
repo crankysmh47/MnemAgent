@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>MnemOS — Living Memory Atlas</title>
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/visualizer.css" />
+  <link rel="stylesheet" href="/visualizer.css?v=20260614" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
@@ -29,6 +32,7 @@
 
   <div class="live-indicator" id="liveLabel">
     <span class="live-dot"></span> Synaptic stream
+    <span class="build-stamp" title="UI build stamp">· v2026-06-14</span>
   </div>
 
   <label>User <input id="userId" placeholder="demo-brain" /></label>

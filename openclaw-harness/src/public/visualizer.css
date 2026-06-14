@@ -109,6 +109,14 @@ header {
   border-radius: var(--squircle-pill);
 }
 
+.build-stamp {
+  color: var(--muted);
+  font-weight: 500;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+}
+
 .live-dot {
   width: 7px;
   height: 7px;

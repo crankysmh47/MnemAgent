@@ -1,12 +1,12 @@
 /**
- * Demo brain seed — 32 beliefs with hub entities for visible synaptic edges.
+ * Demo brain seed — beliefs with hub entities + cross-cluster synaptic links.
  * Used by harness startup and /api/demo/seed.
  */
 
 const DEMO_USER_ID = "demo-brain";
 
-const DEMO_FACTS = [
-  // Phoenix project cluster (shared entity → interconnections)
+const DEMO_CORE = [
+  // Phoenix project cluster
   { entity: "phoenix", relation: "codename", value: "Phoenix", category: "system_state", conviction: 0.95 },
   { entity: "phoenix", relation: "lead", value: "Sarah", category: "persona", conviction: 0.9 },
   { entity: "phoenix", relation: "deadline", value: "March_15", category: "system_state", conviction: 0.9 },
@@ -36,8 +36,8 @@ const DEMO_FACTS = [
   { entity: "deployment", relation: "cicd", value: "GitHub_Actions", category: "system_state", conviction: 0.88 },
   { entity: "deployment", relation: "container", value: "Docker", category: "system_state", conviction: 0.85 },
   { entity: "deployment", relation: "orchestration", value: "ECS", category: "system_state", conviction: 0.82 },
-  // Preferences (golden vivid nodes)
-  { entity: "language", relation: "prefers", value: "Python", category: "preference", conviction: 1.0 },
+  // Preferences
+  { entity: "language", relation: "also_knows", value: "Rust", category: "preference", conviction: 0.88 },
   { entity: "code_style", relation: "prefers", value: "minimal_comments", category: "preference", conviction: 0.85 },
   { entity: "editor", relation: "prefers", value: "VS_Code", category: "preference", conviction: 0.8 },
   { entity: "api_format", relation: "prefers", value: "JSON", category: "preference", conviction: 0.78 },
@@ -46,57 +46,75 @@ const DEMO_FACTS = [
   { entity: "documentation", relation: "prefers", value: "Markdown", category: "preference", conviction: 0.7 },
 ];
 
+/** Bridge + shared-concept facts — targets overlap subjects so synapses span clusters. */
+const DEMO_LINKS = [
+  { entity: "Python", relation: "powers", value: "backend", category: "system_state", conviction: 0.91 },
+  { entity: "Python", relation: "used_in", value: "phoenix", category: "system_state", conviction: 0.89 },
+  { entity: "FastAPI", relation: "serves", value: "phoenix", category: "system_state", conviction: 0.9 },
+  { entity: "FastAPI", relation: "exposes", value: "backend", category: "system_state", conviction: 0.88 },
+  { entity: "PostgreSQL", relation: "stores", value: "phoenix", category: "system_state", conviction: 0.87 },
+  { entity: "PostgreSQL", relation: "backs", value: "backend", category: "system_state", conviction: 0.86 },
+  { entity: "Redis", relation: "caches_for", value: "phoenix", category: "system_state", conviction: 0.85 },
+  { entity: "Redis", relation: "accelerates", value: "backend", category: "system_state", conviction: 0.84 },
+  { entity: "Docker", relation: "packages", value: "backend", category: "system_state", conviction: 0.88 },
+  { entity: "Docker", relation: "deploys", value: "phoenix", category: "system_state", conviction: 0.86 },
+  { entity: "Docker", relation: "used_by", value: "deployment", category: "system_state", conviction: 0.85 },
+  { entity: "AWS", relation: "hosts", value: "phoenix", category: "system_state", conviction: 0.9 },
+  { entity: "AWS", relation: "runs", value: "deployment", category: "system_state", conviction: 0.88 },
+  { entity: "Next.js", relation: "consumes", value: "backend", category: "system_state", conviction: 0.87 },
+  { entity: "Next.js", relation: "fronts", value: "phoenix", category: "system_state", conviction: 0.85 },
+  { entity: "Auth0", relation: "secures", value: "phoenix", category: "system_state", conviction: 0.88 },
+  { entity: "Stripe_Connect", relation: "bills_for", value: "phoenix", category: "system_state", conviction: 0.86 },
+  { entity: "Prometheus", relation: "monitors", value: "phoenix", category: "system_state", conviction: 0.83 },
+  { entity: "Prometheus", relation: "scrapes", value: "backend", category: "system_state", conviction: 0.82 },
+  { entity: "Sarah", relation: "leads", value: "phoenix", category: "persona", conviction: 0.92 },
+  { entity: "Sarah", relation: "mentors", value: "user", category: "persona", conviction: 0.88 },
+  { entity: "platform_squad", relation: "owns", value: "phoenix", category: "persona", conviction: 0.87 },
+  { entity: "platform_squad", relation: "maintains", value: "backend", category: "persona", conviction: 0.86 },
+  { entity: "microservices", relation: "spans", value: "backend", category: "system_state", conviction: 0.84 },
+  { entity: "microservices", relation: "includes", value: "frontend", category: "system_state", conviction: 0.84 },
+  { entity: "JSON", relation: "serializes", value: "api_format", category: "preference", conviction: 0.8 },
+  { entity: "Markdown", relation: "documents", value: "phoenix", category: "preference", conviction: 0.78 },
+  { entity: "pytest", relation: "validates", value: "backend", category: "system_state", conviction: 0.83 },
+  { entity: "GitHub_Actions", relation: "ships", value: "phoenix", category: "system_state", conviction: 0.85 },
+  { entity: "ECS", relation: "orchestrates", value: "phoenix", category: "system_state", conviction: 0.84 },
+];
+
+const DEMO_FACTS = [...DEMO_CORE, ...DEMO_LINKS];
+
+async function storeBatch(axios, mnemosUrl, userId, facts) {
+  const payload = facts.map((fact) => ({ ...fact, user_id: userId }));
+  await axios.post(
+    `${mnemosUrl}/api/memory/store/batch`,
+    { user_id: userId, facts: payload },
+    { timeout: 120000 }
+  );
+}
+
 async function seedDemoBrain(axios, mnemosUrl, { force = false } = {}) {
   const userId = DEMO_USER_ID;
   const graphUrl = `${mnemosUrl}/api/graph/${encodeURIComponent(userId)}`;
 
+  let beliefCount = 0;
   try {
     const existing = await axios.get(graphUrl, { timeout: 30000 });
-    const beliefCount = existing.data?.beliefs?.length ?? 0;
+    beliefCount = existing.data?.beliefs?.length ?? 0;
     if (!force && beliefCount >= 8) {
+      await storeBatch(axios, mnemosUrl, userId, DEMO_LINKS);
+      const graph = await axios.get(graphUrl, { timeout: 30000 });
       return {
         user_id: userId,
         seeded: false,
-        reason: "already_populated",
-        beliefs: beliefCount,
-        edges: existing.data?.edges?.length ?? 0,
+        reason: "links_merged",
+        beliefs: graph.data?.beliefs?.length ?? 0,
+        edges: graph.data?.edges?.length ?? 0,
       };
     }
   } catch {
     // proceed with seed if graph check fails
   }
 
-  await axios.post(
-    `${mnemosUrl}/api/memory/store/batch`,
-    { user_id: userId, facts: DEMO_FACTS },
-    { timeout: 120000 }
-  );
-
-  // Contradiction arc demo: supersede Express → FastAPI on backend framework
-  await axios.post(
-    `${mnemosUrl}/api/memory/store`,
-    {
-      user_id: userId,
-      entity: "backend",
-      relation: "framework",
-      value: "Express",
-      category: "system_state",
-      conviction: 0.9,
-    },
-    { timeout: 60000 }
-  );
-  await axios.post(
-    `${mnemosUrl}/api/memory/store`,
-    {
-      user_id: userId,
-      entity: "backend",
-      relation: "framework",
-      value: "FastAPI",
-      category: "system_state",
-      conviction: 0.95,
-    },
-    { timeout: 60000 }
-  );
+  await storeBatch(axios, mnemosUrl, userId, DEMO_FACTS);
 
   const graph = await axios.get(graphUrl, { timeout: 30000 });
   return {
@@ -107,4 +125,4 @@ async function seedDemoBrain(axios, mnemosUrl, { force = false } = {}) {
   };
 }
 
-module.exports = { DEMO_USER_ID, DEMO_FACTS, seedDemoBrain };
+module.exports = { DEMO_USER_ID, DEMO_CORE, DEMO_LINKS, DEMO_FACTS, seedDemoBrain };

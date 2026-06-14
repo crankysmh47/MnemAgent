@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,91 @@ def _ucb_score(q_i: float, n_i: int, total_turns: int) -> float:
     return q_i + settings.UCB_EXPLORATION_C * math.sqrt(
         math.log(max(total_turns, 1)) / (n_i + 1)
     )
+
+
+def _norm_term(value: str | None) -> str:
+    return re.sub(r"[_\s]+", "-", (value or "").lower()).strip()
+
+
+def _build_graph_edges(beliefs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Semantic edges with healthy density: cluster stars+rings, concept meshes, bridges, affinity.
+    """
+    edges: list[dict[str, Any]] = []
+    pair_best: dict[str, dict[str, Any]] = {}
+
+    def add_edge(a: dict[str, Any], b: dict[str, Any], kind: str, weight: float) -> None:
+        if a["id"] == b["id"]:
+            return
+        lo, hi = sorted((int(a["id"]), int(b["id"])))
+        key = f"{lo}-{hi}"
+        current = pair_best.get(key)
+        if current is None or weight > float(current["weight"]):
+            pair_best[key] = {"source": lo, "target": hi, "kind": kind, "weight": weight}
+
+    by_subject: dict[str, list[dict[str, Any]]] = {}
+    for belief in beliefs:
+        key = _norm_term(belief["entity_source"])
+        if not key:
+            continue
+        by_subject.setdefault(key, []).append(belief)
+
+    for group in by_subject.values():
+        if len(group) < 2:
+            continue
+        ordered = sorted(group, key=lambda b: (b.get("relation") or "", int(b["id"])))
+        hub = ordered[0]
+        for node in ordered[1:]:
+            add_edge(hub, node, "cluster", 0.65)
+        for i, node in enumerate(ordered):
+            nxt = ordered[(i + 1) % len(ordered)]
+            if node["id"] != nxt["id"]:
+                add_edge(node, nxt, "cluster", 0.52)
+
+    by_object: dict[str, list[dict[str, Any]]] = {}
+    for belief in beliefs:
+        key = _norm_term(belief["entity_target"])
+        if len(key) < 2:
+            continue
+        by_object.setdefault(key, []).append(belief)
+
+    for group in by_object.values():
+        if len(group) < 2:
+            continue
+        subjects = {_norm_term(b["entity_source"]) for b in group}
+        if len(subjects) < 2:
+            continue
+        for i, a in enumerate(group):
+            for b in group[i + 1 :]:
+                add_edge(a, b, "concept", 0.5)
+
+    subject_lookup: dict[str, list[dict[str, Any]]] = {}
+    for belief in beliefs:
+        key = _norm_term(belief["entity_source"])
+        if key:
+            subject_lookup.setdefault(key, []).append(belief)
+
+    for belief in beliefs:
+        bridge_key = _norm_term(belief["entity_target"])
+        for other in subject_lookup.get(bridge_key, []):
+            if belief["id"] == other["id"]:
+                continue
+            if _norm_term(belief["entity_source"]) == _norm_term(other["entity_source"]):
+                continue
+            add_edge(belief, other, "bridge", 0.48)
+
+    for i, a in enumerate(beliefs):
+        a_terms = {_norm_term(a["entity_source"]), _norm_term(a["entity_target"])}
+        for b in beliefs[i + 1 :]:
+            if _norm_term(a["entity_source"]) == _norm_term(b["entity_source"]):
+                continue
+            b_terms = {_norm_term(b["entity_source"]), _norm_term(b["entity_target"])}
+            shared = len({t for t in a_terms if len(t) > 2} & {t for t in b_terms if len(t) > 2})
+            if shared:
+                add_edge(a, b, "affinity", 0.32 + shared * 0.1)
+
+    edges.extend(pair_best.values())
+    return edges
 
 
 def _belief_row(row: sqlite3.Row, total_turns: int) -> dict[str, Any]:
@@ -64,22 +150,7 @@ def get_graph_data(user_id: str, db_path: Path | None = None) -> dict[str, Any]:
             (user_id, settings.PRUNE_THRESHOLD),
         ).fetchall()
         beliefs = [_belief_row(row, total_turns) for row in rows]
-
-        edges: list[dict[str, Any]] = []
-        for i, a in enumerate(beliefs):
-            for b in beliefs[i + 1 :]:
-                shared = 0
-                a_terms = {a["entity_source"], a["entity_target"]}
-                b_terms = {b["entity_source"], b["entity_target"]}
-                shared = len(a_terms & b_terms)
-                if shared:
-                    edges.append(
-                        {
-                            "source": a["id"],
-                            "target": b["id"],
-                            "weight": shared,
-                        }
-                    )
+        edges = _build_graph_edges(beliefs)
         return {"beliefs": beliefs, "edges": edges, "total_turns": total_turns}
     finally:
         conn.close()

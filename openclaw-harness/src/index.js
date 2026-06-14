@@ -17,7 +17,24 @@ const AUTO_SEED_DEMO = process.env.AUTO_SEED_DEMO !== "false";
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+
+// Prevent stale HTML/CSS in browsers during active development
+app.use((req, res, next) => {
+  if (
+    req.method === "GET" &&
+    (req.path === "/" ||
+      req.path === "/visualizer" ||
+      req.path.endsWith(".html") ||
+      req.path.endsWith(".css"))
+  ) {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+  }
+  next();
+});
+
+app.use(express.static(path.join(__dirname, "public"), { etag: false, lastModified: false }));
 // Bundled viz deps (avoid CDN failures → "Offline" in browser)
 app.use("/vendor/d3", express.static(path.join(__dirname, "../node_modules/d3/dist")));
 app.use(
@@ -133,6 +150,9 @@ for (const route of ["graph", "events", "metrics"]) {
 
 // ── Visualizer landing page ──
 const visualizerPage = (_req, res) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
   res.sendFile(path.join(__dirname, "public", "index.html"));
 };
 app.get("/", visualizerPage);
