@@ -28,7 +28,7 @@ openclaw tui                                 # terminal chat
 openclaw mcp probe mnemos                    # verify MCP tools
 ```
 
-Open http://localhost:3000?user=demo-brain to watch the pre-seeded memory graph (32 beliefs, golden synapses).
+Open http://localhost:3000?user=demo-brain to watch the pre-seeded memory graph (61 beliefs, golden synapses).
 
 **Daily startup** (after first setup):
 ```bash
@@ -164,7 +164,7 @@ pwsh scripts/submission-test.ps1          # Full submission verification
 | MCP server (7 tools) | Complete |
 | OpenClaw integration (`scripts/setup.sh`) | Complete |
 | Docker deployment (3 services) | Complete |
-| Brain-theme visualizer (32 demo memories) | Complete |
+| Brain-theme visualizer (61 demo memories) | Complete |
 | 25-scenario single-turn eval | Complete |
 | 4-scenario agentic eval (86.5% vs 64.6%) | Complete |
 | MnemBench (10 scenarios, 171+ steps) | Complete |
