@@ -45,7 +45,7 @@
 
   <div class="header-controls">
     <button id="refreshBtn" type="button">Refresh</button>
-    <button id="autoBtn" class="secondary" type="button">Pause</button>
+    <button id="autoBtn" class="secondary" type="button">Pause live</button>
     <button id="resetZoomBtn" class="secondary" type="button">Reset view</button>
     <button id="exportBtn" class="secondary" type="button">Export</button>
   </div>
@@ -93,13 +93,18 @@
 <div class="node-tooltip" id="nodeTooltip"></div>
 
 <script>
-const POLL_MS = 3000;
+const METRICS_POLL_MS = 12000;
 let autoRefresh = true;
 let lastEventTs = null;
 let ucbChart, injChart;
 let zoom;
 let particleLoopId = null;
-let flowParticles = [];
+let cachedGraph = null;
+let lastStructureKey = '';
+let lastViewportKey = '';
+let savedZoom = null;
+let resizeTimer = null;
+let refreshInFlight = false;
 
 const CHART_GRID = 'rgba(180, 150, 120, 0.14)';
 const CHART_TICK = '#7A6E62';
@@ -139,6 +144,55 @@ function filterBeliefs(beliefs) {
     const cat = normalizeCategory(b.category);
     return activeCats.some(ac => cat === ac || cat.startsWith(ac)) && activeConfs.includes(confLevel(b.node_weight));
   });
+}
+
+function activeFilterKey() {
+  return [...document.querySelectorAll('.filter-chip.active')]
+    .map(el => el.dataset.cat || el.dataset.conf)
+    .sort()
+    .join(',');
+}
+
+function graphStructureKey(data) {
+  const beliefs = data?.beliefs || [];
+  const edges = data?.edges || [];
+  const b = beliefs
+    .map(x => `${x.id}:${x.entity_source}:${x.relation}:${x.entity_target}:${normalizeCategory(x.category)}`)
+    .sort()
+    .join('|');
+  const e = edges.map(x => `${x.source}-${x.target}`).sort().join('|');
+  return `${b}#${e}`;
+}
+
+function viewportKey() {
+  const { width, height } = graphSize();
+  return `${Math.round(width / 40)}x${Math.round(height / 40)}`;
+}
+
+function shouldRedrawGraph(data, { force = false } = {}) {
+  if (force) return true;
+  const struct = graphStructureKey(data);
+  const vp = viewportKey();
+  const filters = activeFilterKey();
+  const key = `${struct}@${filters}@${vp}`;
+  if (key === lastStructureKey) return false;
+  lastStructureKey = key;
+  lastViewportKey = vp;
+  return true;
+}
+
+function updateNodeDetail(graph) {
+  const visible = filterBeliefs(graph.beliefs || []).length;
+  const total = (graph.beliefs || []).length;
+  const edgeCount = (graph.edges || []).length;
+  const el = document.getElementById('nodeDetail');
+  if (total === 0) {
+    el.textContent = 'No memories — click Refresh or open ?user=demo-brain';
+  } else if (visible === 0) {
+    el.textContent = `${total} memories hidden by filters — enable all filter chips`;
+  } else {
+    el.textContent = `${visible} nodes · ${edgeCount} synapses — drag to explore`;
+  }
 }
 
 function graphSize() {
@@ -315,6 +369,11 @@ function renderGraph(data) {
   }
 
   const svg = d3.select('#graphSvg');
+  const svgNode = svg.node();
+  if (svgNode) {
+    const t = d3.zoomTransform(svgNode);
+    if (t && (t.k !== 1 || t.x || t.y)) savedZoom = t;
+  }
   svg.selectAll('*').remove();
   svg.on('.zoom', null);
 
@@ -336,8 +395,11 @@ function renderGraph(data) {
 
   zoom = d3.zoom().scaleExtent([0.45, 3]).on('zoom', (e) => {
     root.attr('transform', e.transform);
+    savedZoom = e.transform;
   });
   svg.call(zoom);
+  svg.call(zoom.transform, savedZoom || d3.zoomIdentity);
+  root.attr('transform', savedZoom || d3.zoomIdentity);
 
   const defs = root.append('defs');
   const clipId = 'brain-clip';
@@ -482,12 +544,6 @@ function renderGraph(data) {
   tick();
   if (particles.length) animateFlow();
 
-  sim.on('end', () => {
-    document.getElementById('nodeDetail').textContent =
-      `${n} nodes · ${links.length} synapses · brain ×${brainScale.toFixed(2)}`;
-  });
-
-  // Legend
   const legend = root.append('g').attr('class', 'graph-legend').attr('transform', `translate(16, ${height - 72})`);
   [
     { label: 'Persona', color: '#E8B4A8', stroke: '#C4785A' },
@@ -520,46 +576,61 @@ function renderMetrics(m, graph) {
     pointRadius: 0,
   }));
 
-  if (ucbChart) ucbChart.destroy();
-  ucbChart = new Chart(document.getElementById('ucbChart'), {
-    type: 'line',
-    data: { labels: tl.turns || [], datasets },
-    options: {
-      animation: { duration: 400 },
-      plugins: { legend: { labels: { color: CHART_TICK, font: { size: 10 }, usePointStyle: true } } },
-      scales: {
-        x: { ticks: { color: CHART_TICK, font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: CHART_GRID } },
-        y: { ticks: { color: CHART_TICK, font: { size: 9 } }, grid: { color: CHART_GRID }, title: { display: true, text: 'Recall utility', color: CHART_TICK, font: { size: 10 } } },
+  if (ucbChart) {
+    ucbChart.data.labels = tl.turns || [];
+    ucbChart.data.datasets = datasets;
+    ucbChart.update('none');
+  } else {
+    ucbChart = new Chart(document.getElementById('ucbChart'), {
+      type: 'line',
+      data: { labels: tl.turns || [], datasets },
+      options: {
+        animation: false,
+        plugins: { legend: { labels: { color: CHART_TICK, font: { size: 10 }, usePointStyle: true } } },
+        scales: {
+          x: { ticks: { color: CHART_TICK, font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: CHART_GRID } },
+          y: { ticks: { color: CHART_TICK, font: { size: 9 } }, grid: { color: CHART_GRID }, title: { display: true, text: 'Recall utility', color: CHART_TICK, font: { size: 10 } } },
+        },
+        interaction: { intersect: false, mode: 'index' },
       },
-      interaction: { intersect: false, mode: 'index' },
-    },
-  });
+    });
+  }
 
   const beliefs = filterBeliefs(graph.beliefs || [])
     .sort((a, b) => b.injection_count - a.injection_count)
     .slice(0, 12);
-  if (injChart) injChart.destroy();
-  injChart = new Chart(document.getElementById('injChart'), {
-    type: 'bar',
-    data: {
-      labels: beliefs.map(b => (b.entity_source || '').slice(0, 10)),
-      datasets: [{
-        label: 'Recalls',
-        data: beliefs.map(b => b.injection_count),
-        backgroundColor: beliefs.map(b => nodeFill(b.node_weight)),
-        borderRadius: 8,
-      }],
-    },
-    options: {
-      indexAxis: 'y',
-      animation: { duration: 400 },
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: CHART_TICK, font: { size: 9 } }, grid: { color: CHART_GRID } },
-        y: { ticks: { color: CHART_TICK, font: { size: 9 } } },
+  const barLabels = beliefs.map(b => (b.entity_source || '').slice(0, 10));
+  const barData = beliefs.map(b => b.injection_count);
+  const barColors = beliefs.map(b => nodeFill(b.node_weight));
+
+  if (injChart) {
+    injChart.data.labels = barLabels;
+    injChart.data.datasets[0].data = barData;
+    injChart.data.datasets[0].backgroundColor = barColors;
+    injChart.update('none');
+  } else {
+    injChart = new Chart(document.getElementById('injChart'), {
+      type: 'bar',
+      data: {
+        labels: barLabels,
+        datasets: [{
+          label: 'Recalls',
+          data: barData,
+          backgroundColor: barColors,
+          borderRadius: 8,
+        }],
       },
-    },
-  });
+      options: {
+        indexAxis: 'y',
+        animation: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: CHART_TICK, font: { size: 9 } }, grid: { color: CHART_GRID } },
+          y: { ticks: { color: CHART_TICK, font: { size: 9 } } },
+        },
+      },
+    });
+  }
 }
 
 const EVENT_LABELS = {
@@ -600,38 +671,33 @@ function setLiveStatus(mode, detail) {
   }
 }
 
-async function refresh() {
+async function refresh({ forceGraph = false } = {}) {
+  if (refreshInFlight) return;
+  refreshInFlight = true;
+
   if (typeof d3 === 'undefined') {
     setLiveStatus('err', 'D3 failed to load');
     document.getElementById('nodeDetail').textContent = 'Hard refresh (Ctrl+Shift+R) or rebuild Docker';
+    refreshInFlight = false;
     return;
   }
 
-  let graph = { beliefs: [], edges: [] };
+  let graph = cachedGraph || { beliefs: [], edges: [] };
   let errors = [];
 
   try {
     graph = await fetchGraph();
+    cachedGraph = graph;
   } catch (e) {
     errors.push('graph');
     console.error('fetchGraph', e);
   }
 
   try {
-    renderGraph(graph);
-    const visible = filterBeliefs(graph.beliefs || []).length;
-    const total = (graph.beliefs || []).length;
-    const edgeCount = (graph.edges || []).length;
-    if (total === 0) {
-      document.getElementById('nodeDetail').textContent =
-        'No memories — click Refresh or open ?user=demo-brain';
-    } else if (visible === 0) {
-      document.getElementById('nodeDetail').textContent =
-        `${total} memories hidden by filters — enable all filter chips`;
-    } else {
-      document.getElementById('nodeDetail').textContent =
-        `${visible} nodes · ${edgeCount} synapses — settling layout…`;
+    if (shouldRedrawGraph(graph, { force: forceGraph })) {
+      renderGraph(graph);
     }
+    updateNodeDetail(graph);
   } catch (e) {
     errors.push('render');
     console.error('renderGraph', e);
@@ -658,20 +724,30 @@ async function refresh() {
   } else {
     setLiveStatus('ok');
   }
+
+  refreshInFlight = false;
 }
 
 document.getElementById('userId').value = uid();
-document.getElementById('userId').addEventListener('change', refresh);
-document.getElementById('userId').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') refresh();
+document.getElementById('userId').addEventListener('change', () => {
+  lastStructureKey = '';
+  lastEventTs = null;
+  refresh({ forceGraph: true });
 });
-document.getElementById('refreshBtn').onclick = refresh;
+document.getElementById('userId').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    lastStructureKey = '';
+    refresh({ forceGraph: true });
+  }
+});
+document.getElementById('refreshBtn').onclick = () => refresh({ forceGraph: true });
 document.getElementById('autoBtn').onclick = () => {
   autoRefresh = !autoRefresh;
-  document.getElementById('autoBtn').textContent = autoRefresh ? 'Pause' : 'Resume';
+  document.getElementById('autoBtn').textContent = autoRefresh ? 'Pause live' : 'Resume live';
 };
 document.getElementById('resetZoomBtn').onclick = () => {
   if (!zoom) return;
+  savedZoom = d3.zoomIdentity;
   d3.select('#graphSvg').transition().duration(400)
     .call(zoom.transform, d3.zoomIdentity);
 };
@@ -685,29 +761,41 @@ document.getElementById('exportBtn').onclick = async () => {
 };
 
 document.querySelectorAll('.filter-chip').forEach(el => {
-  el.addEventListener('click', () => { el.classList.toggle('active'); refresh(); });
+  el.addEventListener('click', () => {
+    el.classList.toggle('active');
+    lastStructureKey = '';
+    refresh({ forceGraph: true });
+  });
 });
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) setLiveStatus('paused');
-  else refresh();
+  else refresh({ forceGraph: false });
 });
 
-function scheduleRefresh() {
-  requestAnimationFrame(() => requestAnimationFrame(refresh));
+function scheduleRefresh(opts = {}) {
+  requestAnimationFrame(() => requestAnimationFrame(() => refresh(opts)));
 }
 
-scheduleRefresh();
+scheduleRefresh({ forceGraph: true });
 
-ensureDemoBrainSeeded().then(scheduleRefresh);
+ensureDemoBrainSeeded().then(() => scheduleRefresh({ forceGraph: true }));
 
 window.addEventListener('resize', () => {
-  if (autoRefresh) scheduleRefresh();
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (!cachedGraph) return;
+    const vp = viewportKey();
+    if (vp !== lastViewportKey) {
+      lastStructureKey = '';
+      scheduleRefresh({ forceGraph: true });
+    }
+  }, 350);
 });
 
 const pollTimer = setInterval(() => {
-  if (autoRefresh && !document.hidden) scheduleRefresh();
-}, POLL_MS);
+  if (autoRefresh && !document.hidden) refresh({ forceGraph: false });
+}, METRICS_POLL_MS);
 
 window.addEventListener('beforeunload', () => {
   clearInterval(pollTimer);
