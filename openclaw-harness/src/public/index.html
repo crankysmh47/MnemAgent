@@ -6,6 +6,7 @@
   <title>MnemOS — Living Memory Atlas</title>
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/visualizer.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -47,6 +48,7 @@
     <button id="refreshBtn" type="button">Refresh</button>
     <button id="autoBtn" class="secondary" type="button">Pause live</button>
     <button id="resetZoomBtn" class="secondary" type="button">Reset view</button>
+    <button id="resetLayoutBtn" class="secondary" type="button">Reset layout</button>
     <button id="exportBtn" class="secondary" type="button">Export</button>
   </div>
 </header>
@@ -66,18 +68,34 @@
   <div class="metrics-panel">
     <div class="stat-cards">
       <div class="stat-card"><div class="value" id="mBeliefs">0</div><div class="label">Memories</div></div>
-      <div class="stat-card"><div class="value" id="mSessions">0</div><div class="label">Sessions</div></div>
+      <div class="stat-card"><div class="value" id="mRecalls">0</div><div class="label">Recalls</div></div>
       <div class="stat-card"><div class="value" id="mAvgQ">0</div><div class="label">Avg utility</div></div>
-      <div class="stat-card"><div class="value" id="mInjections">0</div><div class="label">Recalls</div></div>
+      <div class="stat-card"><div class="value" id="mSynapses">0</div><div class="label">Synapses</div></div>
     </div>
-    <canvas id="ucbChart" height="100"></canvas>
-    <canvas id="injChart" height="90"></canvas>
-    <div class="guide-panel">
-      <h3>How memories form</h3>
-      <p>Each dot is a stored belief — gold preferences, rose persona, blue system facts. Hover for details; golden pulses flow along synapses.</p>
-      <p>Teach the brain via OpenClaw:</p>
-      <p><code>openclaw agent --agent main --message "I prefer Python for APIs"</code></p>
-      <p>Watch new nodes appear in the cortical map and golden traces flow between related facts.</p>
+
+    <div class="insight-card">
+      <div class="insight-header">Memory mix</div>
+      <div class="mix-row">
+        <div class="chart-wrap">
+          <canvas id="catChart" width="104" height="104"></canvas>
+        </div>
+        <div id="catLegend" class="mini-legend"></div>
+      </div>
+    </div>
+
+    <div class="insight-card">
+      <div class="insight-header">Vividness</div>
+      <div id="confBars" class="conf-bars"></div>
+    </div>
+
+    <div class="insight-card">
+      <div class="insight-header">Most recalled</div>
+      <ol id="topRecalled" class="top-list"></ol>
+    </div>
+
+    <div class="insight-card" id="ucbSection" hidden>
+      <div class="insight-header">Recall utility trend</div>
+      <canvas id="ucbChart" height="88"></canvas>
     </div>
   </div>
 
@@ -93,10 +111,11 @@
 <div class="node-tooltip" id="nodeTooltip"></div>
 
 <script>
-const METRICS_POLL_MS = 12000;
+const METRICS_POLL_MS = 15000;
+const STRUCTURAL_EVENTS = new Set(['new_belief', 'contradiction', 'pruned']);
 let autoRefresh = true;
 let lastEventTs = null;
-let ucbChart, injChart;
+let ucbChart, catChart;
 let zoom;
 let particleLoopId = null;
 let cachedGraph = null;
@@ -105,28 +124,40 @@ let lastViewportKey = '';
 let savedZoom = null;
 let resizeTimer = null;
 let refreshInFlight = false;
+let liveNodePositions = {};
 
 const CHART_GRID = 'rgba(180, 150, 120, 0.14)';
 const CHART_TICK = '#7A6E62';
 
 function uid() {
   const params = new URLSearchParams(location.search);
-  // Visualizer is a demo — default to demo-brain (ignore OpenClaw session UUID)
   return params.get('user') || 'demo-brain';
 }
 
-function confLevel(w) { return w >= 0.85 ? 'high' : w >= 0.55 ? 'mid' : 'low'; }
-
-function nodeFill(w) {
-  if (w >= 0.85) return '#F0C75A';
-  if (w >= 0.55) return '#D4A86A';
-  return '#C4B09A';
+function currentUser() {
+  return document.getElementById('userId')?.value.trim() || uid();
 }
 
-function nodeStroke(w) {
-  if (w >= 0.85) return '#C9920A';
-  if (w >= 0.55) return '#A87848';
-  return '#9A8878';
+const LAYOUT_KEY_PREFIX = 'mnemos_layout_';
+
+function loadNodeLayouts(user) {
+  try {
+    const raw = localStorage.getItem(`${LAYOUT_KEY_PREFIX}${user}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveNodeLayout(user, nodeId, x, y) {
+  const layouts = loadNodeLayouts(user);
+  layouts[String(nodeId)] = { x, y };
+  localStorage.setItem(`${LAYOUT_KEY_PREFIX}${user}`, JSON.stringify(layouts));
+}
+
+function clearNodeLayouts(user) {
+  localStorage.removeItem(`${LAYOUT_KEY_PREFIX}${user}`);
+  liveNodePositions = {};
 }
 
 function normalizeCategory(raw) {
@@ -137,13 +168,125 @@ function normalizeCategory(raw) {
   return cat.replace(/s$/, '');
 }
 
+function nodeFill(w) {
+  if (w >= 0.85) return '#F0C75A';
+  if (w >= 0.65) return '#D4A86A';
+  return '#C4B09A';
+}
+
+function nodeStroke(w) {
+  if (w >= 0.85) return '#C9920A';
+  if (w >= 0.65) return '#A87848';
+  return '#9A8878';
+}
+
+function confLevel(beliefOrWeight) {
+  const score = typeof beliefOrWeight === 'object'
+    ? (beliefOrWeight.conviction_score ?? beliefOrWeight.node_weight ?? 0.5)
+    : beliefOrWeight;
+  return score >= 0.85 ? 'high' : score >= 0.65 ? 'mid' : 'low';
+}
+
 function filterBeliefs(beliefs) {
   const activeCats = [...document.querySelectorAll('#categoryFilters .filter-chip.active')].map(e => e.dataset.cat);
   const activeConfs = [...document.querySelectorAll('#confidenceFilters .filter-chip.active')].map(e => e.dataset.conf);
-  return beliefs.filter(b => {
+  if (!activeCats.length || !activeConfs.length) return [];
+
+  return (beliefs || []).filter(b => {
     const cat = normalizeCategory(b.category);
-    return activeCats.some(ac => cat === ac || cat.startsWith(ac)) && activeConfs.includes(confLevel(b.node_weight));
+    return activeCats.includes(cat) && activeConfs.includes(confLevel(b));
   });
+}
+
+function normTerm(value) {
+  return (value || '').toLowerCase().replace(/[_\s]+/g, '-').trim();
+}
+
+function beliefLabel(b) {
+  return `${b.entity_source} ${b.relation} ${b.entity_target}`.trim();
+}
+
+/** Semantic links: cluster star+ring, concept mesh, bridges, affinity. */
+function computeSemanticLinks(nodes) {
+  const pairBest = new Map();
+
+  const add = (a, b, kind, weight) => {
+    if (!a || !b || a.id === b.id) return;
+    const key = `${Math.min(a.id, b.id)}-${Math.max(a.id, b.id)}`;
+    const prev = pairBest.get(key);
+    if (!prev || weight > prev.weight) {
+      pairBest.set(key, { source: a, target: b, kind, weight });
+    }
+  };
+
+  const bySubject = new Map();
+  nodes.forEach(n => {
+    const key = normTerm(n.entity_source);
+    if (!key) return;
+    if (!bySubject.has(key)) bySubject.set(key, []);
+    bySubject.get(key).push(n);
+  });
+  bySubject.forEach(group => {
+    if (group.length < 2) return;
+    const ordered = [...group].sort((a, b) =>
+      beliefLabel(a).localeCompare(beliefLabel(b)));
+    const hub = ordered[0];
+    ordered.slice(1).forEach(n => add(hub, n, 'cluster', 0.65));
+    ordered.forEach((n, i) => {
+      const nxt = ordered[(i + 1) % ordered.length];
+      if (n.id !== nxt.id) add(n, nxt, 'cluster', 0.52);
+    });
+  });
+
+  const byObject = new Map();
+  nodes.forEach(n => {
+    const key = normTerm(n.entity_target);
+    if (key.length < 2) return;
+    if (!byObject.has(key)) byObject.set(key, []);
+    byObject.get(key).push(n);
+  });
+  byObject.forEach(group => {
+    if (group.length < 2) return;
+    const subjects = new Set(group.map(n => normTerm(n.entity_source)));
+    if (subjects.size < 2) return;
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        add(group[i], group[j], 'concept', 0.5);
+      }
+    }
+  });
+
+  const subjectLookup = new Map();
+  nodes.forEach(n => {
+    const key = normTerm(n.entity_source);
+    if (!key) return;
+    if (!subjectLookup.has(key)) subjectLookup.set(key, []);
+    subjectLookup.get(key).push(n);
+  });
+  nodes.forEach(a => {
+    (subjectLookup.get(normTerm(a.entity_target)) || []).forEach(b => {
+      if (a.id !== b.id && normTerm(a.entity_source) !== normTerm(b.entity_source)) {
+        add(a, b, 'bridge', 0.48);
+      }
+    });
+  });
+
+  const MAX_AFFINITY_NODES = 80;
+  const affinityNodes = nodes.length <= MAX_AFFINITY_NODES ? nodes : nodes.slice(0, MAX_AFFINITY_NODES);
+  for (let i = 0; i < affinityNodes.length; i++) {
+    const a = affinityNodes[i];
+    const aTerms = new Set([normTerm(a.entity_source), normTerm(a.entity_target)].filter(t => t.length > 2));
+    for (let j = i + 1; j < affinityNodes.length; j++) {
+      const b = affinityNodes[j];
+      if (normTerm(a.entity_source) === normTerm(b.entity_source)) continue;
+      const bTerms = new Set([normTerm(b.entity_source), normTerm(b.entity_target)].filter(t => t.length > 2));
+      let shared = 0;
+      aTerms.forEach(t => { if (bTerms.has(t)) shared += 1; });
+      if (shared) add(a, b, 'affinity', 0.32 + shared * 0.1);
+    }
+  }
+
+  return [...pairBest.values()];
 }
 
 function activeFilterKey() {
@@ -172,26 +315,35 @@ function viewportKey() {
 function shouldRedrawGraph(data, { force = false } = {}) {
   if (force) return true;
   const struct = graphStructureKey(data);
-  const vp = viewportKey();
   const filters = activeFilterKey();
-  const key = `${struct}@${filters}@${vp}`;
+  const key = `${struct}@${filters}`;
   if (key === lastStructureKey) return false;
   lastStructureKey = key;
-  lastViewportKey = vp;
   return true;
 }
 
+function captureLivePositions() {
+  const svg = d3.select('#graphSvg');
+  const nodeLayer = svg.select('.node-layer');
+  if (nodeLayer.empty()) return;
+  nodeLayer.selectAll('g.node').each(function(d) {
+    if (d && Number.isFinite(d.x) && Number.isFinite(d.y)) {
+      liveNodePositions[String(d.id)] = { x: d.x, y: d.y };
+    }
+  });
+}
+
 function updateNodeDetail(graph) {
-  const visible = filterBeliefs(graph.beliefs || []).length;
+  const visible = filterBeliefs(graph.beliefs || []);
   const total = (graph.beliefs || []).length;
-  const edgeCount = (graph.edges || []).length;
+  const edgeCount = computeSemanticLinks(visible).length;
   const el = document.getElementById('nodeDetail');
   if (total === 0) {
     el.textContent = 'No memories — click Refresh or open ?user=demo-brain';
-  } else if (visible === 0) {
-    el.textContent = `${total} memories hidden by filters — enable all filter chips`;
+  } else if (visible.length === 0) {
+    el.textContent = `${total} memories hidden by filters — enable category or vividness chips`;
   } else {
-    el.textContent = `${visible} nodes · ${edgeCount} synapses — drag to explore`;
+    el.textContent = `${visible.length} nodes · ${edgeCount} links — drag to explore`;
   }
 }
 
@@ -230,10 +382,10 @@ async function fetchEvents() {
 async function ensureDemoBrainSeeded() {
   try {
     const user = document.getElementById('userId').value.trim() || uid();
-    if (user !== 'demo-brain') return;
+    if (user !== 'demo-brain') return false;
 
     const status = await fetch('/api/demo/status').then(r => r.json());
-    if ((status.beliefs || 0) >= 8) return;
+    if ((status.beliefs || 0) >= 8) return false;
 
     const result = await fetch('/api/demo/seed', {
       method: 'POST',
@@ -243,11 +395,13 @@ async function ensureDemoBrainSeeded() {
 
     if (result.error) {
       console.warn('Demo seed failed:', result.error);
-      return;
+      return false;
     }
     console.info(`Demo brain: ${result.beliefs} beliefs, ${result.edges} edges`);
+    return Boolean(result.seeded);
   } catch (e) {
     console.warn('Demo seed unavailable:', e.message);
+    return false;
   }
 }
 
@@ -265,33 +419,116 @@ function brainPath(cx, cy, scale) {
 /** Scale brain silhouette to fit node count and viewport. */
 function computeBrainScale(nodeCount, width, height) {
   const vmin = Math.min(width, height);
-  const base = vmin / 340;
-  const perNode = Math.sqrt(Math.max(nodeCount, 1)) * 0.055;
-  const scale = base * (0.92 + perNode + Math.max(0, nodeCount - 12) * 0.022);
-  const max = vmin / 175;
-  return Math.min(Math.max(scale, 0.85), max);
+  const base = vmin / 260;
+  const perNode = Math.sqrt(Math.max(nodeCount, 1)) * 0.072;
+  const scale = base * (1.05 + perNode + Math.max(0, nodeCount - 10) * 0.028);
+  const max = vmin / 130;
+  return Math.min(Math.max(scale, 1.05), max);
 }
 
 function brainBounds(cx, cy, scale) {
-  return { cx, cy, rx: 128 * scale, ry: 108 * scale, scale };
+  return { cx, cy, rx: 138 * scale, ry: 116 * scale, scale };
 }
 
-/** Keep nodes inside the brain ellipse (soft boundary). */
-function forceBrainContain(cx, cy, rx, ry, margin = 0.78) {
-  let nodes;
-  function force(alpha) {
-    for (const node of nodes) {
-      const dx = (node.x - cx) / rx;
-      const dy = (node.y - cy) / ry;
-      const d2 = dx * dx + dy * dy;
-      const limit = margin * margin;
-      if (d2 > limit) {
-        const d = Math.sqrt(d2);
-        const pull = ((d - margin) / d) * 0.35 * alpha;
-        node.vx -= dx * pull;
-        node.vy -= dy * pull;
+/** Safe interior fraction — tighter when more nodes compete for space. */
+function brainMarginForCount(nodeCount) {
+  return Math.max(0.64, 0.74 - Math.max(0, nodeCount - 14) * 0.006);
+}
+
+/** Project a point onto the inner brain ellipse (accounts for node + glow radius). */
+function clampToBrain(x, y, bounds, nodeR = 5, margin = 0.72) {
+  const { cx, cy, rx, ry } = bounds;
+  const pad = (nodeR + 5) / Math.min(rx, ry);
+  const limit = Math.max(0.42, margin - pad);
+  const dx = x - cx;
+  const dy = y - cy;
+  const d2 = (dx / rx) ** 2 + (dy / ry) ** 2;
+  const lim2 = limit * limit;
+  if (d2 <= lim2) return { x, y };
+  const d = Math.sqrt(d2) || 1;
+  const s = limit / d;
+  return { x: cx + dx * s, y: cy + dy * s };
+}
+
+function clampNode(node, bounds, margin) {
+  const p = clampToBrain(node.x, node.y, bounds, node.r, margin);
+  node.x = p.x;
+  node.y = p.y;
+  if (node.fx != null) node.fx = p.x;
+  if (node.fy != null) node.fy = p.y;
+  return node;
+}
+
+/** Collision radius including neuron body + glow halo. */
+function collisionRadius(node) {
+  return node.r + 10;
+}
+
+/** Push overlapping nodes apart (runs after clamp / on drag / when all pinned). */
+function resolveOverlaps(nodes, bounds, margin, passes = 3) {
+  for (let p = 0; p < passes; p++) {
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i];
+        const b = nodes[j];
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let dist = Math.hypot(dx, dy);
+        const minDist = collisionRadius(a) + collisionRadius(b);
+        if (dist >= minDist) continue;
+        if (dist < 0.001) {
+          const angle = ((i * 7 + j * 3) % 360) * (Math.PI / 180);
+          dx = Math.cos(angle);
+          dy = Math.sin(angle);
+          dist = 0.001;
+        }
+        const overlap = (minDist - dist) / 2;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        const aFixed = a.pinned || (a.fx != null && a.fy != null);
+        const bFixed = b.pinned || (b.fx != null && b.fy != null);
+
+        if (aFixed && bFixed) {
+          a.x -= ux * overlap;
+          a.y -= uy * overlap;
+          b.x += ux * overlap;
+          b.y += uy * overlap;
+          if (a.fx != null) { a.fx = a.x; a.fy = a.y; }
+          if (b.fx != null) { b.fx = b.x; b.fy = b.y; }
+        } else if (aFixed) {
+          b.x += ux * overlap * 2;
+          b.y += uy * overlap * 2;
+        } else if (bFixed) {
+          a.x -= ux * overlap * 2;
+          a.y -= uy * overlap * 2;
+        } else {
+          a.x -= ux * overlap;
+          a.y -= uy * overlap;
+          b.x += ux * overlap;
+          b.y += uy * overlap;
+        }
       }
     }
+    nodes.forEach(node => clampNode(node, bounds, margin));
+  }
+}
+
+function initialNodePosition(i, n, bounds, hemisphere, margin) {
+  const { cx, cy, rx, ry } = bounds;
+  const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+  const band = 0.38 + (i % 6) * 0.055;
+  const radial = margin * band;
+  let x = cx + Math.cos(angle) * rx * radial + hemisphere * rx * 0.055;
+  let y = cy + Math.sin(angle) * ry * radial * 0.94;
+  return clampToBrain(x, y, bounds, 6, margin);
+}
+
+/** Hard clamp each tick — soft forces were letting nodes drift outside the silhouette. */
+function forceBrainContain(cx, cy, rx, ry, margin = 0.72) {
+  const bounds = { cx, cy, rx, ry };
+  let nodes;
+  function force() {
+    for (const node of nodes) clampNode(node, bounds, margin);
   }
   force.initialize = (n) => { nodes = n; };
   return force;
@@ -310,40 +547,15 @@ function categoryHue(cat) {
   return { fill: '#F0C75A', stroke: '#C9920A', glow: 'rgba(212, 160, 23, 0.4)' };
 }
 
-function deriveLinks(nodes, apiEdges) {
-  const byId = new Map(nodes.map(n => [Number(n.id), n]));
-  const seen = new Set();
-  const links = [];
+function deriveLinks(nodes) {
+  return computeSemanticLinks(nodes);
+}
 
-  const add = (a, b, weight) => {
-    if (!a || !b || a.id === b.id) return;
-    const key = [Math.min(a.id, b.id), Math.max(a.id, b.id)].join('-');
-    if (seen.has(key)) return;
-    seen.add(key);
-    links.push({ source: a, target: b, weight });
-  };
-
-  (apiEdges || []).forEach(e => {
-    add(byId.get(Number(e.source)), byId.get(Number(e.target)), e.weight || 0.6);
-  });
-
-  // Shared-entity synapses (makes the network feel connected)
-  const byEntity = new Map();
-  nodes.forEach(n => {
-    const key = (n.entity_source || '').toLowerCase();
-    if (!key) return;
-    if (!byEntity.has(key)) byEntity.set(key, []);
-    byEntity.get(key).push(n);
-  });
-  byEntity.forEach(group => {
-    for (let i = 0; i < group.length; i++) {
-      for (let j = i + 1; j < group.length; j++) {
-        add(group[i], group[j], 0.45);
-      }
-    }
-  });
-
-  return links;
+function synapseStyle(kind) {
+  if (kind === 'concept') return { dash: '7 4', opacity: 0.58 };
+  if (kind === 'bridge') return { dash: '4 3', opacity: 0.6 };
+  if (kind === 'affinity') return { dash: '2 4', opacity: 0.45 };
+  return { dash: null, opacity: 0.68 };
 }
 
 function synapsePath(d) {
@@ -363,10 +575,9 @@ function renderGraph(data) {
   if (particleLoopId) cancelAnimationFrame(particleLoopId);
   particleLoopId = null;
 
-  let beliefs = filterBeliefs(data.beliefs || []);
-  if (!beliefs.length && (data.beliefs || []).length) {
-    beliefs = data.beliefs || [];
-  }
+  captureLivePositions();
+
+  const beliefs = filterBeliefs(data.beliefs || []);
 
   const svg = d3.select('#graphSvg');
   const svgNode = svg.node();
@@ -383,7 +594,23 @@ function renderGraph(data) {
     .attr('height', height)
     .attr('viewBox', `0 0 ${width} ${height}`);
 
-  if (!beliefs.length) return;
+  if (!beliefs.length) {
+    const cx = width / 2;
+    const cy = height / 2;
+    const brainScale = computeBrainScale(1, width, height) * 0.92;
+    const root = svg.append('g').attr('class', 'graph-root');
+    const brainD = brainPath(cx, cy, brainScale);
+    root.append('path').attr('d', brainD).attr('class', 'brain-fill');
+    root.append('path').attr('d', brainD).attr('class', 'brain-outline');
+    root.append('text')
+      .attr('x', cx)
+      .attr('y', cy)
+      .attr('text-anchor', 'middle')
+      .attr('class', 'empty-hint')
+      .text((data.beliefs || []).length ? 'No memories match filters' : 'No memories loaded');
+    lastViewportKey = viewportKey();
+    return;
+  }
 
   const cx = width / 2;
   const cy = height / 2;
@@ -417,48 +644,58 @@ function renderGraph(data) {
 
   const graphG = root.append('g').attr('clip-path', `url(#${clipId})`);
 
-  const initR = bounds.rx * 0.55;
+  const user = currentUser();
+  const savedLayouts = { ...loadNodeLayouts(user), ...liveNodePositions };
+  const brainMargin = brainMarginForCount(n);
   const nodes = beliefs.map((b, i) => {
     const cat = normalizeCategory(b.category);
     const hemisphere = cat === 'persona' ? -1 : cat === 'preference' ? 1 : 0;
-    const angle = (i / n) * Math.PI * 2;
-    const ring = initR * (0.35 + (i % 7) * 0.08);
-    return {
+    const pos = initialNodePosition(i, n, bounds, hemisphere, brainMargin);
+    const node = {
       ...b,
       cat,
       hemisphere,
       r: nodeRadius(b, n),
-      x: cx + Math.cos(angle) * ring + hemisphere * bounds.rx * 0.12,
-      y: cy + Math.sin(angle) * ring * 0.82,
+      pinned: false,
+      x: pos.x,
+      y: pos.y,
     };
+    const saved = savedLayouts[String(b.id)];
+    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+      const clamped = clampToBrain(saved.x, saved.y, bounds, node.r, brainMargin);
+      node.x = clamped.x;
+      node.y = clamped.y;
+      node.pinned = true;
+      node.fx = clamped.x;
+      node.fy = clamped.y;
+    }
+    return node;
   });
+  nodes.forEach(node => clampNode(node, bounds, brainMargin));
+  resolveOverlaps(nodes, bounds, brainMargin, 4);
 
-  const links = deriveLinks(nodes, data.edges || []);
-  const charge = -Math.min(140, 48 + n * 1.8);
-  const linkDist = Math.max(28, 38 - n * 0.15);
-
-  const sim = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).distance(linkDist).strength(0.32))
-    .force('charge', d3.forceManyBody().strength(charge))
-    .force('center', d3.forceCenter(cx, cy).strength(0.06))
-    .force('collision', d3.forceCollide().radius(d => d.r + 5))
-    .force('x', d3.forceX(d => cx + d.hemisphere * bounds.rx * 0.22).strength(0.035))
-    .force('y', d3.forceY(cy).strength(0.025))
-    .force('contain', forceBrainContain(cx, cy, bounds.rx, bounds.ry, 0.76))
-    .alpha(0.95)
-    .alphaDecay(0.032);
+  const links = deriveLinks(nodes);
+  const allPinned = nodes.length > 0 && nodes.every(nd => nd.pinned);
+  const charge = -Math.min(120, 42 + n * 1.5);
+  const linkDist = Math.max(32, 42 - n * 0.12);
 
   const linkLayer = graphG.append('g').attr('class', 'link-layer');
   const linkPaths = linkLayer.selectAll('path.synapse')
     .data(links)
     .join('path')
-    .attr('class', 'synapse')
+    .attr('class', d => `synapse synapse-${d.kind || 'cluster'}`)
     .attr('fill', 'none')
-    .attr('stroke-width', d => 0.8 + d.weight * 1.2);
+    .attr('stroke-width', d => 0.9 + d.weight * 1.35)
+    .each(function(d) {
+      const style = synapseStyle(d.kind);
+      d3.select(this)
+        .attr('stroke-opacity', style.opacity)
+        .attr('stroke-dasharray', style.dash || null);
+    });
 
   const particleLayer = graphG.append('g').attr('class', 'particle-layer');
-  const particles = links.slice(0, 24).flatMap((link, li) =>
-    [{ link, id: `${li}-a`, t: Math.random(), speed: 0.003 + Math.random() * 0.003 }]
+  const particles = links.slice(0, Math.min(links.length, 56)).flatMap((link, li) =>
+    [{ link, id: `${li}-a`, t: Math.random(), speed: 0.003 + Math.random() * 0.004 }]
   );
   const particleSel = particleLayer.selectAll('circle')
     .data(particles, d => d.id)
@@ -470,41 +707,8 @@ function renderGraph(data) {
   const nodeG = nodeLayer.selectAll('g.node')
     .data(nodes, d => d.id)
     .join('g')
-    .attr('class', 'node')
-    .style('cursor', 'pointer')
-    .call(d3.drag()
-      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; })
-      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-      .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
-
-  nodeG.append('circle')
-    .attr('class', 'neuron-glow')
-    .attr('r', d => d.r + 5)
-    .attr('fill', d => categoryHue(d.category).glow);
-
-  nodeG.append('circle')
-    .attr('class', 'neuron-body')
-    .attr('r', d => d.r)
-    .attr('fill', d => categoryHue(d.category).fill)
-    .attr('stroke', d => categoryHue(d.category).stroke)
-    .attr('stroke-width', 1.8)
-    .on('mouseenter', function(e, d) {
-      d3.select(this.parentNode).classed('node-active', true);
-      tt.classed('visible', true)
-        .style('left', `${Math.min(e.pageX + 12, window.innerWidth - 300)}px`)
-        .style('top', `${e.pageY - 12}px`)
-        .html(`<span class="tt-cat">${normalizeCategory(d.category)}</span>
-               <strong>${d.entity_source}</strong> <span class="tt-rel">${d.relation}</span> ${d.entity_target}
-               <div class="tt-meta">utility ${(d.base_utility_q || 0).toFixed(2)} · ${d.injection_count || 0} recalls</div>`);
-    })
-    .on('mouseleave', function() {
-      d3.select(this.parentNode).classed('node-active', false);
-      tt.classed('visible', false);
-    })
-    .on('click', (_, d) => {
-      document.getElementById('nodeDetail').textContent =
-        `${d.entity_source} → ${d.entity_target}`;
-    });
+    .attr('class', d => `node${d.pinned ? ' node-fixed' : ''}`)
+    .style('cursor', 'grab');
 
   function pointOnPath(link, t) {
     const sx = link.source.x, sy = link.source.y;
@@ -523,6 +727,7 @@ function renderGraph(data) {
   }
 
   function tick() {
+    resolveOverlaps(nodes, bounds, brainMargin, 1);
     linkPaths.attr('d', synapsePath);
     nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
     particleSel.each(function(d) {
@@ -531,16 +736,114 @@ function renderGraph(data) {
     });
   }
 
-  sim.on('tick', tick);
-
+  let framesSinceCool = 0;
   function animateFlow() {
     particles.forEach(d => {
       d.t += d.speed;
       if (d.t > 1) d.t = 0;
     });
     tick();
+    const cooled = !sim || sim.alpha() < 0.01;
+    const noDrag = !nodes.some(n => n.fx != null || n.fy != null);
+    if (cooled && noDrag) {
+      framesSinceCool++;
+      if (framesSinceCool > 60) { particleLoopId = null; return; }
+    } else {
+      framesSinceCool = 0;
+    }
     particleLoopId = requestAnimationFrame(animateFlow);
   }
+
+  let sim = null;
+  if (!allPinned) {
+    sim = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).distance(linkDist).strength(0.28))
+      .force('charge', d3.forceManyBody().strength(charge))
+      .force('center', d3.forceCenter(cx, cy).strength(0.05))
+      .force('collision', d3.forceCollide()
+        .radius(d => collisionRadius(d))
+        .strength(0.92)
+        .iterations(3))
+      .force('x', d3.forceX(d => cx + d.hemisphere * bounds.rx * 0.09).strength(d => d.pinned ? 0 : 0.025))
+      .force('y', d3.forceY(cy).strength(d => d.pinned ? 0 : 0.02))
+      .force('contain', forceBrainContain(cx, cy, bounds.rx, bounds.ry, brainMargin))
+      .alpha(0.85)
+      .alphaDecay(0.035);
+    sim.on('tick', tick);
+  } else {
+    resolveOverlaps(nodes, bounds, brainMargin, 14);
+  }
+
+  nodeG.call(
+    d3.drag()
+      .on('start', (e, d) => {
+        d._dragStartX = e.x;
+        d._dragStartY = e.y;
+        if (sim && !e.active) sim.alphaTarget(0.15).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on('drag', (e, d) => {
+        const p = clampToBrain(e.x, e.y, bounds, d.r, brainMargin);
+        d.fx = p.x;
+        d.fy = p.y;
+        d.x = p.x;
+        d.y = p.y;
+        resolveOverlaps(nodes, bounds, brainMargin, 2);
+        tick();
+      })
+      .on('end', (e, d) => {
+        if (sim && !e.active) sim.alphaTarget(0);
+        clampNode(d, bounds, brainMargin);
+        resolveOverlaps(nodes, bounds, brainMargin, 6);
+        const moved = Math.hypot(e.x - (d._dragStartX ?? e.x), e.y - (d._dragStartY ?? e.y));
+        const hadSaved = Boolean(savedLayouts[String(d.id)]);
+        if (moved < 8 && !hadSaved) {
+          d.pinned = false;
+          d.fx = null;
+          d.fy = null;
+          nodeG.filter(n => n.id === d.id).classed('node-fixed', false);
+          tick();
+          return;
+        }
+        d.pinned = true;
+        d.fx = d.x;
+        d.fy = d.y;
+        nodeG.filter(n => n.id === d.id).classed('node-fixed', true);
+        saveNodeLayout(user, d.id, d.x, d.y);
+        liveNodePositions[String(d.id)] = { x: d.x, y: d.y };
+        tick();
+      })
+  );
+
+  nodeG.append('circle')
+    .attr('class', 'neuron-glow')
+    .attr('r', d => d.r + 5)
+    .attr('fill', d => categoryHue(d.category).glow);
+
+  nodeG.append('circle')
+    .attr('class', 'neuron-body')
+    .attr('r', d => d.r)
+    .attr('fill', d => categoryHue(d.category).fill)
+    .attr('stroke', d => categoryHue(d.category).stroke)
+    .attr('stroke-width', 1.8)
+    .on('mouseenter', function(e, d) {
+      d3.select(this.parentNode).classed('node-active', true);
+      tt.classed('visible', true)
+        .style('left', `${Math.min(e.pageX + 12, window.innerWidth - 300)}px`)
+        .style('top', `${Math.min(e.pageY - 12, window.innerHeight - 160)}px`)
+        .html(`<span class="tt-cat">${normalizeCategory(d.category)}</span>
+               <strong>${beliefLabel(d)}</strong>
+               <div class="tt-meta">conviction ${(d.conviction_score || 0).toFixed(2)} · utility ${(d.base_utility_q || 0).toFixed(2)} · ${d.injection_count || 0} recalls</div>`);
+    })
+    .on('mouseleave', function() {
+      d3.select(this.parentNode).classed('node-active', false);
+      tt.classed('visible', false);
+    })
+    .on('click', (_, d) => {
+      document.getElementById('nodeDetail').textContent = beliefLabel(d);
+    });
+
   tick();
   if (particles.length) animateFlow();
 
@@ -554,19 +857,122 @@ function renderGraph(data) {
     g.append('circle').attr('r', 5).attr('cx', 6).attr('cy', 6).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 1.2);
     g.append('text').attr('x', 18).attr('y', 10).attr('class', 'legend-text').text(item.label);
   });
-  legend.append('text').attr('y', 68).attr('class', 'legend-hint').text('Hover nodes · drag to rearrange');
+  legend.append('text').attr('y', 68).attr('class', 'legend-hint').text('Solid=cluster · dashed=concept · dotted=bridge/affinity');
+  lastViewportKey = viewportKey();
+}
+
+function summarizeBeliefs(beliefs) {
+  const all = beliefs || [];
+  const cats = { persona: 0, preference: 0, system_state: 0, other: 0 };
+  const conf = { high: 0, mid: 0, low: 0 };
+  let totalRecalls = 0;
+  all.forEach(b => {
+    const cat = normalizeCategory(b.category);
+    if (cat in cats) cats[cat] += 1;
+    else cats.other += 1;
+    conf[confLevel(b)] += 1;
+    totalRecalls += b.injection_count || 0;
+  });
+  return { all, cats, conf, totalRecalls };
 }
 
 function renderMetrics(m, graph) {
-  document.getElementById('mBeliefs').textContent = m.total_beliefs ?? 0;
-  document.getElementById('mSessions').textContent = m.total_sessions ?? 0;
+  const beliefs = filterBeliefs(graph?.beliefs || []);
+  const summary = summarizeBeliefs(beliefs);
+  const edgeCount = computeSemanticLinks(beliefs).length;
+  const totalAll = (graph?.beliefs || []).length;
+
+  document.getElementById('mBeliefs').textContent = beliefs.length
+    ? `${beliefs.length}${beliefs.length !== totalAll ? ` / ${totalAll}` : ''}`
+    : (m.total_beliefs ?? 0);
+  document.getElementById('mRecalls').textContent = summary.totalRecalls;
   document.getElementById('mAvgQ').textContent = (m.avg_q_i ?? 0).toFixed(2);
-  document.getElementById('mInjections').textContent = m.total_injections ?? 0;
+  document.getElementById('mSynapses').textContent = edgeCount;
+
+  const catLegend = document.getElementById('catLegend');
+  const catItems = [
+    { key: 'preference', label: 'Preferences', color: '#F0C75A' },
+    { key: 'persona', label: 'Persona', color: '#E8B4A8' },
+    { key: 'system_state', label: 'System', color: '#C9D4E8' },
+  ].filter(item => summary.cats[item.key] > 0);
+  catLegend.innerHTML = catItems.map(item =>
+    `<div class="mini-legend-row"><span class="swatch" style="background:${item.color}"></span>${item.label} <strong>${summary.cats[item.key]}</strong></div>`
+  ).join('');
+
+  if (typeof Chart !== 'undefined') {
+    const catData = catItems.map(item => summary.cats[item.key]);
+    const catColors = catItems.map(item => item.color);
+    if (catChart) {
+      catChart.data.labels = catItems.map(i => i.label);
+      catChart.data.datasets[0].data = catData;
+      catChart.data.datasets[0].backgroundColor = catColors;
+      catChart.update('none');
+    } else if (catData.length) {
+      catChart = new Chart(document.getElementById('catChart'), {
+        type: 'doughnut',
+        data: {
+          labels: catItems.map(i => i.label),
+          datasets: [{
+            data: catData,
+            backgroundColor: catColors,
+            borderWidth: 0,
+            hoverOffset: 4,
+          }],
+        },
+        options: {
+          animation: false,
+          cutout: '62%',
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
+  }
+
+  const confTotal = summary.conf.high + summary.conf.mid + summary.conf.low || 1;
+  const confBars = document.getElementById('confBars');
+  confBars.innerHTML = [
+    { key: 'high', label: 'Vivid', color: '#F0C75A', count: summary.conf.high },
+    { key: 'mid', label: 'Stable', color: '#D4A86A', count: summary.conf.mid },
+    { key: 'low', label: 'Fading', color: '#C4B09A', count: summary.conf.low },
+  ].map(item => {
+    const pct = Math.round((item.count / confTotal) * 100);
+    return `<div class="conf-row" title="${item.count} memories">
+      <span class="conf-label">${item.label}</span>
+      <div class="conf-track"><div class="conf-fill" style="width:${pct}%;background:${item.color}"></div></div>
+      <span class="conf-pct">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  const topList = document.getElementById('topRecalled');
+  const top = [...beliefs]
+    .sort((a, b) => (b.injection_count || 0) - (a.injection_count || 0) || (b.base_utility_q || 0) - (a.base_utility_q || 0))
+    .slice(0, 6);
+  if (!top.length) {
+    topList.innerHTML = '<li class="top-empty">No recalls yet — chat with the agent to build memory.</li>';
+  } else {
+    topList.innerHTML = top.map((b, i) => {
+      const recalls = b.injection_count || 0;
+      const label = `${b.entity_source} ${b.relation} ${b.entity_target}`.trim();
+      return `<li class="top-item" data-belief-id="${b.id}">
+        <span class="top-rank">${i + 1}</span>
+        <span class="top-body">
+          <span class="top-title">${label}</span>
+          <span class="top-meta">${normalizeCategory(b.category)} · Q ${(b.base_utility_q || 0).toFixed(2)}</span>
+        </span>
+        <span class="top-count">${recalls}</span>
+      </li>`;
+    }).join('');
+  }
 
   if (typeof Chart === 'undefined') return;
 
   const tl = m.ucb_timeline || { turns: [], series: {} };
-  const palette = ['#E8B923', '#D4A86A', '#C9920A', '#C4B09A', '#A89888', '#8B7355'];
+  const hasUcb = (tl.turns || []).length > 1 && Object.keys(tl.series || {}).length > 0;
+  document.getElementById('ucbSection').hidden = !hasUcb;
+
+  if (!hasUcb) return;
+
+  const palette = ['#E8B923', '#D4A86A', '#C9920A', '#C4B09A', '#A89888'];
   const datasets = Object.entries(tl.series || {}).map(([label, data], i) => ({
     label, data,
     borderColor: palette[i % palette.length],
@@ -586,48 +992,12 @@ function renderMetrics(m, graph) {
       data: { labels: tl.turns || [], datasets },
       options: {
         animation: false,
-        plugins: { legend: { labels: { color: CHART_TICK, font: { size: 10 }, usePointStyle: true } } },
+        plugins: { legend: { labels: { color: CHART_TICK, font: { size: 9 }, usePointStyle: true } } },
         scales: {
-          x: { ticks: { color: CHART_TICK, font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: CHART_GRID } },
-          y: { ticks: { color: CHART_TICK, font: { size: 9 } }, grid: { color: CHART_GRID }, title: { display: true, text: 'Recall utility', color: CHART_TICK, font: { size: 10 } } },
+          x: { ticks: { color: CHART_TICK, font: { size: 8 }, maxTicksLimit: 6 }, grid: { color: CHART_GRID } },
+          y: { ticks: { color: CHART_TICK, font: { size: 8 } }, grid: { color: CHART_GRID } },
         },
         interaction: { intersect: false, mode: 'index' },
-      },
-    });
-  }
-
-  const beliefs = filterBeliefs(graph.beliefs || [])
-    .sort((a, b) => b.injection_count - a.injection_count)
-    .slice(0, 12);
-  const barLabels = beliefs.map(b => (b.entity_source || '').slice(0, 10));
-  const barData = beliefs.map(b => b.injection_count);
-  const barColors = beliefs.map(b => nodeFill(b.node_weight));
-
-  if (injChart) {
-    injChart.data.labels = barLabels;
-    injChart.data.datasets[0].data = barData;
-    injChart.data.datasets[0].backgroundColor = barColors;
-    injChart.update('none');
-  } else {
-    injChart = new Chart(document.getElementById('injChart'), {
-      type: 'bar',
-      data: {
-        labels: barLabels,
-        datasets: [{
-          label: 'Recalls',
-          data: barData,
-          backgroundColor: barColors,
-          borderRadius: 8,
-        }],
-      },
-      options: {
-        indexAxis: 'y',
-        animation: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: CHART_TICK, font: { size: 9 } }, grid: { color: CHART_GRID } },
-          y: { ticks: { color: CHART_TICK, font: { size: 9 } } },
-        },
       },
     });
   }
@@ -728,15 +1098,70 @@ async function refresh({ forceGraph = false } = {}) {
   refreshInFlight = false;
 }
 
+async function pollLive() {
+  if (refreshInFlight || !autoRefresh || document.hidden) return;
+  refreshInFlight = true;
+
+  let errors = [];
+  let graph = cachedGraph || { beliefs: [], edges: [] };
+  let structuralChange = false;
+
+  try {
+    const evData = await fetchEvents();
+    const events = evData.events || [];
+    prependEvents(events);
+    structuralChange = events.some(ev => STRUCTURAL_EVENTS.has(ev.event_type));
+  } catch (e) {
+    errors.push('events');
+    console.error('fetchEvents', e);
+  }
+
+  try {
+    const metrics = await fetchMetrics();
+    const beliefCount = metrics.total_beliefs ?? 0;
+    const cachedCount = cachedGraph?.beliefs?.length ?? 0;
+    if (beliefCount !== cachedCount) {
+      structuralChange = true;
+    }
+    if (structuralChange) {
+      try {
+        graph = await fetchGraph();
+        cachedGraph = graph;
+        if (shouldRedrawGraph(graph, { force: false })) {
+          renderGraph(graph);
+        }
+        updateNodeDetail(graph);
+      } catch (e) {
+        errors.push('graph');
+        console.error('fetchGraph', e);
+      }
+    }
+    renderMetrics(metrics, graph);
+  } catch (e) {
+    errors.push('metrics');
+    console.error('fetchMetrics', e);
+  }
+
+  if (errors.length) {
+    setLiveStatus('err', errors.join(', '));
+  } else {
+    setLiveStatus('ok');
+  }
+
+  refreshInFlight = false;
+}
+
 document.getElementById('userId').value = uid();
 document.getElementById('userId').addEventListener('change', () => {
   lastStructureKey = '';
   lastEventTs = null;
+  liveNodePositions = {};
   refresh({ forceGraph: true });
 });
 document.getElementById('userId').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     lastStructureKey = '';
+    liveNodePositions = {};
     refresh({ forceGraph: true });
   }
 });
@@ -750,6 +1175,11 @@ document.getElementById('resetZoomBtn').onclick = () => {
   savedZoom = d3.zoomIdentity;
   d3.select('#graphSvg').transition().duration(400)
     .call(zoom.transform, d3.zoomIdentity);
+};
+document.getElementById('resetLayoutBtn').onclick = () => {
+  clearNodeLayouts(currentUser());
+  lastStructureKey = '';
+  refresh({ forceGraph: true });
 };
 document.getElementById('exportBtn').onclick = async () => {
   const data = await fetchGraph();
@@ -770,16 +1200,19 @@ document.querySelectorAll('.filter-chip').forEach(el => {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) setLiveStatus('paused');
-  else refresh({ forceGraph: false });
+  else pollLive();
 });
+
+async function boot() {
+  await ensureDemoBrainSeeded();
+  await refresh({ forceGraph: true });
+}
 
 function scheduleRefresh(opts = {}) {
   requestAnimationFrame(() => requestAnimationFrame(() => refresh(opts)));
 }
 
-scheduleRefresh({ forceGraph: true });
-
-ensureDemoBrainSeeded().then(() => scheduleRefresh({ forceGraph: true }));
+boot();
 
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
@@ -787,6 +1220,7 @@ window.addEventListener('resize', () => {
     if (!cachedGraph) return;
     const vp = viewportKey();
     if (vp !== lastViewportKey) {
+      lastViewportKey = vp;
       lastStructureKey = '';
       scheduleRefresh({ forceGraph: true });
     }
@@ -794,7 +1228,7 @@ window.addEventListener('resize', () => {
 });
 
 const pollTimer = setInterval(() => {
-  if (autoRefresh && !document.hidden) refresh({ forceGraph: false });
+  pollLive();
 }, METRICS_POLL_MS);
 
 window.addEventListener('beforeunload', () => {
