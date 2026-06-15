@@ -10,12 +10,13 @@
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/visualizer.css?v=20260614" />
+  <link rel="stylesheet" href="/visualizer.css?v=20260614-stream2" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
 
+<div class="scale-host" id="scaleHost">
 <header>
   <div class="brand">
     <div class="brand-mark" aria-hidden="true">
@@ -57,13 +58,32 @@
   </div>
 </header>
 
-<div class="main-grid">
+<div class="panels-row">
   <div class="graph-panel">
     <div class="panel-header">
       <span><span class="panel-title-accent">Cortical</span> belief map</span>
-      <span id="nodeDetail" style="font-size:0.72rem;color:var(--text-muted);text-transform:none;letter-spacing:0;font-weight:500">Select a memory node</span>
+      <span id="nodeDetail" class="node-detail-hint">Select a memory node</span>
     </div>
     <div class="graph-viewport" id="graphViewport">
+      <aside class="graph-rail" id="graphRail" aria-label="Map insights">
+        <div class="rail-card">
+          <h3 class="rail-title">Focused memory</h3>
+          <div id="railFocus" class="rail-focus rail-focus-empty">
+            <p>Click a node to inspect conviction, utility, and recall history.</p>
+          </div>
+        </div>
+        <div class="rail-card rail-about">
+          <h3 class="rail-title">About MnemOS</h3>
+          <p class="rail-about-lead">Persistent memory for AI agents — beliefs earn their place through conviction, recall utility, and decay.</p>
+          <ul class="rail-about-list">
+            <li><strong>Nodes</strong> are stored memories: facts, preferences, and persona traits.</li>
+            <li><strong>Colors</strong> show category — persona, system state, or preference.</li>
+            <li><strong>Synapses</strong> connect semantically related beliefs in the cortex.</li>
+            <li><strong>Vividness</strong> fades when memories are unused; strong recalls stay bright.</li>
+          </ul>
+          <p class="rail-about-tip">Scroll to zoom · drag to pan · drag a node to pin its layout. Chat with the agent to store new memories.</p>
+        </div>
+      </aside>
       <svg id="graphSvg" role="img" aria-label="Memory belief graph"></svg>
       <div class="graph-vignette" aria-hidden="true"></div>
     </div>
@@ -102,14 +122,20 @@
       <canvas id="ucbChart" height="88"></canvas>
     </div>
   </div>
+</div>
+</div>
 
-  <div class="event-feed">
-    <div class="panel-header">
+<div class="event-feed" id="eventFeedPanel">
+    <div class="panel-header event-feed-header">
       <span>Memory stream</span>
-      <span style="font-size:0.65rem;color:var(--text-dim);font-weight:500;text-transform:none;letter-spacing:0">stored · updated · recalled · faded</span>
+      <div class="event-feed-actions">
+        <span class="event-feed-sub">stored · updated · recalled · faded</span>
+        <button type="button" id="toggleStreamBtn" class="secondary stream-toggle" aria-expanded="true" aria-controls="eventFeedBody">Collapse</button>
+      </div>
     </div>
-    <div id="eventFeed"></div>
-  </div>
+    <div class="event-feed-body" id="eventFeedBody">
+      <div id="eventFeed"></div>
+    </div>
 </div>
 
 <div class="node-tooltip" id="nodeTooltip"></div>
@@ -351,6 +377,41 @@ function updateNodeDetail(graph) {
   }
 }
 
+function categoryLabel(cat) {
+  const c = normalizeCategory(cat);
+  if (c === 'persona') return 'Persona';
+  if (c === 'system_state') return 'System';
+  return 'Preference';
+}
+
+function vividnessLabel(belief) {
+  const level = confLevel(belief);
+  if (level === 'high') return 'Vivid';
+  if (level === 'mid') return 'Stable';
+  return 'Fading';
+}
+
+function showRailFocus(belief) {
+  const el = document.getElementById('railFocus');
+  if (!el) return;
+  if (!belief) {
+    el.className = 'rail-focus rail-focus-empty';
+    el.innerHTML = '<p>Click a node to inspect conviction, utility, and recall history.</p>';
+    return;
+  }
+  el.className = 'rail-focus';
+  const cat = categoryLabel(belief.category);
+  el.innerHTML = `
+    <span class="rail-cat rail-cat-${normalizeCategory(belief.category)}">${cat}</span>
+    <strong class="rail-belief">${beliefLabel(belief)}</strong>
+    <dl class="rail-meta">
+      <div><dt>Conviction</dt><dd>${(belief.conviction_score ?? belief.node_weight ?? 0).toFixed(2)}</dd></div>
+      <div><dt>Utility</dt><dd>${(belief.base_utility_q || 0).toFixed(2)}</dd></div>
+      <div><dt>Recalls</dt><dd>${belief.injection_count || 0}</dd></div>
+      <div><dt>Vividness</dt><dd>${vividnessLabel(belief)}</dd></div>
+    </dl>`;
+}
+
 function graphSize() {
   const vp = document.getElementById('graphViewport');
   const width = Math.max(vp?.clientWidth || 0, 560);
@@ -420,14 +481,27 @@ function brainPath(cx, cy, scale) {
     C ${cx + 145*s} ${cy - 40*s}, ${cx + 120*s} ${cy - 110*s}, ${cx} ${cy - 95*s} Z`;
 }
 
-/** Scale brain silhouette to fit node count and viewport. */
-function computeBrainScale(nodeCount, width, height) {
-  const vmin = Math.min(width, height);
-  const base = vmin / 260;
-  const perNode = Math.sqrt(Math.max(nodeCount, 1)) * 0.072;
-  const scale = base * (1.05 + perNode + Math.max(0, nodeCount - 10) * 0.028);
-  const max = vmin / 130;
-  return Math.min(Math.max(scale, 1.05), max);
+/** Left rail width — brain is centered in the remaining viewport. */
+const GRAPH_RAIL_W = 210;
+
+function graphLayout(width, height) {
+  const railW = GRAPH_RAIL_W;
+  const padX = 24;
+  const padY = 28;
+  const brainW = 290;
+  const brainH = 230;
+  const availW = Math.max(320, width - railW - padX * 2);
+  const availH = Math.max(280, height - padY * 2);
+  const scaleX = availW / brainW;
+  const scaleY = availH / brainH;
+  const brainScale = Math.min(scaleX, scaleY) * 1.056;
+  const cx = railW + padX + availW / 2;
+  const cy = height / 2;
+  return { cx, cy, brainScale, railW };
+}
+
+function computeBrainScale(_nodeCount, width, height) {
+  return graphLayout(width, height).brainScale;
 }
 
 function brainBounds(cx, cy, scale) {
@@ -465,7 +539,7 @@ function clampNode(node, bounds, margin) {
 
 /** Collision radius including neuron body + glow halo. */
 function collisionRadius(node) {
-  return node.r + 10;
+  return node.r + 13;
 }
 
 /** Push overlapping nodes apart (runs after clamp / on drag / when all pinned). */
@@ -539,9 +613,9 @@ function forceBrainContain(cx, cy, rx, ry, margin = 0.72) {
 }
 
 function nodeRadius(b, total) {
-  const base = 5 + (b.base_utility_q || 0.5) * 3.5;
-  const shrink = Math.max(0, total - 18) * 0.06;
-  return Math.max(4, base - shrink);
+  const base = 9 + (b.base_utility_q || 0.5) * 5.5;
+  const shrink = Math.max(0, total - 24) * 0.028;
+  return Math.max(7.5, base - shrink) * 0.9;
 }
 
 function categoryHue(cat) {
@@ -599,9 +673,7 @@ function renderGraph(data) {
     .attr('viewBox', `0 0 ${width} ${height}`);
 
   if (!beliefs.length) {
-    const cx = width / 2;
-    const cy = height / 2;
-    const brainScale = computeBrainScale(1, width, height) * 0.92;
+    const { cx, cy, brainScale } = graphLayout(width, height);
     const root = svg.append('g').attr('class', 'graph-root');
     const brainD = brainPath(cx, cy, brainScale);
     root.append('path').attr('d', brainD).attr('class', 'brain-fill');
@@ -616,10 +688,8 @@ function renderGraph(data) {
     return;
   }
 
-  const cx = width / 2;
-  const cy = height / 2;
+  const { cx, cy, brainScale, railW } = graphLayout(width, height);
   const n = beliefs.length;
-  const brainScale = computeBrainScale(n, width, height);
   const bounds = brainBounds(cx, cy, brainScale);
   const tt = d3.select('#nodeTooltip');
   const root = svg.append('g').attr('class', 'graph-root');
@@ -822,7 +892,7 @@ function renderGraph(data) {
 
   nodeG.append('circle')
     .attr('class', 'neuron-glow')
-    .attr('r', d => d.r + 5)
+    .attr('r', d => d.r + 8)
     .attr('fill', d => categoryHue(d.category).glow);
 
   nodeG.append('circle')
@@ -830,7 +900,7 @@ function renderGraph(data) {
     .attr('r', d => d.r)
     .attr('fill', d => categoryHue(d.category).fill)
     .attr('stroke', d => categoryHue(d.category).stroke)
-    .attr('stroke-width', 1.8)
+    .attr('stroke-width', 2.25)
     .on('mouseenter', function(e, d) {
       d3.select(this.parentNode).classed('node-active', true);
       tt.classed('visible', true)
@@ -846,22 +916,30 @@ function renderGraph(data) {
     })
     .on('click', (_, d) => {
       document.getElementById('nodeDetail').textContent = beliefLabel(d);
+      showRailFocus(d);
     });
 
   tick();
   if (particles.length) animateFlow();
 
-  const legend = root.append('g').attr('class', 'graph-legend').attr('transform', `translate(16, ${height - 72})`);
+  const legendW = 214;
+  const legendH = 128;
+  const legend = root.append('g').attr('class', 'graph-legend').attr('transform', `translate(${railW + 18}, ${height - legendH - 14})`);
+  legend.append('rect')
+    .attr('x', -10).attr('y', -12)
+    .attr('width', legendW).attr('height', legendH)
+    .attr('rx', 14)
+    .attr('class', 'legend-bg');
   [
     { label: 'Persona', color: '#E8B4A8', stroke: '#C4785A' },
     { label: 'System', color: '#C9D4E8', stroke: '#6B8BB5' },
     { label: 'Preference', color: '#F0C75A', stroke: '#C9920A' },
   ].forEach((item, i) => {
-    const g = legend.append('g').attr('transform', `translate(0, ${i * 20})`);
-    g.append('circle').attr('r', 5).attr('cx', 6).attr('cy', 6).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 1.2);
-    g.append('text').attr('x', 18).attr('y', 10).attr('class', 'legend-text').text(item.label);
+    const g = legend.append('g').attr('transform', `translate(0, ${i * 34})`);
+    g.append('circle').attr('r', 9).attr('cx', 10).attr('cy', 10).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 2.2);
+    g.append('text').attr('x', 28).attr('y', 14).attr('class', 'legend-text').text(item.label);
   });
-  legend.append('text').attr('y', 68).attr('class', 'legend-hint').text('Solid=cluster · dashed=concept · dotted=bridge/affinity');
+  legend.append('text').attr('y', 112).attr('x', 4).attr('class', 'legend-hint').text('Solid = cluster · dashed = concept · dotted = bridge');
   lastViewportKey = viewportKey();
 }
 
@@ -1200,6 +1278,76 @@ document.querySelectorAll('.filter-chip').forEach(el => {
     lastStructureKey = '';
     refresh({ forceGraph: true });
   });
+});
+
+const STREAM_COLLAPSED_KEY = 'mnemos_stream_collapsed';
+const STREAM_MOTION_MS = 420;
+let streamResizeTimer = null;
+let streamAnimating = false;
+
+function finishStreamAnimation() {
+  if (!streamAnimating) return;
+  streamAnimating = false;
+  document.body.classList.remove('stream-animating');
+  clearTimeout(streamResizeTimer);
+  streamResizeTimer = setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 40);
+}
+
+function setStreamCollapsed(collapsed, { animate = true } = {}) {
+  const panel = document.getElementById('eventFeedPanel');
+  const btn = document.getElementById('toggleStreamBtn');
+  if (!panel || !btn) return;
+
+  if (animate) {
+    streamAnimating = true;
+    document.body.classList.add('stream-animating');
+    clearTimeout(streamResizeTimer);
+  }
+
+  panel.classList.toggle('collapsed', collapsed);
+  document.body.classList.toggle('stream-expanded', !collapsed);
+  btn.textContent = collapsed ? 'Expand' : 'Collapse';
+  btn.setAttribute('aria-expanded', String(!collapsed));
+
+  try {
+    localStorage.setItem(STREAM_COLLAPSED_KEY, collapsed ? '1' : '0');
+  } catch { /* ignore */ }
+
+  if (!animate) {
+    streamAnimating = false;
+    document.body.classList.remove('stream-animating');
+    window.dispatchEvent(new Event('resize'));
+    return;
+  }
+
+  clearTimeout(streamResizeTimer);
+  streamResizeTimer = setTimeout(finishStreamAnimation, STREAM_MOTION_MS + 80);
+}
+
+function handleStreamTransitionEnd(event) {
+  const panel = document.getElementById('eventFeedPanel');
+  if (!panel || event.target !== panel) return;
+  if (event.propertyName !== 'height') return;
+  finishStreamAnimation();
+}
+
+document.getElementById('eventFeedPanel')?.addEventListener('transitionend', handleStreamTransitionEnd);
+
+document.getElementById('toggleStreamBtn')?.addEventListener('click', () => {
+  const panel = document.getElementById('eventFeedPanel');
+  setStreamCollapsed(!panel?.classList.contains('collapsed'));
+});
+
+if (localStorage.getItem(STREAM_COLLAPSED_KEY) === '1') {
+  setStreamCollapsed(true, { animate: false });
+} else {
+  document.body.classList.add('stream-expanded');
+}
+
+requestAnimationFrame(() => {
+  document.body.classList.add('stream-ready');
 });
 
 document.addEventListener('visibilitychange', () => {
