@@ -5,10 +5,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-
-import oss2
+from typing import TYPE_CHECKING, Any
 
 from config import settings
+
+if TYPE_CHECKING:
+    import oss2
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +18,26 @@ _PLACEHOLDER_OSS_ID = "xxxxxxxxxxxx"
 _PLACEHOLDER_OSS_SECRET = "xxxxxxxxxxxx"
 
 
-def _get_oss_bucket() -> oss2.Bucket | None:
+def _import_oss2() -> Any | None:
+    try:
+        import oss2 as oss2_module
+    except ImportError:
+        logger.debug("oss2 not installed; cloud sync unavailable")
+        return None
+    return oss2_module
+
+
+def _get_oss_bucket() -> Any | None:
     """
     Create an OSS bucket client when credentials are configured.
 
     Returns:
         oss2.Bucket instance or None if credentials are missing/invalid.
     """
+    oss2 = _import_oss2()
+    if oss2 is None:
+        return None
+
     key_id = settings.ALIBABA_CLOUD_ACCESS_KEY_ID
     key_secret = settings.ALIBABA_CLOUD_ACCESS_KEY_SECRET
     if (
@@ -36,7 +51,7 @@ def _get_oss_bucket() -> oss2.Bucket | None:
     try:
         auth = oss2.Auth(key_id, key_secret)
         return oss2.Bucket(auth, settings.ALIBABA_CLOUD_OSS_ENDPOINT, settings.ALIBABA_CLOUD_OSS_BUCKET)
-    except (oss2.exceptions.OssError, ValueError) as exc:
+    except Exception as exc:
         logger.error("Failed to create OSS bucket client: %s", exc)
         return None
 
@@ -66,6 +81,6 @@ def sync_to_cloud(db_path: Path | None = None) -> bool:
         bucket.put_object_from_file(remote_key, str(path))
         logger.info("Uploaded database snapshot to OSS: %s", remote_key)
         return True
-    except (oss2.exceptions.OssError, OSError, Exception) as exc:
+    except Exception as exc:
         logger.error("OSS upload failed: %s", exc)
         return False

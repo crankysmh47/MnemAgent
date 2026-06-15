@@ -275,7 +275,7 @@ Open http://localhost:3000/visualizer in your browser to see the memory graph.
 ### Run the test suite
 
 ```bash
-# Unit tests (136 passing)
+# Unit tests (143 passing)
 pytest tests/ -v
 
 # Integration tests

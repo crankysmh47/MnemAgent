@@ -1,4 +1,4 @@
-# Seed demo-brain memories for the visualizer (32 beliefs, hub-linked edges)
+# Seed demo-brain memories for the visualizer (~62 beliefs, hub-linked edges)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Harness = "http://127.0.0.1:3000"

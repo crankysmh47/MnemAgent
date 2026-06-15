@@ -5,8 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import oss2
-
 from config import settings
 from storage import cloud_sync
 

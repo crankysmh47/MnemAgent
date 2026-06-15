@@ -2,192 +2,225 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-136%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen.svg)](tests/)
+[![Track](https://img.shields.io/badge/hackathon-MemoryAgent-gold.svg)](#track-1-memoryagent)
 
-**Persistent memory layer for AI agents** — selective ingestion via salience auction, UCB-based retrieval, closed-loop feedback, and mathematical forgetting. Built for the **Qwen Global AI Hackathon, Track 1: MemoryAgent**.
+**Persistent memory for AI agents** — salience-gated ingestion, UCB retrieval, closed-loop feedback, and mathematical forgetting. Built for the **Qwen Global AI Hackathon — Track 1: MemoryAgent**.
 
-> Standard RAG agents suffer from proactive interference (stale facts drown out current ones) and naive storage (garbage accumulates). MnemOS rejects garbage at ingestion and forces stale facts out mathematically. The retrieval system learns which memories are actually useful.
+> RAG-style memory stores everything and retrieves by similarity. MnemOS **rejects garbage at ingestion**, **learns which memories help** through feedback, and **forgets stale facts** on a schedule. One SQLite brain per deployment; multiple agents share it via `user_id`.
+
+**Repository:** https://github.com/crankysmh47/MnemAgent
 
 ---
 
-## Quick Start — One Command
+## Quick start
+
+**Prerequisites:** Docker, Node 18+, Python 3.11+ (WSL on Windows recommended).
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/crankysmh47/MnemAgent.git
 cd MnemAgent
+cp config/env.template .env   # add QWEN_API_KEY
 bash scripts/setup.sh
 ```
 
-That's it. The script checks prerequisites, starts Docker containers, installs OpenClaw, registers the MnemOS MCP toolset (7 tools), and prints quick-start commands.
+Daily startup after first run:
 
-After setup completes:
-```bash
-openclaw dashboard                           # web UI
-openclaw agent --agent main --message "Remember I prefer Python for APIs"
-openclaw tui                                 # terminal chat
-openclaw mcp probe mnemos                    # verify MCP tools
-```
-
-Open http://localhost:3000?user=demo-brain to watch the pre-seeded memory graph (61 beliefs, golden synapses).
-
-**Daily startup** (after first setup):
 ```bash
 bash scripts/dev.sh
 ```
 
-> **Windows users**: Run the above commands from WSL (Ubuntu), or use `.\scripts\launch.ps1` in PowerShell.
+| What | Command / URL |
+|------|----------------|
+| Memory visualizer | http://localhost:3000?user=demo-brain |
+| MnemOS API health | http://localhost:8000/health |
+| MCP server health | http://localhost:8001/health |
+| OpenClaw dashboard | `openclaw dashboard` |
+| Verify MCP tools | `openclaw mcp probe mnemos` |
+| Terminal proof | `pwsh scripts/prove-memory.ps1` |
+
+**Windows:** use WSL for `setup.sh` / `dev.sh`, or `.\scripts\launch.ps1` in PowerShell.
+
+Copy `config/env.template` → `.env`. OpenRouter free models work out of the box; [DashScope Qwen](https://dashscope.aliyun.com/) is recommended for demos and eval.
 
 ---
 
-## Setup Guides
+## What happens on each turn
 
-- [docs/SETUP.md](docs/SETUP.md) — Detailed setup guide with prerequisites, troubleshooting, and model switching
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Full system design
+```
+User message
+    │
+    ▼
+┌─ WAKING (sync) ─────────────────────────────────────┐
+│  Retrieve beliefs (vector KNN or keyword + UCB)       │
+│  Inject top facts into Qwen system prompt             │
+│  Call Qwen → user sees reply (memory tags stripped)   │
+└───────────────────────────┬───────────────────────────┘
+                            ▼
+┌─ DREAMING (async) ────────────────────────────────────┐
+│  Utility feedback on injected beliefs (Q_i)           │
+│  Parse <memory_update> → salience gate → store/prune  │
+│  Enrich per-user entity dictionary                    │
+│  Decay inactive nodes · episodic log · OSS backup     │
+└───────────────────────────────────────────────────────┘
+```
+
+**Store rule:** `conviction ≥ 0.4` OR `category == system_state`.  
+**Retrieval:** `Score = Q_i + c × √(ln(T) / (N_i + 1))` — explores dormant memories over time.
+
+---
 
 ## Architecture
 
 ```
 WhatsApp / Telegram / Discord / WebChat
-                    │
-                    ▼
-           OpenClaw Gateway (:18789)
-         agent + mnemos MCP (7 tools)
-                    │
-                    ▼
-          MnemOS MCP Server (:8001)
-              (stdio / HTTP)
-                    │
-                    ▼
-          MnemOS Memory Backend (:8000)
-        ┌───────┼───────────────┐
-        ▼                       ▼
-    Waking Phase           Dreaming Phase
-  (sync, hot path)      (async, background)
-  • Embed query          • Salience auction
-  • UCB retrieval        • Contradiction resolution
-  • RWR associative hops • Utility feedback (Q_i)
-  • Build Qwen payload   • Synaptic decay + prune
-        │                       │
-        └───────────┬───────────┘
-                    ▼
-              SQLite + sqlite-vec
-          (single-file memory state)
+              │
+              ▼
+     OpenClaw Gateway (:18789)
+       agent + mnemos MCP (7 tools)
+              │
+              ▼
+     MCP Server (:8001)  ──HTTP──►  MnemOS API (:8000)
+              │                         │
+              │              ┌──────────┴──────────┐
+              │              ▼                     ▼
+              │         Waking phase         Dreaming phase
+              │              │                     │
+              │              └──────────┬──────────┘
+              │                         ▼
+              │              SQLite + sqlite-vec
+              │                         │
+              ▼                         ▼
+     Visualizer (:3000)          Alibaba OSS (optional backup)
 ```
 
-## The Four Pillars
+Full design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-### 1. Salience Auction — Ingestion Gate
+---
 
-Facts are scored on novelty, utility, and conviction BEFORE storage. Only high-conviction or system-critical facts enter the graph. Everything else is logged and discarded.
+## Repository layout
 
 ```
-Store if: conviction >= 0.4  OR  category == 'system_state'
-Reject otherwise
+MnemAgent/
+├── mcp-memory-server/   Python FastAPI — memory engine (port 8000)
+├── mcp-server/          Node MCP adapter — 7 tools for OpenClaw (8001)
+├── openclaw-harness/    D3 visualizer + API proxy (3000)
+├── config/workspace/    OpenClaw agent rules (AGENTS.md, skills)
+├── scripts/             setup.sh, dev.sh, prove-memory.ps1
+├── eval/                Benchmarks (MnemOS vs baseline)
+├── tests/               pytest suite
+├── docs/                SETUP, ARCHITECTURE, eval results
+└── REPORT.md            Hackathon evaluation summary
 ```
 
-### 2. Dual-Output Chain-of-Thought
+---
 
-Qwen emits `<memory_update>` XML before its response. The interceptor strips the tags and passes extracted facts to background consolidation. **Zero additional LLM calls.**
+## Services
 
-### 3. UCB Retrieval — Multi-Armed Bandit
+| Service | Port | Role |
+|---------|------|------|
+| `mnemos-memory` | 8000 | Beliefs, chat, retrieval, dreaming |
+| `mnemos-mcp` | 8001 | MCP tool surface for agents |
+| `openclaw-harness` | 3000 | Live brain graph + event stream |
 
-`Score_i = Q_i + c x sqrt(ln(T) / (N_i + 1))`
+```bash
+docker compose up -d --build
+```
 
-Dormant memories are mathematically forced to resurface. The retrieval system learns which memories are useful through closed-loop feedback.
+---
 
-### 4. Synaptic Downscaling — Mathematical Forgetting
+## MCP tools
 
-Nodes inactive > 45 minutes decay x 0.85. Below 0.1 weight: hard prune. The graph stays small, current, and relevant forever.
-
-## Service Map
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| MnemOS API | 8000 | Memory backend (FastAPI) |
-| MCP Server | 8001 | MCP tools for OpenClaw |
-| Visualizer | 3000 | Real-time memory graph UI |
-
-## MCP Tools (7)
-
-| Tool | What it does |
-|------|-------------|
+| Tool | Purpose |
+|------|---------|
+| `memory_resolve_user` | Bind channel sender → canonical `user_id` |
+| `memory_bind_user` | Explicit user binding |
 | `memory_store` | Salience-gated fact ingestion |
-| `memory_search` | Keyword + UCB retrieval |
+| `memory_search` | Keyword search over beliefs |
 | `memory_dump` | Full brain state (`/memory`) |
 | `memory_stats` | UCB optimization table |
-| `memory_chat` | Memory-augmented chat route |
-| `memory_bind_user` | Bind channel sender to user_id |
-| `memory_resolve_user` | Resolve/create user binding |
+| `memory_chat` | Full memory-augmented chat route |
 
-## Evaluation Benchmarks
+Agent instructions live in [config/workspace/AGENTS.md](config/workspace/AGENTS.md).
 
-25 scenarios across 5 categories comparing MnemOS vs vanilla LLM baseline:
+**Shared memory across agents:** point every agent at the same `MNEMOS_URL` and resolve the same `user_id` — one semantic graph, multiple channels.
 
-| Category | Scenarios | What it measures |
-|----------|-----------|------------------|
-| Recall | 5 | Cross-session preference memory |
-| Contradiction | 5 | Updating facts without retaining stale ones |
-| Interference | 5 | Proactive interference prevention |
-| Forgetting | 5 | Salience precision + temporal decay |
-| Context | 5 | Associative recall + context efficiency |
+---
+
+## Configuration modes
+
+| Mode | LLM | Memory DB | Embeddings |
+|------|-----|-----------|------------|
+| **Local dev** | OpenRouter free (default in `env.template`) | SQLite in Docker volume | Local `all-MiniLM-L6-v2` |
+| **Demo / eval** | DashScope Qwen (`QWEN_BASE_URL` + API key) | Same | Same |
+| **Cloud backup** | — | OSS snapshot every 50 turns | — |
+
+OSS sync: [mcp-memory-server/src/storage/cloud_sync.py](mcp-memory-server/src/storage/cloud_sync.py) — uploads `memory_state.db` to Alibaba Cloud OSS (optional; requires OSS credentials in `.env`).
+
+---
+
+## Evaluation
 
 ```bash
-# Dry-run (offline, instant)
+# Offline dry-run (instant)
 python -m eval.run_benchmark --dry-run --mode both
-
-```bash
-# MnemBench — long-running memory benchmark (10 scenarios)
 python -m eval.mnembench --dry-run --mode both
-
-# Multi-step agentic benchmark (trajectory metrics)
 python -m eval.run_agentic_benchmark --dry-run --mode both
 
-# Live (requires API key)
+# Live (MnemOS :8000 + API key)
 python -m eval.run_benchmark --mode both
 ```
 
-Key metrics tracked: **context efficiency**, **forgetting accuracy**, **recall precision**, **interference prevention rate**, and **memory advantage trajectory** across probe difficulty levels.
+See [REPORT.md](REPORT.md) and [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md) for scores. Headline agentic result: **86.5% vs 64.6%** baseline (+21.9 pp); project continuity **79% vs 8%**.
+
+---
 
 ## Tests
 
 ```bash
-pytest tests/ -v                          # 136 unit + integration tests
-pwsh scripts/integration-test.ps1         # 10 API/MCP/harness checks
-pwsh scripts/submission-test.ps1          # Full submission verification
+pytest tests/ -v
+pwsh scripts/integration-test.ps1
+pwsh scripts/submission-test.ps1
+node openclaw-harness/scripts/check-visualizer.mjs
 ```
-
-## Project Status
-
-| Item | Status |
-|------|--------|
-| Core memory layer (4 pillars) | Complete |
-| MCP server (7 tools) | Complete |
-| OpenClaw integration (`scripts/setup.sh`) | Complete |
-| Docker deployment (3 services) | Complete |
-| Brain-theme visualizer (61 demo memories) | Complete |
-| 25-scenario single-turn eval | Complete |
-| 4-scenario agentic eval (86.5% vs 64.6%) | Complete |
-| MnemBench (10 scenarios, 171+ steps) | Complete |
-| REPORT.md + ARCHITECTURE.md + SETUP.md | Complete |
-| 136 tests, 81% coverage | Complete |
-| One-command setup | `bash scripts/setup.sh` |
-| Default model | qwen-turbo (quota-friendly) |
-
-## Alibaba Cloud Integration
-
-OSS backup sync: [`mcp-memory-server/src/storage/cloud_sync.py`](mcp-memory-server/src/storage/cloud_sync.py) — uploads memory state snapshots to Alibaba Cloud OSS every 50 conversational turns.
-
-## Known Limitations
-
-- Influence detection uses proximity regex (not embedding similarity) — pragmatic, fast, and surprisingly accurate
-- OpenClaw CLI must be installed separately for multi-channel messaging
-- Channel E2E tests require your own bot tokens
-- No auth on `/chat` endpoint — intended for demo/hackathon use
-
-## License
-
-MIT — MnemOS Team, 2025
 
 ---
 
-*Built for the Qwen Global AI Hackathon — Track 1: MemoryAgent*
+## Documentation
+
+| Doc | Contents |
+|-----|----------|
+| [docs/SETUP.md](docs/SETUP.md) | Prerequisites, models, channels, troubleshooting |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Waking/dreaming, schema, data flow |
+| [REPORT.md](REPORT.md) | Benchmark results and design rationale |
+
+---
+
+## Track 1: MemoryAgent
+
+MnemOS targets **efficient storage and retrieval**, **timely forgetting**, and **critical recall within limited context**:
+
+- **Salience auction** — low-conviction noise never enters the graph
+- **UCB retrieval** — useful memories rise; dormant ones resurface mathematically
+- **Contradiction resolution** — atomic overwrite on conflicting facts
+- **Synaptic decay** — inactive nodes decay; dead nodes are pruned
+- **Per-user entity dictionary** — keyword retrieval learns from stored facts
+
+---
+
+## Known limitations
+
+- Influence detection uses proximity regex (fast, not embedding-based)
+- `/chat` has no auth — demo/hackathon use only
+- OSS backup is snapshot-based, not live multi-region sync
+- OpenClaw CLI is separate for multi-channel messaging
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE). Copyright (c) 2025 MnemOS Team.
+
+---
+
+*Qwen Global AI Hackathon — Track 1: MemoryAgent*

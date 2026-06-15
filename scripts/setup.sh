@@ -193,7 +193,7 @@ wait_health "http://127.0.0.1:8000/health" "MnemOS memory (:8000)" 120 || MEM_OK
 wait_health "http://127.0.0.1:8001/health" "MnemOS MCP  (:8001)"   90  || MCP_OK=false
 wait_health "http://127.0.0.1:3000/health" "Visualizer  (:3000)"   90  || true
 
-# Seed demo-brain for visualizer (32 beliefs, golden synapse graph)
+# Seed demo-brain for visualizer (~62 beliefs, hub-linked graph)
 seed_demo_brain() {
     curl -sf -X POST "http://127.0.0.1:3000/api/demo/seed" \
         -H "Content-Type: application/json" \
