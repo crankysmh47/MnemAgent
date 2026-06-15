@@ -55,6 +55,75 @@ def test_extract_entities_robust_deduplication() -> None:
     assert entities.count("python") == 1
 
 
+def test_extract_entities_robust_merges_user_dict(initialized_db: Path) -> None:
+    """Dynamic entity dict enriches the global bootstrap."""
+    from storage.db_manager import upsert_user_entities
+    upsert_user_entities("user-1", ["fastify", "prisma", "zod"], db_path=initialized_db)
+    entities = extract_entities_robust("We use Fastify with Prisma and Zod", user_id="user-1", db_path=initialized_db)
+    assert "fastify" in entities
+    assert "prisma" in entities
+    assert "zod" in entities
+
+
+def test_extract_entities_robust_no_user_falls_back_to_global() -> None:
+    """Without user_id, only the global dict is consulted."""
+    entities = extract_entities_robust("We use Python daily")
+    assert "python" in entities
+    assert "daily" not in entities  # not a tech term or proper noun
+
+
+def test_extract_entities_robust_db_failure_graceful(initialized_db: Path) -> None:
+    """Corrupted/broken DB path still yields global dict results."""
+    entities = extract_entities_robust(
+        "I use React", user_id="user-1", db_path=Path("/nonexistent/db.sqlite3")
+    )
+    assert "react" in entities
+
+
+def test_entity_dict_e2e_consolidate_to_keyword_retrieval(initialized_db: Path) -> None:
+    """Turn 1 store enriches dict; turn 2 keyword path finds the belief."""
+    from memory.dreaming import consolidate_and_prune_memory
+    from memory.waking import _fetch_candidates_by_keywords
+    from storage.db_manager import get_user_entity_dict
+
+    consolidate_and_prune_memory(
+        "user-1",
+        {
+            "entity": "backend",
+            "relation": "uses",
+            "value": "prisma",
+            "category": "system_state",
+            "conviction": 0.9,
+        },
+        initialized_db,
+    )
+    assert "prisma" in get_user_entity_dict("user-1", initialized_db)
+    entities = extract_entities_robust(
+        "What's our Prisma setup?", user_id="user-1", db_path=initialized_db
+    )
+    assert "prisma" in entities
+    candidates = _fetch_candidates_by_keywords("user-1", entities, initialized_db)
+    assert any(row["entity_target"] == "prisma" for row in candidates)
+
+
+def test_salience_reject_does_not_enrich_entity_dict(initialized_db: Path) -> None:
+    from memory.dreaming import consolidate_and_prune_memory
+    from storage.db_manager import get_user_entity_dict
+
+    consolidate_and_prune_memory(
+        "user-1",
+        {
+            "entity": "orm",
+            "relation": "maybe",
+            "value": "prisma",
+            "category": "preference",
+            "conviction": 0.2,
+        },
+        initialized_db,
+    )
+    assert "prisma" not in get_user_entity_dict("user-1", initialized_db)
+
+
 def test_get_rwr_associations_connected_graph() -> None:
     edges = [(1, 2), (2, 3), (3, 4), (4, 5), (2, 4)]
     result = _get_rwr_associations(edges, 1, top_k=2)

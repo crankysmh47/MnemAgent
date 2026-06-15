@@ -61,6 +61,25 @@ def _load_vec_extension(conn: sqlite3.Connection) -> bool:
         return False
 
 
+def _backfill_user_entities(conn: sqlite3.Connection) -> None:
+    """Seed user_entities from existing beliefs (idempotent, runs each init)."""
+    try:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO user_entities (user_id, entity_name, source)
+            SELECT DISTINCT user_id, LOWER(TRIM(entity_source)), 'backfill'
+            FROM semantic_graph
+            WHERE LENGTH(TRIM(entity_source)) >= 2
+            UNION
+            SELECT DISTINCT user_id, LOWER(TRIM(entity_target)), 'backfill'
+            FROM semantic_graph
+            WHERE LENGTH(TRIM(entity_target)) >= 2
+            """
+        )
+    except sqlite3.Error as exc:
+        logger.warning("User entity backfill skipped: %s", exc)
+
+
 def initialize_database(db_path: Path | None = None) -> None:
     """
     Initialize schema and optional vector table.
@@ -85,6 +104,7 @@ def initialize_database(db_path: Path | None = None) -> None:
                     )
                     """
                 )
+            _backfill_user_entities(conn)
             conn.commit()
             logger.info("Database initialized at %s", path)
         finally:
@@ -178,6 +198,79 @@ def upsert_vec_embedding(
             conn.close()
     except (ImportError, sqlite3.Error) as exc:
         logger.warning("Failed to upsert vector embedding for id=%s: %s", metadata_id, exc)
+
+
+def upsert_user_entities(
+    user_id: str,
+    entity_names: list[str],
+    source: str = "memory_update",
+    db_path: Path | None = None,
+) -> int:
+    """
+    Add entity names to the user's dynamic entity dictionary.
+
+    Args:
+        user_id: User identifier.
+        entity_names: List of entity name strings to upsert.
+        source: Origin label (memory_update, manual, seed).
+        db_path: Optional database path override.
+
+    Returns:
+        Number of new entities added (duplicates ignored).
+    """
+    if not entity_names:
+        return 0
+    conn = get_db_connection(db_path)
+    added = 0
+    try:
+        for name in entity_names:
+            clean = str(name).strip().lower()
+            if len(clean) < 2:
+                continue
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO user_entities (user_id, entity_name, source)
+                VALUES (?, ?, ?)
+                """,
+                (user_id, clean, source),
+            )
+            added += cursor.rowcount
+        conn.commit()
+        if added:
+            logger.debug("Added %d new entities to user=%s dictionary", added, user_id)
+    except sqlite3.Error as exc:
+        logger.warning("Failed to upsert user entities: %s", exc)
+    finally:
+        conn.close()
+    return added
+
+
+def get_user_entity_dict(
+    user_id: str,
+    db_path: Path | None = None,
+) -> set[str]:
+    """
+    Return the set of dynamically-learned entity names for a user.
+
+    Args:
+        user_id: User identifier.
+        db_path: Optional database path override.
+
+    Returns:
+        Set of lowercased entity name strings.
+    """
+    conn = get_db_connection(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT entity_name FROM user_entities WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+        return {row["entity_name"] for row in rows}
+    except sqlite3.Error as exc:
+        logger.warning("Failed to fetch user entity dict: %s", exc)
+        return set()
+    finally:
+        conn.close()
 
 
 def delete_vec_embedding(metadata_id: int, db_path: Path | None = None) -> None:

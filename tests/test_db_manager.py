@@ -29,6 +29,7 @@ def test_initialize_database_creates_tables(initialized_db: Path) -> None:
         }
         assert "episodic_logs" in tables
         assert "semantic_graph" in tables
+        assert "user_entities" in tables
     finally:
         conn.close()
 
@@ -121,3 +122,33 @@ def test_semantic_graph_partial_index(initialized_db: Path) -> None:
         assert len(rows) == 0
     finally:
         conn.close()
+
+
+def test_upsert_user_entities_coerces_non_string(initialized_db: Path) -> None:
+    from storage.db_manager import get_user_entity_dict, upsert_user_entities
+
+    upsert_user_entities("u", [42, "prisma"], db_path=initialized_db)
+    entities = get_user_entity_dict("u", initialized_db)
+    assert "42" in entities
+    assert "prisma" in entities
+
+
+def test_backfill_user_entities_from_graph(initialized_db: Path) -> None:
+    from storage.db_manager import get_user_entity_dict
+
+    conn = get_db_connection(initialized_db)
+    conn.execute(
+        """
+        INSERT INTO semantic_graph (
+            user_id, category, entity_source, relation, entity_target
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        ("legacy-user", "preference", "backend", "uses", "prisma"),
+    )
+    conn.commit()
+    conn.close()
+
+    initialize_database(initialized_db)
+    entities = get_user_entity_dict("legacy-user", initialized_db)
+    assert "prisma" in entities
+    assert "backend" in entities

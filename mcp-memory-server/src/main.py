@@ -34,7 +34,6 @@ from memory.dreaming import (
 from memory.mcp_commands import execute_memory_dump_tool, execute_memory_stats_tool
 from memory.response_grounding import ground_response_with_injection, record_hedged_teach_rejections
 from memory.waking import build_optimized_qwen_payload
-from storage import cloud_sync
 from storage.db_manager import get_total_turns, initialize_database, log_episodic_turn
 
 logger = logging.getLogger(__name__)
@@ -145,7 +144,11 @@ async def _run_dreaming_phase(
         )
         total_turns = await loop.run_in_executor(None, get_total_turns, user_id)
         if total_turns % 50 == 0:
-            await loop.run_in_executor(None, cloud_sync.sync_to_cloud)
+            try:
+                from storage.cloud_sync import sync_to_cloud
+                await loop.run_in_executor(None, sync_to_cloud)
+            except ImportError:
+                logger.debug("Cloud sync skipped — OSS dependencies not installed")
     except Exception as exc:
         logger.error("Dreaming phase failed: %s", exc)
 

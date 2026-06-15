@@ -10,7 +10,7 @@ from pathlib import Path
 from config import settings
 from memory.event_log import log_memory_event
 from memory.waking import store_belief_embedding_sync
-from storage.db_manager import delete_vec_embedding, get_db_connection
+from storage.db_manager import delete_vec_embedding, get_db_connection, upsert_user_entities
 
 logger = logging.getLogger(__name__)
 
@@ -326,6 +326,9 @@ def consolidate_and_prune_memory(
 
     if run_maintenance:
         _run_decay_and_prune(user_id, db_path)
+
+    # Enrich per-user entity dictionary so keyword extraction improves over time
+    upsert_user_entities(user_id, [entity, value], source="memory_update", db_path=db_path)
 
     if belief_id is not None:
         store_belief_embedding_sync(belief_id, entity, relation, value, db_path)

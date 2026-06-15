@@ -10,7 +10,7 @@
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/visualizer.css?v=20260614-brain2" />
+  <link rel="stylesheet" href="/visualizer.css?v=20260614" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
@@ -32,7 +32,7 @@
 
   <div class="live-indicator" id="liveLabel">
     <span class="live-dot"></span> Synaptic stream
-    <span class="build-stamp" id="buildStamp" title="UI build stamp">· v2026-06-14-polish</span>
+    <span class="build-stamp" title="UI build stamp">· v2026-06-14</span>
   </div>
 
   <label>User <input id="userId" placeholder="demo-brain" /></label>
@@ -64,10 +64,8 @@
       <span id="nodeDetail" style="font-size:0.72rem;color:var(--text-muted);text-transform:none;letter-spacing:0;font-weight:500">Select a memory node</span>
     </div>
     <div class="graph-viewport" id="graphViewport">
-      <div class="graph-bg" aria-hidden="true"></div>
       <svg id="graphSvg" role="img" aria-label="Memory belief graph"></svg>
       <div class="graph-vignette" aria-hidden="true"></div>
-      <div class="pan-hint" aria-hidden="true">Scroll to zoom · drag to pan · Shift+drag a node</div>
     </div>
   </div>
 
@@ -115,7 +113,6 @@
 </div>
 
 <div class="node-tooltip" id="nodeTooltip"></div>
-<div class="system-status" id="systemStatus" role="status">Starting visualizer…</div>
 
 <script>
 const METRICS_POLL_MS = 15000;
@@ -124,7 +121,6 @@ let autoRefresh = true;
 let lastEventTs = null;
 let ucbChart, catChart;
 let zoom;
-let graphWheelBound = false;
 let particleLoopId = null;
 let cachedGraph = null;
 let lastStructureKey = '';
@@ -146,7 +142,7 @@ function currentUser() {
   return document.getElementById('userId')?.value.trim() || uid();
 }
 
-const LAYOUT_KEY_PREFIX = 'mnemos_layout_v4_';
+const LAYOUT_KEY_PREFIX = 'mnemos_layout_';
 
 function loadNodeLayouts(user) {
   try {
@@ -177,15 +173,15 @@ function normalizeCategory(raw) {
 }
 
 function nodeFill(w) {
-  if (w >= 0.85) return '#E8B923';
-  if (w >= 0.65) return '#C9956A';
-  return '#B8A088';
+  if (w >= 0.85) return '#F0C75A';
+  if (w >= 0.65) return '#D4A86A';
+  return '#C4B09A';
 }
 
 function nodeStroke(w) {
   if (w >= 0.85) return '#C9920A';
   if (w >= 0.65) return '#A87848';
-  return '#8A7060';
+  return '#9A8878';
 }
 
 function confLevel(beliefOrWeight) {
@@ -279,7 +275,7 @@ function computeSemanticLinks(nodes) {
     });
   });
 
-  const MAX_AFFINITY_NODES = nodes.length <= 30 ? 80 : 0;
+  const MAX_AFFINITY_NODES = 80;
   const affinityNodes = nodes.length <= MAX_AFFINITY_NODES ? nodes : nodes.slice(0, MAX_AFFINITY_NODES);
   for (let i = 0; i < affinityNodes.length; i++) {
     const a = affinityNodes[i];
@@ -344,14 +340,14 @@ function captureLivePositions() {
 function updateNodeDetail(graph) {
   const visible = filterBeliefs(graph.beliefs || []);
   const total = (graph.beliefs || []).length;
-  const edgeCount = deriveLinks(visible).length;
+  const edgeCount = computeSemanticLinks(visible).length;
   const el = document.getElementById('nodeDetail');
   if (total === 0) {
     el.textContent = 'No memories — click Refresh or open ?user=demo-brain';
   } else if (visible.length === 0) {
     el.textContent = `${total} memories hidden by filters — enable category or vividness chips`;
   } else {
-    el.textContent = `${visible.length} nodes · ${edgeCount} synapses — scroll to zoom, drag to pan`;
+    el.textContent = `${visible.length} nodes · ${edgeCount} links — drag to explore`;
   }
 }
 
@@ -393,7 +389,7 @@ async function ensureDemoBrainSeeded() {
     if (user !== 'demo-brain') return false;
 
     const status = await fetch('/api/demo/status').then(r => r.json());
-    if ((status.beliefs || 0) >= 58) return false;
+    if ((status.beliefs || 0) >= 8) return false;
 
     const result = await fetch('/api/demo/seed', {
       method: 'POST',
@@ -405,12 +401,7 @@ async function ensureDemoBrainSeeded() {
       console.warn('Demo seed failed:', result.error);
       return false;
     }
-    if (result.seeded) {
-      clearNodeLayouts(user);
-      savedZoom = null;
-      lastStructureKey = '';
-    }
-    console.info(`Demo brain: ${result.beliefs}/${result.expected || 62} beliefs, ${result.edges} edges`);
+    console.info(`Demo brain: ${result.beliefs} beliefs, ${result.edges} edges`);
     return Boolean(result.seeded);
   } catch (e) {
     console.warn('Demo seed unavailable:', e.message);
@@ -420,108 +411,32 @@ async function ensureDemoBrainSeeded() {
 
 function brainPath(cx, cy, scale) {
   const s = scale || 1;
-  const x = cx;
-  const y = cy;
-  return `M ${x} ${y - 102 * s}
-    C ${x - 22 * s} ${y - 110 * s}, ${x - 58 * s} ${y - 106 * s}, ${x - 98 * s} ${y - 85 * s}
-    C ${x - 142 * s} ${y - 64 * s}, ${x - 162 * s} ${y - 22 * s}, ${x - 155 * s} ${y + 20 * s}
-    C ${x - 148 * s} ${y + 55 * s}, ${x - 122 * s} ${y + 88 * s}, ${x - 82 * s} ${y + 104 * s}
-    C ${x - 58 * s} ${y + 112 * s}, ${x - 35 * s} ${y + 108 * s}, ${x - 18 * s} ${y + 92 * s}
-    C ${x - 10 * s} ${y + 82 * s}, ${x - 6 * s} ${y + 55 * s}, ${x - 4 * s} ${y + 35 * s}
-    C ${x - 2 * s} ${y + 18 * s}, ${x} ${y + 8 * s}, ${x} ${y + 8 * s}
-    C ${x} ${y + 8 * s}, ${x + 2 * s} ${y + 18 * s}, ${x + 4 * s} ${y + 35 * s}
-    C ${x + 6 * s} ${y + 55 * s}, ${x + 10 * s} ${y + 82 * s}, ${x + 18 * s} ${y + 92 * s}
-    C ${x + 35 * s} ${y + 108 * s}, ${x + 58 * s} ${y + 112 * s}, ${x + 82 * s} ${y + 104 * s}
-    C ${x + 122 * s} ${y + 88 * s}, ${x + 148 * s} ${y + 55 * s}, ${x + 155 * s} ${y + 20 * s}
-    C ${x + 162 * s} ${y - 22 * s}, ${x + 142 * s} ${y - 64 * s}, ${x + 98 * s} ${y - 85 * s}
-    C ${x + 58 * s} ${y - 106 * s}, ${x + 22 * s} ${y - 110 * s}, ${x} ${y - 102 * s} Z`;
+  return `M ${cx} ${cy - 95*s}
+    C ${cx - 120*s} ${cy - 110*s}, ${cx - 145*s} ${cy - 40*s}, ${cx - 130*s} ${cy + 20*s}
+    C ${cx - 150*s} ${cy + 55*s}, ${cx - 115*s} ${cy + 95*s}, ${cx - 70*s} ${cy + 105*s}
+    C ${cx - 45*s} ${cy + 118*s}, ${cx - 15*s} ${cy + 115*s}, ${cx} ${cy + 108*s}
+    C ${cx + 15*s} ${cy + 115*s}, ${cx + 45*s} ${cy + 118*s}, ${cx + 70*s} ${cy + 105*s}
+    C ${cx + 115*s} ${cy + 95*s}, ${cx + 150*s} ${cy + 55*s}, ${cx + 130*s} ${cy + 20*s}
+    C ${cx + 145*s} ${cy - 40*s}, ${cx + 120*s} ${cy - 110*s}, ${cx} ${cy - 95*s} Z`;
 }
 
-function brainSulciLines(cx, cy, scale) {
-  const s = scale || 1;
-  const x = cx;
-  const y = cy;
-  return [
-    `M ${x} ${y - 90 * s} C ${x - 3 * s} ${y - 38 * s}, ${x + 2 * s} ${y + 18 * s}, ${x} ${y + 58 * s}`,
-    `M ${x - 35 * s} ${y - 72 * s} Q ${x - 22 * s} ${y - 46 * s}, ${x - 38 * s} ${y - 16 * s}`,
-    `M ${x - 78 * s} ${y - 50 * s} Q ${x - 52 * s} ${y - 20 * s}, ${x - 58 * s} ${y + 20 * s}`,
-    `M ${x - 118 * s} ${y - 20 * s} Q ${x - 92 * s} ${y + 16 * s}, ${x - 72 * s} ${y + 50 * s}`,
-    `M ${x - 95 * s} ${y - 60 * s} Q ${x - 68 * s} ${y - 40 * s}, ${x - 55 * s} ${y - 6 * s}`,
-    `M ${x - 100 * s} ${y + 10 * s} Q ${x - 78 * s} ${y + 36 * s}, ${x - 48 * s} ${y + 46 * s}`,
-    `M ${x + 35 * s} ${y - 72 * s} Q ${x + 22 * s} ${y - 46 * s}, ${x + 38 * s} ${y - 16 * s}`,
-    `M ${x + 78 * s} ${y - 50 * s} Q ${x + 52 * s} ${y - 20 * s}, ${x + 58 * s} ${y + 20 * s}`,
-    `M ${x + 118 * s} ${y - 20 * s} Q ${x + 92 * s} ${y + 16 * s}, ${x + 72 * s} ${y + 50 * s}`,
-    `M ${x + 95 * s} ${y - 60 * s} Q ${x + 68 * s} ${y - 40 * s}, ${x + 55 * s} ${y - 6 * s}`,
-    `M ${x + 100 * s} ${y + 10 * s} Q ${x + 78 * s} ${y + 36 * s}, ${x + 48 * s} ${y + 46 * s}`,
-    `M ${x - 32 * s} ${y + 78 * s} Q ${x - 16 * s} ${y + 96 * s}, ${x} ${y + 100 * s}`,
-    `M ${x + 32 * s} ${y + 78 * s} Q ${x + 16 * s} ${y + 96 * s}, ${x} ${y + 100 * s}`,
-  ];
-}
-
-function drawBrainDecorations(parent, cx, cy, scale) {
-  const brainD = brainPath(cx, cy, scale);
-  parent.append('path').attr('d', brainD).attr('class', 'brain-fill');
-  parent.append('path').attr('d', brainD).attr('class', 'brain-outline');
-  return brainD;
-}
-
-/** Fit brain silhouette to fill the viewport. */
-function computeBrainScale(_nodeCount, width, height) {
-  const padX = 10;
-  const padY = 14;
-  const brainW = 324;
-  const brainH = 220;
-  const scaleX = (width - padX * 2) / brainW;
-  const scaleY = (height - padY * 2) / brainH;
-  return Math.min(scaleX, scaleY) * 1.22;
+/** Scale brain silhouette to fit node count and viewport. */
+function computeBrainScale(nodeCount, width, height) {
+  const vmin = Math.min(width, height);
+  const base = vmin / 260;
+  const perNode = Math.sqrt(Math.max(nodeCount, 1)) * 0.072;
+  const scale = base * (1.05 + perNode + Math.max(0, nodeCount - 10) * 0.028);
+  const max = vmin / 130;
+  return Math.min(Math.max(scale, 1.05), max);
 }
 
 function brainBounds(cx, cy, scale) {
-  return { cx, cy, rx: 162 * scale, ry: 112 * scale, scale };
+  return { cx, cy, rx: 138 * scale, ry: 116 * scale, scale };
 }
 
-function ensureGraphWheelZoom() {
-  const vp = document.getElementById('graphViewport');
-  if (!vp || graphWheelBound) return;
-  graphWheelBound = true;
-  vp.addEventListener('wheel', (event) => {
-    event.preventDefault();
-    const svg = document.getElementById('graphSvg');
-    if (!svg || !zoom) return;
-    const vb = svg.viewBox.baseVal;
-    const rect = svg.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const sx = vb.x + ((event.clientX - rect.left) / rect.width) * vb.width;
-    const sy = vb.y + ((event.clientY - rect.top) / rect.height) * vb.height;
-    const factor = Math.exp(-event.deltaY * 0.0015);
-    d3.select(svg).call(zoom.scaleBy, factor, [sx, sy]);
-  }, { passive: false });
-}
-
-function graphPointerToWorld(event, svgNode) {
-  const [px, py] = d3.pointer(event, svgNode);
-  return d3.zoomTransform(svgNode).invert([px, py]);
-}
-
+/** Safe interior fraction — tighter when more nodes compete for space. */
 function brainMarginForCount(nodeCount) {
-  return Math.max(0.82, 0.9 - Math.max(0, nodeCount - 30) * 0.001);
-}
-
-function setShiftMode(on) {
-  document.getElementById('graphViewport')?.classList.toggle('shift-mode', on);
-}
-
-function nearestNode(nodes, x, y) {
-  let hit = null;
-  let minD = Infinity;
-  for (const d of nodes) {
-    const dist = Math.hypot(d.x - x, d.y - y);
-    if (dist <= d.r + 14 && dist < minD) {
-      minD = dist;
-      hit = d;
-    }
-  }
-  return hit;
+  return Math.max(0.64, 0.74 - Math.max(0, nodeCount - 14) * 0.006);
 }
 
 /** Project a point onto the inner brain ellipse (accounts for node + glow radius). */
@@ -550,7 +465,7 @@ function clampNode(node, bounds, margin) {
 
 /** Collision radius including neuron body + glow halo. */
 function collisionRadius(node) {
-  return node.r + 20;
+  return node.r + 10;
 }
 
 /** Push overlapping nodes apart (runs after clamp / on drag / when all pinned). */
@@ -602,40 +517,6 @@ function resolveOverlaps(nodes, bounds, margin, passes = 3) {
   }
 }
 
-/** Even spread: each entity cluster gets a brain sector, members fan inside it. */
-function spreadLayoutPositions(beliefs, bounds, margin) {
-  const groups = new Map();
-  beliefs.forEach((b) => {
-    const key = normTerm(b.entity_source) || 'misc';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(b);
-  });
-
-  const clusterKeys = [...groups.keys()].sort();
-  const positions = new Map();
-  const { cx, cy, rx, ry } = bounds;
-  const n = beliefs.length;
-  let idx = 0;
-
-  clusterKeys.forEach((key, ci) => {
-    const members = groups.get(key);
-    const sectorStart = (ci / clusterKeys.length) * Math.PI * 2 - Math.PI / 2;
-    const sectorWidth = (Math.PI * 2 / clusterKeys.length) * 0.92;
-
-    members.forEach((b, mi) => {
-      const t = (idx + 0.5) / n;
-      const radial = margin * (0.32 + Math.sqrt(t) * 0.6);
-      const angle = sectorStart + ((mi + 0.5) / members.length) * sectorWidth;
-      const x = cx + Math.cos(angle) * rx * radial;
-      const y = cy + Math.sin(angle) * ry * radial;
-      positions.set(b.id, clampToBrain(x, y, bounds, 8, margin));
-      idx += 1;
-    });
-  });
-
-  return positions;
-}
-
 function initialNodePosition(i, n, bounds, hemisphere, margin) {
   const { cx, cy, rx, ry } = bounds;
   const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
@@ -658,36 +539,27 @@ function forceBrainContain(cx, cy, rx, ry, margin = 0.72) {
 }
 
 function nodeRadius(b, total) {
-  const utility = b.base_utility_q ?? 0.5;
-  const vivid = b.conviction_score ?? b.node_weight ?? 0.5;
-  const importance = 0.5 * utility + 0.5 * vivid;
-  const base = 6.8 + importance * 3.8;
-  const shrink = Math.max(0, total - 35) * 0.035;
-  return Math.max(5.8, Math.min(11, base - shrink));
+  const base = 5 + (b.base_utility_q || 0.5) * 3.5;
+  const shrink = Math.max(0, total - 18) * 0.06;
+  return Math.max(4, base - shrink);
 }
 
 function categoryHue(cat) {
   const c = normalizeCategory(cat);
-  if (c === 'persona') return { fill: '#E8B4A8', stroke: '#C4785A', glow: 'rgba(196, 120, 90, 0.38)' };
-  if (c === 'system_state') return { fill: '#A8C4E8', stroke: '#5B8BB5', glow: 'rgba(91, 139, 181, 0.35)' };
-  return { fill: '#F0C75A', stroke: '#C9920A', glow: 'rgba(212, 160, 23, 0.42)' };
+  if (c === 'persona') return { fill: '#E8B4A8', stroke: '#C4785A', glow: 'rgba(196, 120, 90, 0.35)' };
+  if (c === 'system_state') return { fill: '#C9D4E8', stroke: '#6B8BB5', glow: 'rgba(107, 139, 181, 0.35)' };
+  return { fill: '#F0C75A', stroke: '#C9920A', glow: 'rgba(212, 160, 23, 0.4)' };
 }
 
 function deriveLinks(nodes) {
-  const all = computeSemanticLinks(nodes);
-  const n = nodes.length;
-  const maxLinks = n <= 25 ? 90 : n <= 45 ? 55 : 38;
-  const kindRank = { cluster: 4, bridge: 3, concept: 2, affinity: 1 };
-  return all
-    .sort((a, b) => (b.weight - a.weight) || ((kindRank[b.kind] || 0) - (kindRank[a.kind] || 0)))
-    .slice(0, maxLinks);
+  return computeSemanticLinks(nodes);
 }
 
 function synapseStyle(kind) {
-  if (kind === 'concept') return { dash: '8 5', opacity: 0.72, width: 2.1 };
-  if (kind === 'bridge') return { dash: '5 4', opacity: 0.78, width: 2.3 };
-  if (kind === 'affinity') return { dash: '3 5', opacity: 0.55, width: 1.8 };
-  return { dash: null, opacity: 0.85, width: 2.6 };
+  if (kind === 'concept') return { dash: '7 4', opacity: 0.58 };
+  if (kind === 'bridge') return { dash: '4 3', opacity: 0.6 };
+  if (kind === 'affinity') return { dash: '2 4', opacity: 0.45 };
+  return { dash: null, opacity: 0.68 };
 }
 
 function synapsePath(d) {
@@ -697,7 +569,7 @@ function synapsePath(d) {
   const my = (sy + ty) / 2;
   const dx = tx - sx, dy = ty - sy;
   const dist = Math.hypot(dx, dy) || 1;
-  const bend = Math.min(42, dist * 0.28);
+  const bend = Math.min(28, dist * 0.22);
   const cx = mx - (dy / dist) * bend;
   const cy = my + (dx / dist) * bend;
   return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`;
@@ -729,10 +601,12 @@ function renderGraph(data) {
   if (!beliefs.length) {
     const cx = width / 2;
     const cy = height / 2;
-    const brainScale = computeBrainScale(1, width, height);
-    const bgFixed = svg.append('g').attr('class', 'bg-fixed');
-    drawBrainDecorations(bgFixed, cx, cy, brainScale);
-    svg.append('text')
+    const brainScale = computeBrainScale(1, width, height) * 0.92;
+    const root = svg.append('g').attr('class', 'graph-root');
+    const brainD = brainPath(cx, cy, brainScale);
+    root.append('path').attr('d', brainD).attr('class', 'brain-fill');
+    root.append('path').attr('d', brainD).attr('class', 'brain-outline');
+    root.append('text')
       .attr('x', cx)
       .attr('y', cy)
       .attr('text-anchor', 'middle')
@@ -748,55 +622,39 @@ function renderGraph(data) {
   const brainScale = computeBrainScale(n, width, height);
   const bounds = brainBounds(cx, cy, brainScale);
   const tt = d3.select('#nodeTooltip');
+  const root = svg.append('g').attr('class', 'graph-root');
 
-  const defs = svg.append('defs');
+  zoom = d3.zoom().scaleExtent([0.45, 3]).on('zoom', (e) => {
+    root.attr('transform', e.transform);
+    savedZoom = e.transform;
+  });
+  svg.call(zoom);
+  svg.call(zoom.transform, savedZoom || d3.zoomIdentity);
+  root.attr('transform', savedZoom || d3.zoomIdentity);
+
+  const defs = root.append('defs');
   const clipId = 'brain-clip';
   const brainD = brainPath(cx, cy, brainScale);
-
-  const synGrad = defs.append('linearGradient').attr('id', 'synapse-gold').attr('x1', '0%').attr('y1', '0%').attr('x2', '100%').attr('y2', '0%');
-  synGrad.append('stop').attr('offset', '0%').attr('stop-color', '#E8C060').attr('stop-opacity', 0.95);
-  synGrad.append('stop').attr('offset', '100%').attr('stop-color', '#D4A017').attr('stop-opacity', 0.75);
-
-  const nodeShadow = defs.append('filter').attr('id', 'node-shadow').attr('x', '-50%').attr('y', '-50%').attr('width', '200%').attr('height', '200%');
-  nodeShadow.append('feDropShadow').attr('dx', 0).attr('dy', 1).attr('stdDeviation', 2.2).attr('flood-color', '#B8860B').attr('flood-opacity', 0.35);
-
   defs.append('clipPath').attr('id', clipId)
     .append('path').attr('d', brainD);
 
-  const bgFixed = svg.append('g').attr('class', 'bg-fixed');
-  drawBrainDecorations(bgFixed, cx, cy, brainScale);
+  const bgLayer = root.append('g').attr('class', 'bg-layer');
+  bgLayer.append('path').attr('d', brainD).attr('class', 'brain-fill');
+  bgLayer.append('path').attr('d', brainD).attr('class', 'brain-outline');
+  const s = brainScale;
+  bgLayer.append('path').attr('d', `M ${cx} ${cy - 88*s} Q ${cx - 6*s} ${cy + 8*s} ${cx} ${cy + 98*s}`).attr('class', 'sulcus');
+  bgLayer.append('path').attr('d', `M ${cx - 52*s} ${cy - 28*s} Q ${cx - 18*s} ${cy + 18*s} ${cx - 48*s} ${cy + 68*s}`).attr('class', 'sulcus');
+  bgLayer.append('path').attr('d', `M ${cx + 52*s} ${cy - 28*s} Q ${cx + 18*s} ${cy + 18*s} ${cx + 48*s} ${cy + 68*s}`).attr('class', 'sulcus');
 
-  const clipFrame = svg.append('g').attr('class', 'clip-frame').attr('clip-path', `url(#${clipId})`);
-  const contentLayer = clipFrame.append('g').attr('class', 'graph-content');
-
-  zoom = d3.zoom()
-    .scaleExtent([0.35, 4.0])
-    .filter((event) => {
-      if (event.type.startsWith('touch')) return true;
-      if (event.type === 'wheel' && event.ctrlKey) return false;
-      return !event.button || event.button === 0;
-    })
-    .on('zoom', (e) => {
-      contentLayer.attr('transform', e.transform);
-      savedZoom = e.transform;
-    });
-
-  const fitZoom = savedZoom || d3.zoomIdentity;
-  svg.call(zoom);
-  svg.call(zoom.transform, fitZoom);
-  contentLayer.attr('transform', fitZoom);
-  savedZoom = fitZoom;
-
-  const graphG = contentLayer;
+  const graphG = root.append('g').attr('clip-path', `url(#${clipId})`);
 
   const user = currentUser();
   const savedLayouts = { ...loadNodeLayouts(user), ...liveNodePositions };
   const brainMargin = brainMarginForCount(n);
-  const clusterPos = spreadLayoutPositions(beliefs, bounds, brainMargin);
   const nodes = beliefs.map((b, i) => {
     const cat = normalizeCategory(b.category);
     const hemisphere = cat === 'persona' ? -1 : cat === 'preference' ? 1 : 0;
-    const pos = clusterPos.get(b.id) || initialNodePosition(i, n, bounds, hemisphere, brainMargin);
+    const pos = initialNodePosition(i, n, bounds, hemisphere, brainMargin);
     const node = {
       ...b,
       cat,
@@ -811,16 +669,19 @@ function renderGraph(data) {
       const clamped = clampToBrain(saved.x, saved.y, bounds, node.r, brainMargin);
       node.x = clamped.x;
       node.y = clamped.y;
+      node.pinned = true;
+      node.fx = clamped.x;
+      node.fy = clamped.y;
     }
     return node;
   });
   nodes.forEach(node => clampNode(node, bounds, brainMargin));
-  resolveOverlaps(nodes, bounds, brainMargin, 10);
+  resolveOverlaps(nodes, bounds, brainMargin, 4);
 
   const links = deriveLinks(nodes);
   const allPinned = nodes.length > 0 && nodes.every(nd => nd.pinned);
-  const charge = -Math.min(420, 120 + n * 2.4);
-  const linkDist = Math.max(64, 72 + Math.sqrt(n) * 6);
+  const charge = -Math.min(120, 42 + n * 1.5);
+  const linkDist = Math.max(32, 42 - n * 0.12);
 
   const linkLayer = graphG.append('g').attr('class', 'link-layer');
   const linkPaths = linkLayer.selectAll('path.synapse')
@@ -828,32 +689,30 @@ function renderGraph(data) {
     .join('path')
     .attr('class', d => `synapse synapse-${d.kind || 'cluster'}`)
     .attr('fill', 'none')
-    .style('pointer-events', 'none')
+    .attr('stroke-width', d => 0.9 + d.weight * 1.35)
     .each(function(d) {
       const style = synapseStyle(d.kind);
       d3.select(this)
-        .attr('stroke', d.kind === 'cluster' ? 'url(#synapse-gold)' : null)
-        .attr('stroke-width', style.width + d.weight * 0.8)
         .attr('stroke-opacity', style.opacity)
         .attr('stroke-dasharray', style.dash || null);
     });
 
   const particleLayer = graphG.append('g').attr('class', 'particle-layer');
-  const particles = links.slice(0, Math.min(links.length, n <= 35 ? 32 : 18)).flatMap((link, li) =>
-    [{ link, id: `${li}-a`, t: Math.random(), speed: 0.0025 + Math.random() * 0.003 }]
+  const particles = links.slice(0, Math.min(links.length, 56)).flatMap((link, li) =>
+    [{ link, id: `${li}-a`, t: Math.random(), speed: 0.003 + Math.random() * 0.004 }]
   );
   const particleSel = particleLayer.selectAll('circle')
     .data(particles, d => d.id)
     .join('circle')
     .attr('class', 'memory-particle')
-    .attr('r', 3.2)
-    .style('pointer-events', 'none');
+    .attr('r', 2.5);
 
   const nodeLayer = graphG.append('g').attr('class', 'node-layer');
   const nodeG = nodeLayer.selectAll('g.node')
     .data(nodes, d => d.id)
     .join('g')
-    .attr('class', d => `node${d.pinned ? ' node-fixed' : ''}`);
+    .attr('class', d => `node${d.pinned ? ' node-fixed' : ''}`)
+    .style('cursor', 'grab');
 
   function pointOnPath(link, t) {
     const sx = link.source.x, sy = link.source.y;
@@ -871,7 +730,8 @@ function renderGraph(data) {
     };
   }
 
-  function renderVisuals() {
+  function tick() {
+    resolveOverlaps(nodes, bounds, brainMargin, 1);
     linkPaths.attr('d', synapsePath);
     nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
     particleSel.each(function(d) {
@@ -880,22 +740,16 @@ function renderGraph(data) {
     });
   }
 
-  function simTick() {
-    resolveOverlaps(nodes, bounds, brainMargin, 1);
-    renderVisuals();
-  }
-
   let framesSinceCool = 0;
   function animateFlow() {
     particles.forEach(d => {
       d.t += d.speed;
       if (d.t > 1) d.t = 0;
     });
-    renderVisuals();
+    tick();
     const cooled = !sim || sim.alpha() < 0.01;
     const noDrag = !nodes.some(n => n.fx != null || n.fy != null);
     if (cooled && noDrag) {
-      if (sim) sim.stop();
       framesSinceCool++;
       if (framesSinceCool > 60) { particleLoopId = null; return; }
     } else {
@@ -907,80 +761,68 @@ function renderGraph(data) {
   let sim = null;
   if (!allPinned) {
     sim = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).distance(linkDist).strength(0.1))
+      .force('link', d3.forceLink(links).distance(linkDist).strength(0.28))
       .force('charge', d3.forceManyBody().strength(charge))
-      .force('center', d3.forceCenter(cx, cy).strength(0.02))
+      .force('center', d3.forceCenter(cx, cy).strength(0.05))
       .force('collision', d3.forceCollide()
         .radius(d => collisionRadius(d))
-        .strength(0.98)
-        .iterations(5))
-      .force('x', d3.forceX(d => cx + d.hemisphere * bounds.rx * 0.05).strength(d => d.pinned ? 0 : 0.012))
-      .force('y', d3.forceY(cy).strength(d => d.pinned ? 0 : 0.01))
+        .strength(0.92)
+        .iterations(3))
+      .force('x', d3.forceX(d => cx + d.hemisphere * bounds.rx * 0.09).strength(d => d.pinned ? 0 : 0.025))
+      .force('y', d3.forceY(cy).strength(d => d.pinned ? 0 : 0.02))
       .force('contain', forceBrainContain(cx, cy, bounds.rx, bounds.ry, brainMargin))
       .alpha(0.85)
-      .alphaDecay(0.04);
-    sim.on('tick', simTick);
-    sim.on('end', () => {
-      sim.stop();
-      nodes.forEach((node) => {
-        if (!node.pinned) {
-          node.fx = null;
-          node.fy = null;
-        }
-      });
-    });
+      .alphaDecay(0.035);
+    sim.on('tick', tick);
   } else {
     resolveOverlaps(nodes, bounds, brainMargin, 14);
   }
 
-  const dragBehavior = d3.drag()
-    .clickDistance(8)
-    .filter((event) => event.shiftKey && event.button === 0)
-    .on('start', (event, d) => {
-      d._dragStartX = d.x;
-      d._dragStartY = d.y;
-      if (sim && !event.active) sim.alphaTarget(0.12).restart();
-      d.fx = d.x;
-      d.fy = d.y;
-    })
-    .on('drag', (event, d) => {
-      const [x, y] = graphPointerToWorld(event, svg.node());
-      const p = clampToBrain(x, y, bounds, d.r, brainMargin);
-      d.fx = p.x;
-      d.fy = p.y;
-      d.x = p.x;
-      d.y = p.y;
-      resolveOverlaps(nodes, bounds, brainMargin, 2);
-      renderVisuals();
-    })
-    .on('end', (event, d) => {
-      if (sim && !event.active) sim.alphaTarget(0);
-      clampNode(d, bounds, brainMargin);
-      resolveOverlaps(nodes, bounds, brainMargin, 6);
-      const moved = Math.hypot(d.x - (d._dragStartX ?? d.x), d.y - (d._dragStartY ?? d.y));
-      const hadSaved = Boolean(savedLayouts[String(d.id)]);
-      if (moved < 8 && !hadSaved) {
-        d.pinned = false;
-        d.fx = null;
-        d.fy = null;
-        nodeG.filter(n => n.id === d.id).classed('node-fixed', false);
-        renderVisuals();
-        return;
-      }
-      d.pinned = true;
-      d.fx = d.x;
-      d.fy = d.y;
-      nodeG.filter(n => n.id === d.id).classed('node-fixed', true);
-      saveNodeLayout(user, d.id, d.x, d.y);
-      liveNodePositions[String(d.id)] = { x: d.x, y: d.y };
-      renderVisuals();
-    });
-
-  nodeG.call(dragBehavior);
+  nodeG.call(
+    d3.drag()
+      .on('start', (e, d) => {
+        d._dragStartX = e.x;
+        d._dragStartY = e.y;
+        if (sim && !e.active) sim.alphaTarget(0.15).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on('drag', (e, d) => {
+        const p = clampToBrain(e.x, e.y, bounds, d.r, brainMargin);
+        d.fx = p.x;
+        d.fy = p.y;
+        d.x = p.x;
+        d.y = p.y;
+        resolveOverlaps(nodes, bounds, brainMargin, 2);
+        tick();
+      })
+      .on('end', (e, d) => {
+        if (sim && !e.active) sim.alphaTarget(0);
+        clampNode(d, bounds, brainMargin);
+        resolveOverlaps(nodes, bounds, brainMargin, 6);
+        const moved = Math.hypot(e.x - (d._dragStartX ?? e.x), e.y - (d._dragStartY ?? e.y));
+        const hadSaved = Boolean(savedLayouts[String(d.id)]);
+        if (moved < 8 && !hadSaved) {
+          d.pinned = false;
+          d.fx = null;
+          d.fy = null;
+          nodeG.filter(n => n.id === d.id).classed('node-fixed', false);
+          tick();
+          return;
+        }
+        d.pinned = true;
+        d.fx = d.x;
+        d.fy = d.y;
+        nodeG.filter(n => n.id === d.id).classed('node-fixed', true);
+        saveNodeLayout(user, d.id, d.x, d.y);
+        liveNodePositions[String(d.id)] = { x: d.x, y: d.y };
+        tick();
+      })
+  );
 
   nodeG.append('circle')
     .attr('class', 'neuron-glow')
-    .attr('r', d => d.r + 9)
+    .attr('r', d => d.r + 5)
     .attr('fill', d => categoryHue(d.category).glow);
 
   nodeG.append('circle')
@@ -988,65 +830,38 @@ function renderGraph(data) {
     .attr('r', d => d.r)
     .attr('fill', d => categoryHue(d.category).fill)
     .attr('stroke', d => categoryHue(d.category).stroke)
-    .attr('stroke-width', 2.4)
-    .attr('filter', 'url(#node-shadow)');
-
-  svg.on('click.select', (event) => {
-    if (event.defaultPrevented) return;
-    const [mx, my] = graphPointerToWorld(event, svg.node());
-    const hit = nearestNode(nodes, mx, my);
-    if (hit) {
-      document.getElementById('nodeDetail').textContent = beliefLabel(hit);
-    }
-  });
-
-  svg.on('mousemove.tooltip', (event) => {
-    const [mx, my] = graphPointerToWorld(event, svg.node());
-    const hit = nearestNode(nodes, mx, my);
-    nodeG.classed('node-active', d => hit && d.id === hit.id);
-    if (hit) {
+    .attr('stroke-width', 1.8)
+    .on('mouseenter', function(e, d) {
+      d3.select(this.parentNode).classed('node-active', true);
       tt.classed('visible', true)
-        .style('left', `${Math.min(event.pageX + 12, window.innerWidth - 300)}px`)
-        .style('top', `${Math.min(event.pageY - 12, window.innerHeight - 160)}px`)
-        .html(`<span class="tt-cat">${normalizeCategory(hit.category)}</span>
-               <strong>${beliefLabel(hit)}</strong>
-               <div class="tt-meta">conviction ${(hit.conviction_score || 0).toFixed(2)} · utility ${(hit.base_utility_q || 0).toFixed(2)} · ${hit.injection_count || 0} recalls</div>`);
-    } else {
+        .style('left', `${Math.min(e.pageX + 12, window.innerWidth - 300)}px`)
+        .style('top', `${Math.min(e.pageY - 12, window.innerHeight - 160)}px`)
+        .html(`<span class="tt-cat">${normalizeCategory(d.category)}</span>
+               <strong>${beliefLabel(d)}</strong>
+               <div class="tt-meta">conviction ${(d.conviction_score || 0).toFixed(2)} · utility ${(d.base_utility_q || 0).toFixed(2)} · ${d.injection_count || 0} recalls</div>`);
+    })
+    .on('mouseleave', function() {
+      d3.select(this.parentNode).classed('node-active', false);
       tt.classed('visible', false);
-    }
-  });
-  svg.on('mouseleave.tooltip', () => {
-    nodeG.classed('node-active', false);
-    tt.classed('visible', false);
-  });
+    })
+    .on('click', (_, d) => {
+      document.getElementById('nodeDetail').textContent = beliefLabel(d);
+    });
 
-  renderVisuals();
+  tick();
   if (particles.length) animateFlow();
 
-  const legendW = 180, legendH = 90;
-  const legend = svg.append('g').attr('class', 'graph-legend').attr('transform', `translate(${width - legendW - 12}, ${height - legendH - 12})`);
-  legend.append('rect')
-    .attr('x', -8).attr('y', -8)
-    .attr('width', legendW + 4).attr('height', legendH + 4)
-    .attr('rx', 10)
-    .attr('class', 'legend-bg');
+  const legend = root.append('g').attr('class', 'graph-legend').attr('transform', `translate(16, ${height - 72})`);
   [
-    { label: 'Preference', color: '#F0C75A', stroke: '#C9920A' },
-    { label: 'System', color: '#A8C4E8', stroke: '#5B8BB5' },
     { label: 'Persona', color: '#E8B4A8', stroke: '#C4785A' },
+    { label: 'System', color: '#C9D4E8', stroke: '#6B8BB5' },
+    { label: 'Preference', color: '#F0C75A', stroke: '#C9920A' },
   ].forEach((item, i) => {
-    const g = legend.append('g').attr('transform', `translate(0, ${i * 28})`);
-    g.append('circle').attr('r', 7).attr('cx', 10).attr('cy', 10).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 2.5);
-    g.append('text').attr('x', 24).attr('y', 14).attr('class', 'legend-text').text(item.label);
+    const g = legend.append('g').attr('transform', `translate(0, ${i * 20})`);
+    g.append('circle').attr('r', 5).attr('cx', 6).attr('cy', 6).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 1.2);
+    g.append('text').attr('x', 18).attr('y', 10).attr('class', 'legend-text').text(item.label);
   });
-  legend.append('text').attr('y', 88).attr('x', 10).attr('class', 'legend-hint').text('Arcs = semantic links');
-
-  svg.append('rect')
-    .attr('class', 'zoom-capture')
-    .attr('width', width)
-    .attr('height', height)
-    .attr('fill', 'transparent');
-
+  legend.append('text').attr('y', 68).attr('class', 'legend-hint').text('Solid=cluster · dashed=concept · dotted=bridge/affinity');
   lastViewportKey = viewportKey();
 }
 
@@ -1082,7 +897,7 @@ function renderMetrics(m, graph) {
   const catItems = [
     { key: 'preference', label: 'Preferences', color: '#F0C75A' },
     { key: 'persona', label: 'Persona', color: '#E8B4A8' },
-    { key: 'system_state', label: 'System', color: '#A8C4E8' },
+    { key: 'system_state', label: 'System', color: '#C9D4E8' },
   ].filter(item => summary.cats[item.key] > 0);
   catLegend.innerHTML = catItems.map(item =>
     `<div class="mini-legend-row"><span class="swatch" style="background:${item.color}"></span>${item.label} <strong>${summary.cats[item.key]}</strong></div>`
@@ -1221,22 +1036,13 @@ function prependEvents(events) {
 
 function setLiveStatus(mode, detail) {
   const label = document.getElementById('liveLabel');
-  const stamp = document.getElementById('buildStamp');
-  const stampHtml = stamp ? stamp.outerHTML : '<span class="build-stamp" id="buildStamp">· v2026-06-14-polish</span>';
   if (mode === 'ok') {
-    label.innerHTML = `<span class="live-dot"></span> Synaptic stream ${stampHtml}`;
+    label.innerHTML = '<span class="live-dot"></span> Synaptic stream';
   } else if (mode === 'paused') {
-    label.innerHTML = `Paused ${stampHtml}`;
+    label.textContent = 'Paused';
   } else {
     label.textContent = detail ? `Offline · ${detail}` : 'Offline';
   }
-}
-
-function setSystemStatus(message, tone = 'ok') {
-  const el = document.getElementById('systemStatus');
-  if (!el) return;
-  el.textContent = message;
-  el.dataset.tone = tone;
 }
 
 async function refresh({ forceGraph = false } = {}) {
@@ -1245,7 +1051,6 @@ async function refresh({ forceGraph = false } = {}) {
 
   if (typeof d3 === 'undefined') {
     setLiveStatus('err', 'D3 failed to load');
-    setSystemStatus('D3 failed to load — hard refresh (Ctrl+Shift+R) or rebuild Docker', 'err');
     document.getElementById('nodeDetail').textContent = 'Hard refresh (Ctrl+Shift+R) or rebuild Docker';
     refreshInFlight = false;
     return;
@@ -1256,12 +1061,6 @@ async function refresh({ forceGraph = false } = {}) {
 
   try {
     graph = await fetchGraph();
-    const prevCount = cachedGraph?.beliefs?.length ?? 0;
-    if (prevCount && Math.abs(prevCount - (graph.beliefs?.length ?? 0)) >= 8) {
-      clearNodeLayouts(currentUser());
-      savedZoom = null;
-      lastStructureKey = '';
-    }
     cachedGraph = graph;
   } catch (e) {
     errors.push('graph');
@@ -1296,18 +1095,8 @@ async function refresh({ forceGraph = false } = {}) {
 
   if (errors.length) {
     setLiveStatus('err', errors.join(', '));
-    setSystemStatus(`Load error: ${errors.join(', ')} — check Docker is running on port 3000`, 'err');
   } else {
     setLiveStatus('ok');
-    const visible = filterBeliefs(graph.beliefs || []);
-    const total = (graph.beliefs || []).length;
-    if (total === 0) {
-      setSystemStatus('No memories for this user — click Refresh or open ?user=demo-brain', 'warn');
-    } else if (visible.length === 0) {
-      setSystemStatus(`${total} memories hidden by filters — enable category/vividness chips above`, 'warn');
-    } else {
-      setSystemStatus(`Loaded ${visible.length}/${total} memories · build v2026-06-14-polish`, 'ok');
-    }
   }
 
   refreshInFlight = false;
@@ -1367,13 +1156,6 @@ async function pollLive() {
 }
 
 document.getElementById('userId').value = uid();
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Shift') setShiftMode(true);
-});
-window.addEventListener('keyup', (e) => {
-  if (e.key === 'Shift') setShiftMode(false);
-});
-window.addEventListener('blur', () => setShiftMode(false));
 document.getElementById('userId').addEventListener('change', () => {
   lastStructureKey = '';
   lastEventTs = null;
@@ -1395,12 +1177,8 @@ document.getElementById('autoBtn').onclick = () => {
 document.getElementById('resetZoomBtn').onclick = () => {
   if (!zoom) return;
   savedZoom = d3.zoomIdentity;
-  const svgSel = d3.select('#graphSvg');
-  svgSel.transition().duration(400)
-    .call(zoom.transform, d3.zoomIdentity)
-    .on('end', () => {
-      svgSel.select('.graph-content').attr('transform', d3.zoomIdentity);
-    });
+  d3.select('#graphSvg').transition().duration(400)
+    .call(zoom.transform, d3.zoomIdentity);
 };
 document.getElementById('resetLayoutBtn').onclick = () => {
   clearNodeLayouts(currentUser());
@@ -1430,7 +1208,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 async function boot() {
-  ensureGraphWheelZoom();
   await ensureDemoBrainSeeded();
   await refresh({ forceGraph: true });
 }

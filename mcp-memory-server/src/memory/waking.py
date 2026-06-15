@@ -19,7 +19,12 @@ from memory.response_grounding import (
     fetch_suppressed_values,
     is_compound_probe,
 )
-from storage.db_manager import VEC_AVAILABLE, get_db_connection, upsert_vec_embedding
+from storage.db_manager import (
+    VEC_AVAILABLE,
+    get_db_connection,
+    get_user_entity_dict,
+    upsert_vec_embedding,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +41,21 @@ CORE_TECH_DICTIONARY = {
     "vscode", "vim", "webpack", "vite", "nextjs", "nuxt", "svelte", "lodash",
     "heroku", "ecs", "lambda", "sqlite", "qwen", "openclaw",
 }
+
+
+def get_merged_entity_terms(
+    user_id: str | None = None,
+    db_path: Path | None = None,
+) -> set[str]:
+    """Global bootstrap dictionary merged with per-user learned entities."""
+    known_terms = set(CORE_TECH_DICTIONARY)
+    if user_id is not None:
+        try:
+            known_terms |= get_user_entity_dict(user_id, db_path)
+        except Exception:
+            pass
+    return known_terms
+
 
 SYSTEM_PROMPT_TEMPLATE = """You are an autonomous engineering agent with a persistent memory layer called MnemOS.
 
@@ -182,18 +202,28 @@ def store_belief_embedding_sync(
     upsert_vec_embedding(belief_id, embedding, db_path)
 
 
-def extract_entities_robust(text: str) -> list[str]:
+def extract_entities_robust(
+    text: str,
+    user_id: str | None = None,
+    db_path: Path | None = None,
+) -> list[str]:
     """
     Extract tech terms and proper nouns from user text.
 
+    Merges the global CORE_TECH_DICTIONARY with the user's dynamically-learned
+    entity dictionary (populated from <memory_update> extractions over time).
+
     Args:
         text: User input.
+        user_id: Optional user identifier for dynamic dictionary lookup.
+        db_path: Optional database path override.
 
     Returns:
         Deduplicated lowercase entity list.
     """
     tokens = re.split(r"[^\w]+", text.lower())
-    found = {token for token in tokens if token in CORE_TECH_DICTIONARY}
+    known_terms = get_merged_entity_terms(user_id, db_path)
+    found = {token for token in tokens if token in known_terms}
     for match in re.findall(r"\b[A-Z][a-z]{2,}\b", text):
         found.add(match.lower())
     return sorted(found)
@@ -458,7 +488,7 @@ async def build_optimized_qwen_payload(
             if VEC_AVAILABLE:
                 candidates = _fetch_candidates_by_vector(user_id, embedding, db_path)
             else:
-                entities = extract_entities_robust(user_input)
+                entities = extract_entities_robust(user_input, user_id, db_path)
                 candidates = _fetch_candidates_by_keywords(user_id, entities, db_path)
 
             scored: list[tuple[float, sqlite3.Row]] = []

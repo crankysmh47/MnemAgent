@@ -37,12 +37,14 @@ def record_hedged_teach_rejections(user_id: str, user_input: str, db_path=None) 
         return
 
     from memory.event_log import log_memory_event
-    from memory.waking import CORE_TECH_DICTIONARY, extract_entities_robust
+    from memory.waking import extract_entities_robust, get_merged_entity_terms
     from storage.db_manager import get_db_connection
 
-    entities = extract_entities_robust(user_input)
+    entities = extract_entities_robust(user_input, user_id, db_path)
     if not entities:
         return
+
+    known_terms = get_merged_entity_terms(user_id, db_path)
 
     conn = get_db_connection(db_path)
     try:
@@ -60,7 +62,7 @@ def record_hedged_teach_rejections(user_id: str, user_input: str, db_path=None) 
         conn.close()
 
     for entity in entities:
-        if entity not in CORE_TECH_DICTIONARY:
+        if entity not in known_terms:
             continue
         display = entity.title() if entity.islower() else entity
         if display.lower() in stored:
