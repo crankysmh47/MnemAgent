@@ -1,4 +1,8 @@
-"""CLI for multi-step agentic memory advantage benchmark."""
+"""CLI for multi-step agentic memory advantage benchmark.
+
+.. deprecated::
+    Use ``python -m eval.run_benchmark`` as the single supported entry point.
+"""
 
 from __future__ import annotations
 
@@ -66,6 +70,13 @@ async def _run(
 
 
 def main() -> None:
+    import warnings
+
+    warnings.warn(
+        "eval.run_agentic_benchmark is deprecated; use python -m eval.run_benchmark instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     parser = argparse.ArgumentParser(
         description="Run multi-step agentic memory advantage benchmark"
     )

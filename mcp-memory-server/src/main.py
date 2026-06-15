@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from functools import partial
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,7 @@ from llm.qwen_client import (
     call_qwen_api,
     extract_facts_from_conversation,
     extract_memory_updates,
+    response_has_memory_block,
     strip_memory_tags,
 )
 from memory.waking import PROMPT_VERSION
@@ -90,6 +92,8 @@ async def _run_dreaming_phase(
     clean_response: str,
     injected_ids: list[int],
     memory_dicts: list[dict] | dict | None,
+    *,
+    memory_block_present: bool = False,
 ) -> None:
     """
     Run feedback, consolidation, episodic logging, and optional cloud sync.
@@ -107,7 +111,6 @@ async def _run_dreaming_phase(
             injected_ids,
         )
         if memory_dicts is not None:
-            # Normalize to list
             items = (
                 memory_dicts if isinstance(memory_dicts, list)
                 else [memory_dicts]
@@ -116,11 +119,14 @@ async def _run_dreaming_phase(
                 if memory_dict is not None:
                     await loop.run_in_executor(
                         None,
-                        consolidate_and_prune_memory,
-                        user_id,
-                        memory_dict,
+                        partial(
+                            consolidate_and_prune_memory,
+                            user_id,
+                            memory_dict,
+                            user_prompt=user_prompt,
+                        ),
                     )
-        elif settings.ENABLE_DREAMING_EXTRACTION:
+        elif not memory_block_present and settings.ENABLE_DREAMING_EXTRACTION:
             fallback_facts = await extract_facts_from_conversation(
                 user_prompt,
                 clean_response,
@@ -130,9 +136,12 @@ async def _run_dreaming_phase(
                 if conviction >= settings.EXTRACTION_MIN_CONVICTION:
                     await loop.run_in_executor(
                         None,
-                        consolidate_and_prune_memory,
-                        user_id,
-                        fact,
+                        partial(
+                            consolidate_and_prune_memory,
+                            user_id,
+                            fact,
+                            user_prompt=user_prompt,
+                        ),
                     )
         await loop.run_in_executor(
             None,
@@ -228,6 +237,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         result.get("rejected"),
     )
     memory_dicts = extract_memory_updates(raw_response)
+    memory_block_present = response_has_memory_block(raw_response)
 
     asyncio.create_task(
         _run_dreaming_phase(
@@ -237,6 +247,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
             clean_response,
             result["injected_ids"],
             memory_dicts if memory_dicts else None,
+            memory_block_present=memory_block_present,
         )
     )
 

@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-150%20passing-brightgreen.svg)](tests/)
 [![Track](https://img.shields.io/badge/hackathon-MemoryAgent-gold.svg)](#track-1-memoryagent)
 
 **Persistent memory for AI agents** — salience-gated ingestion, UCB retrieval, closed-loop feedback, and mathematical forgetting. Built for the **Qwen Global AI Hackathon — Track 1: MemoryAgent**.
@@ -161,15 +161,20 @@ OSS sync: [mcp-memory-server/src/storage/cloud_sync.py](mcp-memory-server/src/st
 
 ## Evaluation
 
+**Entry point:** `python -m eval.run_benchmark` (25 scenarios, MnemOS vs baseline).
+
 ```bash
 # Offline dry-run (instant)
 python -m eval.run_benchmark --dry-run --mode both
-python -m eval.mnembench --dry-run --mode both
-python -m eval.run_agentic_benchmark --dry-run --mode both
 
 # Live (MnemOS :8000 + API key)
 python -m eval.run_benchmark --mode both
+
+# Optional long-running stress benchmark
+python -m eval.mnembench --dry-run --mode both
 ```
+
+Deprecated: `eval.run_agentic_benchmark`, `eval.run_eval_v2` — use `run_benchmark` instead.
 
 See [REPORT.md](REPORT.md) and [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md) for scores. Headline agentic result: **86.5% vs 64.6%** baseline (+21.9 pp); project continuity **79% vs 8%**.
 

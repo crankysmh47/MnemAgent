@@ -14,6 +14,7 @@ from llm.qwen_client import (
     extract_facts_from_conversation,
     extract_memory_update,
     extract_memory_updates,
+    response_has_memory_block,
     strip_memory_tags,
 )
 
@@ -86,6 +87,30 @@ def test_extract_memory_update_skip() -> None:
     raw = '<memory_update>{"skip": true}</memory_update> Hello'
     assert extract_memory_update(raw) is None
     assert extract_memory_updates(raw) == []
+
+
+def test_response_has_memory_block_skip() -> None:
+    raw = '<memory_update>{"skip": true}</memory_update> Hello'
+    assert response_has_memory_block(raw) is True
+
+
+def test_response_has_memory_block_absent() -> None:
+    assert response_has_memory_block("plain reply") is False
+
+
+def test_extract_memory_update_markdown_codeblock() -> None:
+    raw = """```json
+{"entity":"backend","relation":"uses","value":"prisma","category":"system_state","conviction":0.9}
+```
+Sounds good."""
+    result = extract_memory_update(raw)
+    assert result is not None
+    assert result["value"] == "prisma"
+
+
+def test_strip_memory_tags_empty_after_strip() -> None:
+    raw = '<memory_update>{"skip": true}</memory_update>'
+    assert "repeat" in strip_memory_tags(raw).lower()
 
 
 def test_extract_memory_updates_jsonl() -> None:

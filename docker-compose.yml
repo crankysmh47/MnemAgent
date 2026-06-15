@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        PROMPT_VERSION: v2-mandatory-skip
+        PROMPT_VERSION: v3-semantic-safety-extraction
     ports:
       - "8000:8000"
     volumes:

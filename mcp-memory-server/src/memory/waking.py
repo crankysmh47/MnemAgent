@@ -66,9 +66,10 @@ Use the memory context above to personalize your responses. Reference stored
 preferences naturally without re-asking.
 
 MANDATORY: Every response MUST begin with a <memory_update> block BEFORE any other text.
+This is required on EVERY turn — no exceptions.
 - If nothing new was learned: <memory_update>{{"skip": true}}</memory_update>
 - If facts were learned: one JSON object per line (JSONL) inside the block
-- Never output raw memory JSON outside the tags
+- Never omit the block. Never output raw memory JSON outside the tags.
 
 Format:
 <memory_update>
@@ -96,7 +97,7 @@ You're welcome! Let me know if you need anything else.
 """
 
 # Bump when prompt semantics change — surfaced in /health for Docker verification.
-PROMPT_VERSION = "v2-mandatory-skip"
+PROMPT_VERSION = "v3-semantic-safety-extraction"
 
 
 def _get_local_model():
@@ -227,6 +228,60 @@ def extract_entities_robust(
     for match in re.findall(r"\b[A-Z][a-z]{2,}\b", text):
         found.add(match.lower())
     return sorted(found)
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def _distance_to_semantic_score(distance: float) -> float:
+    """Map sqlite-vec L2 distance to approximate cosine similarity."""
+    return max(0.0, min(1.0, 1.0 - (distance * distance) / 2.0))
+
+
+def _candidate_semantic_score(
+    row: sqlite3.Row,
+    query_embedding: list[float],
+) -> float:
+    keys = row.keys()
+    if "vec_distance" in keys and row["vec_distance"] is not None:
+        return _distance_to_semantic_score(float(row["vec_distance"]))
+    text = f"{row['entity_source']} {row['relation']} {row['entity_target']}"
+    belief_embedding = get_local_embedding_sync(text)
+    return _cosine_similarity(query_embedding, belief_embedding)
+
+
+def _filter_candidates_by_semantic_floor(
+    candidates: list[sqlite3.Row],
+    query_embedding: list[float],
+) -> list[sqlite3.Row]:
+    """Drop contextually irrelevant candidates before UCB ranking."""
+    floor = settings.SEMANTIC_SIMILARITY_FLOOR
+    eligible = [
+        row
+        for row in candidates
+        if _candidate_semantic_score(row, query_embedding) >= floor
+    ]
+    if eligible:
+        return eligible
+    if not candidates:
+        return []
+    logger.info(
+        "Semantic floor %.2f removed all %d candidates; keeping top semantic matches",
+        floor,
+        len(candidates),
+    )
+    ranked = sorted(
+        candidates,
+        key=lambda row: _candidate_semantic_score(row, query_embedding),
+        reverse=True,
+    )
+    return ranked[: min(4, len(ranked))]
 
 
 def _calculate_ucb_score(
@@ -491,6 +546,8 @@ async def build_optimized_qwen_payload(
                 entities = extract_entities_robust(user_input, user_id, db_path)
                 candidates = _fetch_candidates_by_keywords(user_id, entities, db_path)
 
+            candidates = _filter_candidates_by_semantic_floor(candidates, embedding)
+
             scored: list[tuple[float, sqlite3.Row]] = []
             for row in candidates:
                 ucb = _calculate_ucb_score(
@@ -623,7 +680,7 @@ async def build_optimized_qwen_payload(
                 "model": settings.QWEN_MODEL,
                 "messages": messages,
                 "temperature": 0.2,
-                "max_tokens": 1000,
+                "max_tokens": settings.CHAT_MAX_TOKENS,
             },
             "injected_ids": injected_ids,
             "injected_values": injected_values,
@@ -637,7 +694,7 @@ async def build_optimized_qwen_payload(
                 "model": settings.QWEN_MODEL,
                 "messages": [{"role": "user", "content": user_input}],
                 "temperature": 0.2,
-                "max_tokens": 1000,
+                "max_tokens": settings.CHAT_MAX_TOKENS,
             },
             "injected_ids": [],
             "injected_values": [],

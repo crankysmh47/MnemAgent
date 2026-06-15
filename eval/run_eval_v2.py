@@ -1,8 +1,7 @@
 """Eval v2 runner — tests unguessable fact recall across sessions.
 
-Uses arbitrary facts (codenames, version numbers, personal details) that
-the LLM cannot infer from context. The only path to a correct answer is
-through the persistent memory layer.
+.. deprecated::
+    Use ``python -m eval.run_benchmark`` as the single supported entry point.
 """
 
 from __future__ import annotations
@@ -114,6 +113,13 @@ async def run_all(
 
 
 def main() -> None:
+    import warnings
+
+    warnings.warn(
+        "eval.run_eval_v2 is deprecated; use python -m eval.run_benchmark instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     parser = argparse.ArgumentParser(description="Eval v2 — unguessable memory recall")
     parser.add_argument("--mode", choices=["with_memory", "without_memory", "both"], default="both")
     parser.add_argument("--mnemos-url", default="http://localhost:8000")

@@ -75,8 +75,12 @@ class Settings:
     DECAY_RATE: float = field(default_factory=lambda: _env_float("DECAY_RATE", 0.85))
     PRUNE_THRESHOLD: float = field(default_factory=lambda: _env_float("PRUNE_THRESHOLD", 0.1))
     MAX_INJECTED_FACTS: int = field(default_factory=lambda: _env_int("MAX_INJECTED_FACTS", 6))
+    SEMANTIC_SIMILARITY_FLOOR: float = field(
+        default_factory=lambda: _env_float("SEMANTIC_SIMILARITY_FLOOR", 0.3)
+    )
+    CHAT_MAX_TOKENS: int = field(default_factory=lambda: _env_int("CHAT_MAX_TOKENS", 2000))
     EXTRACTION_MODEL: str = field(
-        default_factory=lambda: _env_str("EXTRACTION_MODEL", "")
+        default_factory=lambda: _env_str("EXTRACTION_MODEL", "qwen-turbo")
     )
     ENABLE_DREAMING_EXTRACTION: bool = field(
         default_factory=lambda: _env_str("ENABLE_DREAMING_EXTRACTION", "true").lower()

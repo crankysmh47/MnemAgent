@@ -167,6 +167,30 @@ def test_consolidate_salience_rejects_low_conviction(initialized_db: Path) -> No
         conn.close()
 
 
+def test_consolidate_safety_keyword_overrides_low_conviction(initialized_db: Path) -> None:
+    consolidate_and_prune_memory(
+        "u",
+        {
+            "entity": "user",
+            "relation": "has_allergy",
+            "value": "peanuts",
+            "category": "preference",
+            "conviction": 0.2,
+        },
+        initialized_db,
+        user_prompt="I have a severe peanut allergy.",
+    )
+    conn = get_db_connection(initialized_db)
+    try:
+        row = conn.execute(
+            "SELECT entity_target FROM semantic_graph WHERE entity_source='user'"
+        ).fetchone()
+        assert row is not None
+        assert row["entity_target"] == "peanuts"
+    finally:
+        conn.close()
+
+
 def test_consolidate_salience_allows_system_state_low_conviction(initialized_db: Path) -> None:
     consolidate_and_prune_memory(
         "u",

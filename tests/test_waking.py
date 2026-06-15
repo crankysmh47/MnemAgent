@@ -124,6 +124,28 @@ def test_salience_reject_does_not_enrich_entity_dict(initialized_db: Path) -> No
     assert "prisma" not in get_user_entity_dict("user-1", initialized_db)
 
 
+def test_semantic_floor_filters_irrelevant_candidates(monkeypatch) -> None:
+    from memory.waking import _cosine_similarity, _filter_candidates_by_semantic_floor
+
+    query = [1.0, 0.0]
+    near = {"entity_source": "a", "relation": "r", "entity_target": "b", "base_utility_q": 0.1}
+    far = {"entity_source": "x", "relation": "r", "entity_target": "y", "base_utility_q": 0.9}
+
+    class Row(dict):
+        def keys(self):
+            return super().keys()
+
+    candidates = [Row(near), Row(far)]
+    monkeypatch.setattr(
+        "memory.waking._candidate_semantic_score",
+        lambda row, _emb: 0.8 if row["entity_source"] == "a" else 0.1,
+    )
+    monkeypatch.setattr("memory.waking.settings.SEMANTIC_SIMILARITY_FLOOR", 0.3)
+    eligible = _filter_candidates_by_semantic_floor(candidates, query)
+    assert len(eligible) == 1
+    assert eligible[0]["entity_source"] == "a"
+
+
 def test_get_rwr_associations_connected_graph() -> None:
     edges = [(1, 2), (2, 3), (3, 4), (4, 5), (2, 4)]
     result = _get_rwr_associations(edges, 1, top_k=2)

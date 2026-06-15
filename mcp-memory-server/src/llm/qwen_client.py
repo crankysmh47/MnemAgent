@@ -30,6 +30,11 @@ _CODE_BLOCK_PATTERN = re.compile(
     r"```(?:json)?\s*\n?(\{[^`]*\"entity\"[^`]*\"relation\"[^`]*\"value\"[^`]*\})\s*\n?```",
     re.DOTALL | re.IGNORECASE,
 )
+_CODE_BLOCK_FALLBACK = re.compile(
+    r"```(?:json)?\s*(\{.*?\})\s*```",
+    re.DOTALL | re.IGNORECASE,
+)
+_EMPTY_REPLY_FALLBACK = "I need a moment — could you repeat that?"
 
 
 class QwenAPIError(Exception):
@@ -181,12 +186,19 @@ def extract_memory_update(response: str) -> dict | None:
                 return parsed
             logger.warning("Malformed memory_update JSON: %s", inner[:200])
 
-    # 2. Markdown code block
+    # 2. Markdown code block (strict entity/relation/value shape)
     code_match = _CODE_BLOCK_PATTERN.search(response)
     if code_match:
         parsed = _parse_memory_dict(code_match.group(1))
         if parsed is not None:
             logger.info("Memory JSON extracted from markdown code block")
+            return parsed
+
+    # 2b. Looser markdown JSON fallback
+    for loose_match in _CODE_BLOCK_FALLBACK.finditer(response):
+        parsed = _parse_memory_dict(loose_match.group(1))
+        if parsed is not None:
+            logger.info("Memory JSON extracted from loose markdown code block")
             return parsed
 
     # 3. Bare JSON
@@ -246,6 +258,17 @@ def extract_memory_updates(response: str) -> list[dict]:
     return facts
 
 
+def response_has_memory_block(response: str) -> bool:
+    """True when the model emitted a memory_update block (including explicit skip)."""
+    if _MEMORY_EXTRACT_PATTERN.search(response):
+        return True
+    if _CODE_BLOCK_PATTERN.search(response) or _CODE_BLOCK_FALLBACK.search(response):
+        return True
+    if _BARE_MEMORY_JSON_PATTERN.search(response):
+        return True
+    return False
+
+
 def strip_memory_tags(response: str) -> str:
     """
     Remove <memory_update> blocks, code blocks, and bare memory JSON from the
@@ -259,5 +282,10 @@ def strip_memory_tags(response: str) -> str:
     """
     cleaned = _MEMORY_TAG_PATTERN.sub("", response)
     cleaned = _CODE_BLOCK_PATTERN.sub("", cleaned)
+    cleaned = _CODE_BLOCK_FALLBACK.sub("", cleaned)
     cleaned = _BARE_MEMORY_JSON_PATTERN.sub("", cleaned)
-    return cleaned.strip()
+    cleaned = cleaned.strip()
+    if cleaned:
+        return cleaned
+    logger.warning("strip_memory_tags yielded empty string; response may be truncated")
+    return _EMPTY_REPLY_FALLBACK

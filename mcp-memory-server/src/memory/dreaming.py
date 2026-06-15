@@ -20,10 +20,34 @@ PROXIMITY_WINDOW = 100
 SALIENCE_MIN_CONVICTION = 0.4
 INACTIVE_MINUTES = 45
 
+SAFETY_KEYWORDS = (
+    "allerg",
+    "medication",
+    "health",
+    "medical",
+    "emergency",
+    "intoleran",
+    "condition",
+    "diagnos",
+    "illness",
+    "disease",
+)
+
+
+def _text_has_safety_keyword(text: str) -> bool:
+    lowered = text.lower()
+    return any(keyword in lowered for keyword in SAFETY_KEYWORDS)
+
 
 def is_belief_referenced(src: str, tgt: str, response: str) -> bool:
     """
     Check whether both entity terms appear within proximity in the response.
+
+    Tradeoff (deliberate): proximity regex instead of embedding similarity.
+    Fast, deterministic, and good enough for hackathon-scale graphs — avoids
+    an extra embedding call per injected belief on every turn. Embedding-based
+    influence scoring would be more semantically precise but adds latency and
+    can false-positive on polysemy (e.g. "python" snake vs language).
 
     Args:
         src: Entity source term.
@@ -218,6 +242,7 @@ def consolidate_and_prune_memory(
     db_path: Path | None = None,
     *,
     run_maintenance: bool = True,
+    user_prompt: str | None = None,
 ) -> None:
     """
     Apply salience gate, upsert belief, optionally decay inactive nodes and hard prune.
@@ -227,6 +252,7 @@ def consolidate_and_prune_memory(
         memory_dict: Parsed memory_update with entity, relation, value, category, conviction.
         db_path: Optional database path override.
         run_maintenance: When False, skip decay/prune (for batch/demo seeding).
+        user_prompt: Optional source user message for safety-keyword override.
     """
     entity = memory_dict.get("entity")
     relation = memory_dict.get("relation")
@@ -238,7 +264,14 @@ def consolidate_and_prune_memory(
         logger.warning("consolidate_and_prune_memory missing required fields: %s", memory_dict)
         return
 
-    if conviction < SALIENCE_MIN_CONVICTION and category != "system_state":
+    safety_blob = " ".join(
+        str(part)
+        for part in (entity, relation, value, user_prompt or "")
+        if part is not None
+    )
+    safety_critical = _text_has_safety_keyword(safety_blob)
+
+    if conviction < SALIENCE_MIN_CONVICTION and category != "system_state" and not safety_critical:
         logger.info("Salience Auction rejected: low conviction (%.2f)", conviction)
         log_memory_event(
             user_id,
@@ -249,6 +282,11 @@ def consolidate_and_prune_memory(
             db_path=db_path,
         )
         return
+
+    if safety_critical and conviction < SALIENCE_MIN_CONVICTION:
+        conviction = max(conviction, SALIENCE_MIN_CONVICTION)
+        if category == "preference":
+            category = "system_state"
 
     conn = get_db_connection(db_path)
     belief_id: int | None = None
