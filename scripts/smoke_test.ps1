@@ -44,11 +44,12 @@ if ($mem.response -notmatch "python") {
 }
 Write-Host "[OK] Memory store + /memory dump" -ForegroundColor Green
 
-$mcp = Invoke-RestMethod -Uri "http://127.0.0.1:8001/tools/call" -Method POST -ContentType "application/json" -Body (@{
-    name = "memory_search"
-    arguments = @{ user_id = $uid; query = "python"; top_k = 3 }
-} | ConvertTo-Json)
-Write-Host "[OK] MCP memory_search" -ForegroundColor Green
+$mcp = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/memory/search/$uid?query=python&top_k=3"
+if (-not $mcp.results) {
+    Write-Host "[FAIL] Memory search returned no results" -ForegroundColor Red
+    exit 1
+}
+Write-Host "[OK] Memory search API" -ForegroundColor Green
 
 $chat = Invoke-RestMethod -Uri "http://127.0.0.1:3000/chat" -Method POST -ContentType "application/json" -Body (@{
     user_id = $uid

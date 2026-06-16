@@ -7,7 +7,7 @@ import logging
 from contextlib import asynccontextmanager
 from functools import partial
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -32,7 +32,12 @@ from memory.dreaming import (
     evaluate_memory_utility_feedback,
     refresh_belief_vitality,
 )
-from memory.mcp_commands import execute_memory_dump_tool, execute_memory_stats_tool
+from memory.mcp_commands import (
+    execute_memory_dump_tool,
+    execute_memory_stats_tool,
+    list_beliefs_structured,
+    list_stats_structured,
+)
 from memory.response_grounding import ground_response_with_injection, record_hedged_teach_rejections
 from memory.waking import build_optimized_qwen_payload
 from storage.db_manager import get_total_turns, initialize_database, log_episodic_turn
@@ -229,14 +234,14 @@ async def chat(request: ChatRequest) -> ChatResponse:
         ChatResponse with clean assistant text.
     """
     message = request.message.strip()
-    if message == "/memory":
+    if message in ("/memory", "/memory dump"):
         dump = execute_memory_dump_tool(request.user_id)
         return ChatResponse(
             response=dump,
             user_id=request.user_id,
             session_id=request.session_id,
         )
-    if message == "/memory --mode stats":
+    if message in ("/memory stats", "/memory --mode stats"):
         total_turns = get_total_turns(request.user_id)
         stats = execute_memory_stats_tool(request.user_id, total_turns)
         return ChatResponse(
@@ -332,7 +337,14 @@ async def api_memory_dump(
     """Return memory dump in agent-friendly format."""
     dump = execute_memory_dump_tool(user_id)
     if format == "json":
-        return {"user_id": user_id, "format": "json", "beliefs": dump}
+        beliefs = list_beliefs_structured(user_id)
+        return {
+            "user_id": user_id,
+            "format": "json",
+            "belief_count": len(beliefs),
+            "beliefs": beliefs,
+            "response": dump,
+        }
     if format == "text":
         return {"user_id": user_id, "format": "text", "response": dump.replace("|", " ").replace("---", "")}
     return {"user_id": user_id, "format": "markdown", "response": dump}
@@ -347,7 +359,13 @@ async def api_memory_stats(
     total_turns = get_total_turns(user_id)
     stats = execute_memory_stats_tool(user_id, total_turns)
     if format == "json":
-        return {"user_id": user_id, "format": "json", "stats": stats}
+        structured = list_stats_structured(user_id, total_turns)
+        return {
+            "user_id": user_id,
+            "format": "json",
+            **structured,
+            "response": stats,
+        }
     if format == "text":
         return {"user_id": user_id, "format": "text", "response": stats.replace("|", " ")}
     return {"user_id": user_id, "format": "markdown", "response": stats}
@@ -356,12 +374,19 @@ async def api_memory_stats(
 @app.post("/api/user/bind")
 async def api_user_bind(request: UserBindRequest) -> dict:
     """Bind channel sender to canonical MnemOS user_id."""
+    channel = request.channel.strip()
+    sender_id = request.sender_id.strip()
+    if not channel or not sender_id:
+        raise HTTPException(
+            status_code=422,
+            detail="channel and sender_id are required and cannot be blank",
+        )
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         None,
         bind_user,
-        request.channel,
-        request.sender_id,
+        channel,
+        sender_id,
         request.display_name,
     )
 
@@ -385,18 +410,19 @@ async def api_memory_store(request: MemoryStoreRequest) -> dict:
         "conviction": request.conviction,
     }
     loop = asyncio.get_running_loop()
-    await loop.run_in_executor(
+    stored = await loop.run_in_executor(
         None,
         consolidate_and_prune_memory,
         request.user_id,
         memory_dict,
     )
     return {
-        "status": "ok",
-        "stored": True,
+        "status": "ok" if stored else "rejected",
+        "stored": stored,
         "entity": request.entity,
         "relation": request.relation,
         "value": request.value,
+        **({} if stored else {"reason": "salience_rejected_or_invalid"}),
     }
 
 
@@ -405,6 +431,7 @@ async def api_memory_store_batch(request: MemoryBatchStoreRequest) -> dict:
     """Store multiple facts in one request."""
     loop = asyncio.get_running_loop()
     stored: list[dict] = []
+    rejected: list[dict] = []
     skip_maintenance = request.skip_maintenance or request.refresh_vitality
     for fact in request.facts:
         memory_dict = {
@@ -415,13 +442,25 @@ async def api_memory_store_batch(request: MemoryBatchStoreRequest) -> dict:
             "conviction": fact.conviction,
         }
 
-        def _store_one(uid: str = request.user_id, payload: dict = memory_dict) -> None:
-            consolidate_and_prune_memory(uid, payload, run_maintenance=not skip_maintenance)
+        def _store_one(
+            uid: str = request.user_id,
+            payload: dict = memory_dict,
+        ) -> bool:
+            return consolidate_and_prune_memory(
+                uid, payload, run_maintenance=not skip_maintenance
+            )
 
-        await loop.run_in_executor(None, _store_one)
-        stored.append(
-            {"entity": fact.entity, "relation": fact.relation, "value": fact.value}
-        )
+        ok = await loop.run_in_executor(None, _store_one)
+        entry = {
+            "entity": fact.entity,
+            "relation": fact.relation,
+            "value": fact.value,
+            "stored": ok,
+        }
+        if ok:
+            stored.append(entry)
+        else:
+            rejected.append(entry)
 
     refreshed = 0
     if request.refresh_vitality:
@@ -432,6 +471,8 @@ async def api_memory_store_batch(request: MemoryBatchStoreRequest) -> dict:
     return {
         "status": "ok",
         "stored_count": len(stored),
+        "rejected_count": len(rejected),
         "facts": stored,
+        "rejected": rejected,
         "vitality_refreshed": refreshed,
     }

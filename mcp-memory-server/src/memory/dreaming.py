@@ -244,16 +244,12 @@ def consolidate_and_prune_memory(
     *,
     run_maintenance: bool = True,
     user_prompt: str | None = None,
-) -> None:
+) -> bool:
     """
     Apply salience gate, upsert belief, optionally decay inactive nodes and hard prune.
 
-    Args:
-        user_id: User identifier.
-        memory_dict: Parsed memory_update with entity, relation, value, category, conviction.
-        db_path: Optional database path override.
-        run_maintenance: When False, skip decay/prune (for batch/demo seeding).
-        user_prompt: Optional source user message for safety-keyword override.
+    Returns:
+        True if a belief was stored, False if rejected or invalid.
     """
     entity = memory_dict.get("entity")
     relation = memory_dict.get("relation")
@@ -263,7 +259,7 @@ def consolidate_and_prune_memory(
 
     if not entity or not relation or value is None:
         logger.warning("consolidate_and_prune_memory missing required fields: %s", memory_dict)
-        return
+        return False
 
     safety_blob = " ".join(
         str(part)
@@ -282,7 +278,7 @@ def consolidate_and_prune_memory(
             detail={"conviction": conviction, "category": category},
             db_path=db_path,
         )
-        return
+        return False
 
     if safety_critical and conviction < SALIENCE_MIN_CONVICTION:
         conviction = max(conviction, SALIENCE_MIN_CONVICTION)
@@ -359,17 +355,17 @@ def consolidate_and_prune_memory(
         conn.commit()
     except sqlite3.Error as exc:
         logger.error("Consolidation failed: %s", exc)
-        return
+        return False
     finally:
         conn.close()
 
     if run_maintenance:
         _run_decay_and_prune(user_id, db_path)
 
-    # Enrich per-user entity dictionary so keyword extraction improves over time
     dict_terms = terms_for_entity_dict(entity, value)
     if dict_terms:
         upsert_user_entities(user_id, dict_terms, source="memory_update", db_path=db_path)
 
     if belief_id is not None:
         store_belief_embedding_sync(belief_id, entity, relation, value, db_path)
+    return True

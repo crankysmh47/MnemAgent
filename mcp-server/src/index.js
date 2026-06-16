@@ -32,10 +32,39 @@ function parseArgs() {
 
 async function mnemosRequest(method, path, data) {
   const config = { timeout: 120000 };
-  if (method === "get") {
-    return (await axios.get(`${MNEMOS_URL}${path}`, config)).data;
+  try {
+    if (method === "get") {
+      return (await axios.get(`${MNEMOS_URL}${path}`, config)).data;
+    }
+    return (await axios.post(`${MNEMOS_URL}${path}`, data, config)).data;
+  } catch (err) {
+    const detail = err.response?.data ?? err.message;
+    const wrapped = new Error(
+      typeof detail === "string" ? detail : JSON.stringify(detail)
+    );
+    wrapped.cause = err;
+    throw wrapped;
   }
-  return (await axios.post(`${MNEMOS_URL}${path}`, data, config)).data;
+}
+
+function toolText(data) {
+  const text = typeof data === "string" ? data : JSON.stringify(data);
+  return { content: [{ type: "text", text }] };
+}
+
+function toolError(err) {
+  return {
+    content: [{ type: "text", text: JSON.stringify({ error: err.message }) }],
+    isError: true,
+  };
+}
+
+async function runTool(handler) {
+  try {
+    return await handler();
+  } catch (err) {
+    return toolError(err);
+  }
 }
 
 function createMcpServer() {
@@ -55,10 +84,11 @@ function createMcpServer() {
       category: z.string().optional().default("preference"),
       conviction: z.number().min(0).max(1).optional().default(1.0),
     },
-    async (args) => {
-      const result = await mnemosRequest("post", "/api/memory/store", args);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
-    }
+    async (args) =>
+      runTool(async () => {
+        const result = await mnemosRequest("post", "/api/memory/store", args);
+        return toolText(result);
+      })
   );
 
   server.tool(
@@ -71,48 +101,57 @@ function createMcpServer() {
       category: z.string().optional(),
       min_confidence: z.number().min(0).max(1).optional(),
     },
-    async (args) => {
-      const params = new URLSearchParams({ query: args.query, top_k: String(args.top_k) });
-      if (args.category) params.set("category", args.category);
-      if (args.min_confidence !== undefined) {
-        params.set("min_confidence", String(args.min_confidence));
-      }
-      const result = await mnemosRequest(
-        "get",
-        `/api/memory/search/${encodeURIComponent(args.user_id)}?${params}`
-      );
-      return { content: [{ type: "text", text: JSON.stringify(result.results) }] };
-    }
+    async (args) =>
+      runTool(async () => {
+        const params = new URLSearchParams({ query: args.query, top_k: String(args.top_k) });
+        if (args.category) params.set("category", args.category);
+        if (args.min_confidence !== undefined) {
+          params.set("min_confidence", String(args.min_confidence));
+        }
+        const result = await mnemosRequest(
+          "get",
+          `/api/memory/search/${encodeURIComponent(args.user_id)}?${params}`
+        );
+        return toolText(result.results);
+      })
   );
 
   server.tool(
     "memory_dump",
     "Get full brain state with confidence levels",
     { user_id: z.string(), format: z.enum(["text", "markdown", "json"]).optional() },
-    async (args) => {
-      const fmt = args.format ? `?format=${args.format}` : "";
-      const result = await mnemosRequest(
-        "get",
-        `/api/memory/dump/${encodeURIComponent(args.user_id)}${fmt}`
-      );
-      const text = typeof result === "string" ? result : result.response || JSON.stringify(result);
-      return { content: [{ type: "text", text }] };
-    }
+    async (args) =>
+      runTool(async () => {
+        const fmt = args.format ? `?format=${args.format}` : "";
+        const result = await mnemosRequest(
+          "get",
+          `/api/memory/dump/${encodeURIComponent(args.user_id)}${fmt}`
+        );
+        if (args.format === "json" && result.beliefs) {
+          return toolText(result.beliefs);
+        }
+        const text = result.response || JSON.stringify(result);
+        return toolText(text);
+      })
   );
 
   server.tool(
     "memory_stats",
     "Get UCB optimization metrics for stored beliefs",
     { user_id: z.string(), format: z.enum(["text", "markdown", "json"]).optional() },
-    async (args) => {
-      const fmt = args.format ? `?format=${args.format}` : "";
-      const result = await mnemosRequest(
-        "get",
-        `/api/memory/stats/${encodeURIComponent(args.user_id)}${fmt}`
-      );
-      const text = typeof result === "string" ? result : result.response || JSON.stringify(result);
-      return { content: [{ type: "text", text }] };
-    }
+    async (args) =>
+      runTool(async () => {
+        const fmt = args.format ? `?format=${args.format}` : "";
+        const result = await mnemosRequest(
+          "get",
+          `/api/memory/stats/${encodeURIComponent(args.user_id)}${fmt}`
+        );
+        if (args.format === "json" && result.beliefs) {
+          return toolText(result);
+        }
+        const text = result.response || JSON.stringify(result);
+        return toolText(text);
+      })
   );
 
   server.tool(
@@ -123,10 +162,11 @@ function createMcpServer() {
       session_id: z.string(),
       message: z.string(),
     },
-    async (args) => {
-      const result = await mnemosRequest("post", "/chat", args);
-      return { content: [{ type: "text", text: result.response }] };
-    }
+    async (args) =>
+      runTool(async () => {
+        const result = await mnemosRequest("post", "/chat", args);
+        return toolText(result.response);
+      })
   );
 
   server.tool(
@@ -137,10 +177,11 @@ function createMcpServer() {
       sender_id: z.string(),
       display_name: z.string().optional(),
     },
-    async (args) => {
-      const result = await mnemosRequest("post", "/api/user/bind", args);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
-    }
+    async (args) =>
+      runTool(async () => {
+        const result = await mnemosRequest("post", "/api/user/bind", args);
+        return toolText(result);
+      })
   );
 
   server.tool(
@@ -151,10 +192,11 @@ function createMcpServer() {
       sender_id: z.string(),
       display_name: z.string().optional(),
     },
-    async (args) => {
-      const result = await mnemosRequest("post", "/api/user/bind", args);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
-    }
+    async (args) =>
+      runTool(async () => {
+        const result = await mnemosRequest("post", "/api/user/bind", args);
+        return toolText(result);
+      })
   );
 
   return server;

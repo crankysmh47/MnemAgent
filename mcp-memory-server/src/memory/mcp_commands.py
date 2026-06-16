@@ -21,6 +21,100 @@ def _truncate(text: str, max_len: int = 14) -> str:
     return text[:12] + ".."
 
 
+def list_beliefs_structured(user_id: str, db_path: Path | None = None) -> list[dict]:
+    """Return active beliefs as JSON-serializable dicts."""
+    conn = get_db_connection(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT entity_source, relation, entity_target, node_weight, category,
+                   base_utility_q, conviction_score
+            FROM semantic_graph
+            WHERE user_id = ? AND node_weight > ?
+            ORDER BY base_utility_q DESC
+            """,
+            (user_id, settings.PRUNE_THRESHOLD),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    beliefs: list[dict] = []
+    for row in rows:
+        weight = float(row["node_weight"])
+        if weight >= 0.85:
+            confidence = "high"
+        elif weight >= 0.55:
+            confidence = "confident"
+        else:
+            confidence = "fading"
+        beliefs.append(
+            {
+                "entity": row["entity_source"],
+                "relation": row["relation"],
+                "value": row["entity_target"],
+                "category": row["category"],
+                "confidence": confidence,
+                "node_weight": weight,
+                "base_utility_q": float(row["base_utility_q"]),
+                "conviction": float(row["conviction_score"]),
+            }
+        )
+    return beliefs
+
+
+def list_stats_structured(
+    user_id: str,
+    total_turns: int,
+    db_path: Path | None = None,
+) -> dict:
+    """Return UCB stats as JSON-serializable structure."""
+    conn = get_db_connection(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT entity_source, entity_target, category, base_utility_q,
+                   injection_count, influence_count, node_weight
+            FROM semantic_graph
+            WHERE user_id = ? AND node_weight > ?
+            ORDER BY base_utility_q DESC
+            """,
+            (user_id, settings.PRUNE_THRESHOLD),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    beliefs: list[dict] = []
+    total_q = 0.0
+    total_injections = 0
+    for row in rows:
+        q_i = float(row["base_utility_q"])
+        n_i = int(row["injection_count"])
+        inf_count = int(row["influence_count"])
+        ucb = _calculate_ucb_score(q_i, n_i, total_turns)
+        beliefs.append(
+            {
+                "entity_source": row["entity_source"],
+                "entity_target": row["entity_target"],
+                "category": row["category"],
+                "q_i": q_i,
+                "n_i": n_i,
+                "influence_pct": round((inf_count / max(1, n_i)) * 100, 1),
+                "ucb_score": round(ucb, 3),
+                "node_weight": float(row["node_weight"]),
+            }
+        )
+        total_q += q_i
+        total_injections += n_i
+
+    return {
+        "belief_count": len(beliefs),
+        "total_turns": total_turns,
+        "avg_q_i": round(total_q / len(beliefs), 3) if beliefs else 0.0,
+        "total_injections": total_injections,
+        "beliefs": beliefs,
+    }
+
+
 def execute_memory_dump_tool(user_id: str, db_path: Path | None = None) -> str:
     """
     Return a Markdown table of active beliefs and confidence labels.

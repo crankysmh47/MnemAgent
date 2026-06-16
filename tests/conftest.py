@@ -11,11 +11,24 @@ from main import app
 from storage.db_manager import initialize_database
 
 
+_FAKE_EMBEDDING = [0.1] * 384
+
+
+def _fake_embedding_sync(_text: str) -> list[float]:
+    return _FAKE_EMBEDDING
+
+
+def _noop_store_embedding(*_args, **_kwargs) -> None:
+    return None
+
+
 @pytest.fixture
 async def test_client(tmp_path, monkeypatch):
     db_path = tmp_path / "app_test.db"
     monkeypatch.setattr("config.settings.DB_PATH", db_path)
     monkeypatch.setattr("storage.db_manager.settings.DB_PATH", db_path)
+    monkeypatch.setattr("memory.waking.get_local_embedding_sync", _fake_embedding_sync)
+    monkeypatch.setattr("memory.waking.store_belief_embedding_sync", _noop_store_embedding)
     initialize_database(db_path)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
