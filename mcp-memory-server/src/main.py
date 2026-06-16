@@ -269,16 +269,21 @@ async def chat(request: ChatRequest) -> ChatResponse:
     )
     memory_dicts = extract_memory_updates(raw_response)
 
-    asyncio.create_task(
-        _run_dreaming_phase(
-            request.user_id,
-            request.session_id,
-            request.message,
-            clean_response,
-            result["injected_ids"],
-            memory_dicts if memory_dicts else None,
-        )
+    dreaming = _run_dreaming_phase(
+        request.user_id,
+        request.session_id,
+        request.message,
+        clean_response,
+        result["injected_ids"],
+        memory_dicts if memory_dicts else None,
     )
+    if settings.AWAIT_DREAMING:
+        try:
+            await dreaming
+        except Exception as exc:
+            logger.error("Dreaming phase failed: %s", exc)
+    else:
+        asyncio.create_task(dreaming)
 
     return ChatResponse(
         response=clean_response,

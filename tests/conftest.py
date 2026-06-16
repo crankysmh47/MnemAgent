@@ -22,6 +22,10 @@ def _noop_store_embedding(*_args, **_kwargs) -> None:
     return None
 
 
+async def _no_server_extract(*_args, **_kwargs) -> list:
+    return []
+
+
 @pytest.fixture
 async def test_client(tmp_path, monkeypatch):
     db_path = tmp_path / "app_test.db"
@@ -29,6 +33,7 @@ async def test_client(tmp_path, monkeypatch):
     monkeypatch.setattr("storage.db_manager.settings.DB_PATH", db_path)
     monkeypatch.setattr("memory.waking.get_local_embedding_sync", _fake_embedding_sync)
     monkeypatch.setattr("memory.waking.store_belief_embedding_sync", _noop_store_embedding)
+    monkeypatch.setattr("main.extract_facts_from_user_message", _no_server_extract)
     initialize_database(db_path)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

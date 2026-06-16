@@ -4,6 +4,8 @@
 
 require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
 const path = require("path");
+const fs = require("fs");
+const os = require("os");
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
@@ -13,6 +15,23 @@ const PORT = process.env.PORT || 3000;
 const MNEMOS_URL = (process.env.MNEMOS_URL || process.env.MCP_SERVER_URL || "http://localhost:8000").replace(/\/$/, "");
 const MCP_ADAPTER_URL = (process.env.MCP_ADAPTER_URL || "http://localhost:8001").replace(/\/$/, "");
 const AUTO_SEED_DEMO = process.env.AUTO_SEED_DEMO !== "false";
+
+function resolveSetupUserId() {
+  if (process.env.MNEMOS_DEFAULT_USER_ID) {
+    return process.env.MNEMOS_DEFAULT_USER_ID.trim();
+  }
+  const configDir = process.env.OPENCLAW_CONFIG_DIR || path.join(os.homedir(), ".openclaw");
+  const userFile = path.join(configDir, "mnemos-user-id.txt");
+  try {
+    if (fs.existsSync(userFile)) {
+      const id = fs.readFileSync(userFile, "utf8").trim();
+      if (id) return id;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 const app = express();
 app.use(cors());
@@ -66,6 +85,10 @@ app.get("/health", async (_req, res) => {
     status.demo_brain_error = err.message;
   }
   res.status(status.status === "ok" ? 200 : 503).json(status);
+});
+
+app.get("/api/setup/default-user-id", (_req, res) => {
+  res.json({ user_id: resolveSetupUserId() });
 });
 
 // ── Chat proxy (API — used by OpenClaw, scripts, and programmatic clients) ──

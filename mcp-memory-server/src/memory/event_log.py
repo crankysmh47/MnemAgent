@@ -8,7 +8,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from storage.db_manager import get_db_connection
+from storage.db_manager import get_db_connection, run_write_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -33,24 +33,27 @@ def log_memory_event(
         db_path: Optional database path override.
     """
     try:
-        conn = get_db_connection(db_path)
-        try:
-            conn.execute(
-                """
-                INSERT INTO memory_events (
-                    user_id, event_type, entity_source, entity_target, detail
-                ) VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    user_id,
-                    event_type,
-                    entity_source,
-                    entity_target,
-                    json.dumps(detail) if detail else None,
-                ),
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        def _write() -> None:
+            conn = get_db_connection(db_path)
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO memory_events (
+                        user_id, event_type, entity_source, entity_target, detail
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        user_id,
+                        event_type,
+                        entity_source,
+                        entity_target,
+                        json.dumps(detail) if detail else None,
+                    ),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+        run_write_with_retry(_write)
     except sqlite3.Error as exc:
         logger.error("Failed to log memory event %s: %s", event_type, exc)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 import threading
+import time
 from pathlib import Path
 
 from config import settings
@@ -36,6 +37,23 @@ def get_db_connection(db_path: Path | None = None) -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout = 5000")
     _load_vec_extension(conn)
     return conn
+
+
+def run_write_with_retry(
+    write_fn,
+    *,
+    retries: int = 3,
+    base_delay_s: float = 0.05,
+) -> None:
+    """Run a DB write callback, retrying on transient SQLite lock errors."""
+    for attempt in range(retries):
+        try:
+            write_fn()
+            return
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc).lower() or attempt >= retries - 1:
+                raise
+            time.sleep(base_delay_s * (2**attempt))
 
 
 def _load_vec_extension(conn: sqlite3.Connection) -> bool:
@@ -165,18 +183,21 @@ def log_episodic_turn(
         db_path: Optional database path override.
     """
     try:
-        conn = get_db_connection(db_path)
-        try:
-            conn.execute(
-                """
-                INSERT INTO episodic_logs (user_id, session_id, user_prompt, agent_response)
-                VALUES (?, ?, ?, ?)
-                """,
-                (user_id, session_id, user_prompt, agent_response),
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        def _write() -> None:
+            conn = get_db_connection(db_path)
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO episodic_logs (user_id, session_id, user_prompt, agent_response)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (user_id, session_id, user_prompt, agent_response),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+        run_write_with_retry(_write)
     except sqlite3.Error as exc:
         logger.error("Failed to log episodic turn: %s", exc)
 

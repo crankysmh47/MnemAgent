@@ -160,8 +160,16 @@ const CHART_GRID = 'rgba(180, 150, 120, 0.14)';
 const CHART_TICK = '#7A6E62';
 
 function uid() {
+  try {
+    const stored = localStorage.getItem('mnemos_user_id');
+    if (stored && stored.trim()) return stored.trim();
+  } catch {
+    /* ignore */
+  }
   const params = new URLSearchParams(location.search);
-  return params.get('user') || 'demo-brain';
+  if (params.get('user')) return params.get('user');
+  if (window.__mnemosDefaultUserId) return window.__mnemosDefaultUserId;
+  return 'demo-brain';
 }
 
 function currentUser() {
@@ -1233,8 +1241,29 @@ async function pollLive() {
   refreshInFlight = false;
 }
 
-document.getElementById('userId').value = uid();
+function initUserId() {
+  const input = document.getElementById('userId');
+  if (!input) return;
+  input.value = uid();
+}
+
+fetch('/api/setup/default-user-id')
+  .then((r) => (r.ok ? r.json() : null))
+  .catch(() => null)
+  .then((data) => {
+    if (data?.user_id) window.__mnemosDefaultUserId = data.user_id;
+  })
+  .finally(initUserId);
+
 document.getElementById('userId').addEventListener('change', () => {
+  const user = document.getElementById('userId').value.trim();
+  if (user) {
+    try {
+      localStorage.setItem('mnemos_user_id', user);
+    } catch {
+      /* ignore */
+    }
+  }
   lastStructureKey = '';
   lastEventTs = null;
   liveNodePositions = {};

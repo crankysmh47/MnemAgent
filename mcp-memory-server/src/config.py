@@ -86,6 +86,10 @@ class Settings:
         default_factory=lambda: _env_str("ENABLE_DREAMING_EXTRACTION", "true").lower()
         in ("1", "true", "yes")
     )
+    AWAIT_DREAMING: bool = field(
+        default_factory=lambda: _env_str("AWAIT_DREAMING", "true").lower()
+        in ("1", "true", "yes")
+    )
     EXTRACTION_MIN_CONVICTION: float = field(
         default_factory=lambda: _env_float("EXTRACTION_MIN_CONVICTION", 0.4)
     )

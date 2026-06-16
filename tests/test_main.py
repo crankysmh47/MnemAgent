@@ -67,6 +67,11 @@ async def test_chat_with_memory_update(test_client: AsyncClient) -> None:
             )
     assert "<memory_update>" not in resp.json()["response"]
     assert "Noted!" in resp.json()["response"]
+    dump = await test_client.post(
+        "/chat",
+        json={"user_id": "u1", "session_id": "s1", "message": "/memory"},
+    )
+    assert "express" in dump.json()["response"].lower()
 
 
 @pytest.mark.asyncio
