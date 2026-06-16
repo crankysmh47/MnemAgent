@@ -13,21 +13,29 @@ from eval.report_generator import generate_comparison_report
 
 async def _run(mode: str, server_url: str, output_dir: Path, dry_run: bool) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_suffix = "" if dry_run else timestamp
+
+    with_report = None
+    without_report = None
 
     if mode in ("with_memory", "both"):
-        runner = BenchmarkRunner(server_url, "with_memory", dry_run=dry_run)
+        runner = BenchmarkRunner(
+            server_url, "with_memory", dry_run=dry_run, run_suffix=run_suffix
+        )
         with_report = await runner.run_all_scenarios()
         print(f"MnemOS average score: {with_report.average_score:.1%}")
 
     if mode in ("without_memory", "both"):
         baseline_url = server_url if mode == "without_memory" else "http://localhost:8002"
-        runner = BenchmarkRunner(baseline_url, "without_memory", dry_run=dry_run)
+        runner = BenchmarkRunner(
+            baseline_url, "without_memory", dry_run=dry_run, run_suffix=run_suffix
+        )
         without_report = await runner.run_all_scenarios()
         print(f"Baseline average score: {without_report.average_score:.1%}")
 
-    if mode == "both":
+    if mode == "both" and with_report and without_report:
         report = generate_comparison_report(with_report, without_report)
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         out_path = output_dir / f"benchmark_report_{timestamp}.md"
         out_path.write_text(report, encoding="utf-8")
         print(f"Report written to {out_path}")

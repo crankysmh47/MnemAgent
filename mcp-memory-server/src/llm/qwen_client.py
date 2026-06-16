@@ -103,6 +103,71 @@ def _parse_memory_dict(raw_json: str) -> dict | None:
     return parsed
 
 
+def _strip_json_fence(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    return text.strip()
+
+
+def _parse_fact_array(raw: str) -> list[dict]:
+    """Parse a JSON array of memory fact dicts from model output."""
+    try:
+        data = json.loads(_strip_json_fence(raw))
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(data, list):
+        return []
+    facts: list[dict] = []
+    for item in data:
+        if not isinstance(item, dict) or item.get("skip"):
+            continue
+        entity = item.get("entity")
+        relation = item.get("relation")
+        value = item.get("value")
+        if entity and relation and value is not None:
+            facts.append(item)
+    return facts
+
+
+async def extract_facts_from_user_message(user_message: str, user_id: str) -> list[dict]:
+    """
+    Server-side fact extractor — reads the user message directly.
+
+    Does not depend on the primary model's <memory_update> compliance.
+    Uses EXTRACTION_MODEL (typically qwen-turbo) at temperature 0.
+    """
+    _ = user_id  # reserved for per-user extraction tuning
+    prompt = f"""Extract persistent facts from this user message.
+Return a JSON array only. No other text.
+
+User message: "{user_message}"
+
+Rules:
+- Only extract facts the user is explicitly stating about themselves,
+  their preferences, or their project
+- conviction: 1.0 = definitive, 0.7 = clear, 0.4 = probable, 0.2 = hedged
+- category: preference | persona | system_state
+- Return [] if nothing extractable
+- Return ONLY the JSON array
+
+Example output:
+[{{"entity":"editor","relation":"uses","value":"vs code",
+  "category":"preference","conviction":0.9}}]"""
+    payload = {
+        "model": settings.EXTRACTION_MODEL or settings.QWEN_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.0,
+        "max_tokens": 300,
+    }
+    raw = await call_qwen_api(payload)
+    facts = _parse_fact_array(raw)
+    if facts:
+        logger.info("Server-side user extraction recovered %s fact(s)", len(facts))
+    return facts
+
+
 async def extract_facts_from_conversation(
     user_message: str,
     agent_response: str,
@@ -130,28 +195,7 @@ Rules:
         "max_tokens": 400,
     }
     raw = await call_qwen_api(payload)
-    text = raw.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
-        logger.info("Dreaming extraction pass returned non-JSON")
-        return []
-    if not isinstance(data, list):
-        return []
-    facts: list[dict] = []
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-        if item.get("skip"):
-            continue
-        entity = item.get("entity")
-        relation = item.get("relation")
-        value = item.get("value")
-        if entity and relation and value is not None:
-            facts.append(item)
+    facts = _parse_fact_array(raw)
     if facts:
         logger.info("Dreaming extraction pass recovered %s fact(s)", len(facts))
     return facts

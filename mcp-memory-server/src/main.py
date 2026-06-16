@@ -14,9 +14,8 @@ from pydantic import BaseModel, Field
 from config import settings
 from llm.qwen_client import (
     call_qwen_api,
-    extract_facts_from_conversation,
+    extract_facts_from_user_message,
     extract_memory_updates,
-    response_has_memory_block,
     strip_memory_tags,
 )
 from memory.waking import PROMPT_VERSION
@@ -39,6 +38,8 @@ from memory.waking import build_optimized_qwen_payload
 from storage.db_manager import get_total_turns, initialize_database, log_episodic_turn
 
 logger = logging.getLogger(__name__)
+
+_dreaming_semaphore = asyncio.Semaphore(2)
 
 
 class ChatRequest(BaseModel):
@@ -85,6 +86,30 @@ class UserBindRequest(BaseModel):
     display_name: str | None = None
 
 
+async def _consolidate_facts(
+    loop: asyncio.AbstractEventLoop,
+    user_id: str,
+    facts: list[dict],
+    user_prompt: str,
+) -> None:
+    """Persist a list of extracted facts above the conviction threshold."""
+    for fact in facts:
+        if fact.get("skip"):
+            continue
+        conviction = float(fact.get("conviction", 0.5))
+        if conviction < settings.EXTRACTION_MIN_CONVICTION:
+            continue
+        await loop.run_in_executor(
+            None,
+            partial(
+                consolidate_and_prune_memory,
+                user_id,
+                fact,
+                user_prompt=user_prompt,
+            ),
+        )
+
+
 async def _run_dreaming_phase(
     user_id: str,
     session_id: str,
@@ -96,68 +121,62 @@ async def _run_dreaming_phase(
     memory_block_present: bool = False,
 ) -> None:
     """
-    Run feedback, consolidation, episodic logging, and optional cloud sync.
+    Dual-path write system: LLM-reported facts + server-side user extraction.
 
-    Blocking DB functions are dispatched to the default thread pool executor.
-    Supports multiple memory dicts (multi-fact extraction) or a single dict.
+    Path 1: Primary dual-output extraction (when the model emitted real facts).
+    Path 2: Server-side extraction from the user message (always runs).
+    Path 3: UCB utility feedback.
+    Path 4: Episodic log (+ optional cloud sync).
     """
+    _ = memory_block_present
     try:
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None,
-            evaluate_memory_utility_feedback,
-            user_id,
-            clean_response,
-            injected_ids,
-        )
-        if memory_dicts is not None:
-            items = (
-                memory_dicts if isinstance(memory_dicts, list)
-                else [memory_dicts]
+        async with _dreaming_semaphore:
+            loop = asyncio.get_running_loop()
+
+            # Path 1: LLM dual-output (bonus when compliant — not required for storage)
+            if memory_dicts is not None:
+                items = (
+                    memory_dicts if isinstance(memory_dicts, list)
+                    else [memory_dicts]
+                )
+                llm_facts = [d for d in items if d and not d.get("skip")]
+                if llm_facts:
+                    await _consolidate_facts(loop, user_id, llm_facts, user_prompt)
+
+            # Path 2: Server-side teach extractor (robust to skip / non-compliance)
+            if settings.ENABLE_DREAMING_EXTRACTION:
+                server_facts = await extract_facts_from_user_message(
+                    user_prompt,
+                    user_id,
+                )
+                if server_facts:
+                    await _consolidate_facts(loop, user_id, server_facts, user_prompt)
+
+            # Path 3: Feedback loop
+            await loop.run_in_executor(
+                None,
+                evaluate_memory_utility_feedback,
+                user_id,
+                clean_response,
+                injected_ids,
             )
-            for memory_dict in items:
-                if memory_dict is not None:
-                    await loop.run_in_executor(
-                        None,
-                        partial(
-                            consolidate_and_prune_memory,
-                            user_id,
-                            memory_dict,
-                            user_prompt=user_prompt,
-                        ),
-                    )
-        elif not memory_block_present and settings.ENABLE_DREAMING_EXTRACTION:
-            fallback_facts = await extract_facts_from_conversation(
+
+            # Path 4: Episodic log
+            await loop.run_in_executor(
+                None,
+                log_episodic_turn,
+                user_id,
+                session_id,
                 user_prompt,
                 clean_response,
             )
-            for fact in fallback_facts:
-                conviction = float(fact.get("conviction", 0.5))
-                if conviction >= settings.EXTRACTION_MIN_CONVICTION:
-                    await loop.run_in_executor(
-                        None,
-                        partial(
-                            consolidate_and_prune_memory,
-                            user_id,
-                            fact,
-                            user_prompt=user_prompt,
-                        ),
-                    )
-        await loop.run_in_executor(
-            None,
-            log_episodic_turn,
-            user_id,
-            session_id,
-            user_prompt,
-            clean_response,
-        )
-        total_turns = await loop.run_in_executor(None, get_total_turns, user_id)
-        if total_turns % 50 == 0:
-            try:
-                from storage.cloud_sync import sync_to_cloud
-                await loop.run_in_executor(None, sync_to_cloud)
-            except ImportError:
-                logger.debug("Cloud sync skipped — OSS dependencies not installed")
+            total_turns = await loop.run_in_executor(None, get_total_turns, user_id)
+            if total_turns % 50 == 0:
+                try:
+                    from storage.cloud_sync import sync_to_cloud
+                    await loop.run_in_executor(None, sync_to_cloud)
+                except ImportError:
+                    logger.debug("Cloud sync skipped — OSS dependencies not installed")
     except Exception as exc:
         logger.error("Dreaming phase failed: %s", exc)
 
@@ -167,6 +186,13 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
     setup_logging(settings.LOG_LEVEL)
     initialize_database()
+    loop = asyncio.get_running_loop()
+    from memory.waking import get_local_embedding_sync
+
+    async def _warmup_embeddings() -> None:
+        await loop.run_in_executor(None, get_local_embedding_sync, "mnemos warmup")
+
+    asyncio.create_task(_warmup_embeddings())
     logger.info("MnemOS booted successfully.")
     yield
     logger.info("MnemOS shutting down.")
@@ -237,7 +263,6 @@ async def chat(request: ChatRequest) -> ChatResponse:
         result.get("rejected"),
     )
     memory_dicts = extract_memory_updates(raw_response)
-    memory_block_present = response_has_memory_block(raw_response)
 
     asyncio.create_task(
         _run_dreaming_phase(
@@ -247,7 +272,6 @@ async def chat(request: ChatRequest) -> ChatResponse:
             clean_response,
             result["injected_ids"],
             memory_dicts if memory_dicts else None,
-            memory_block_present=memory_block_present,
         )
     )
 

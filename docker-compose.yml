@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        PROMPT_VERSION: v3-semantic-safety-extraction
+        PROMPT_VERSION: v4-dual-path-write
     ports:
       - "8000:8000"
     volumes:

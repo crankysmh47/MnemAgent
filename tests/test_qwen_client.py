@@ -12,6 +12,7 @@ import pytest
 from llm.qwen_client import (
     call_qwen_api,
     extract_facts_from_conversation,
+    extract_facts_from_user_message,
     extract_memory_update,
     extract_memory_updates,
     response_has_memory_block,
@@ -123,6 +124,42 @@ Reply here"""
     assert len(facts) == 2
     assert facts[0]["entity"] == "a"
     assert facts[1]["entity"] == "b"
+
+
+@pytest.mark.asyncio
+async def test_extract_facts_from_user_message() -> None:
+    mock_resp = AsyncMock()
+    mock_resp.status = 200
+    mock_resp.json = AsyncMock(
+        return_value={
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            '[{"entity":"editor","relation":"uses","value":"vs code",'
+                            '"category":"preference","conviction":0.9},'
+                            '{"entity":"editor","relation":"theme","value":"gruvbox",'
+                            '"category":"preference","conviction":0.9}]'
+                        )
+                    }
+                }
+            ]
+        }
+    )
+    mock_session = MagicMock()
+    mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("llm.qwen_client.aiohttp.ClientSession", return_value=mock_session):
+        facts = await extract_facts_from_user_message(
+            "I use VS Code with Vim keybindings and the Gruvbox theme.",
+            "user-1",
+        )
+    assert len(facts) == 2
+    assert facts[0]["value"] == "vs code"
+    assert facts[1]["value"] == "gruvbox"
 
 
 @pytest.mark.asyncio

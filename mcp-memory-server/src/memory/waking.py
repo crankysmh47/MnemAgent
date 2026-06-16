@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import re
 import sqlite3
+import threading
 from pathlib import Path
 
 import aiohttp
 import networkx as nx
 
 from config import settings
+from memory.entity_lexicon import CORE_TECH_DICTIONARY
 from memory.event_log import log_memory_event
 from memory.response_grounding import (
     fetch_all_active_beliefs,
@@ -30,17 +33,7 @@ logger = logging.getLogger(__name__)
 
 _embedding_cache: dict[str, list[float]] = {}
 _local_model = None
-
-CORE_TECH_DICTIONARY = {
-    "python", "javascript", "typescript", "java", "react", "vue", "angular",
-    "express", "fastify", "docker", "kubernetes", "postgres", "postgresql",
-    "redis", "mysql", "mariadb", "mongodb", "tailwind", "graphql", "rest",
-    "aws", "azure", "gcp", "nginx", "linux", "node", "nodejs", "fastapi",
-    "django", "flask", "spring", "kotlin", "swift", "rust", "go", "golang",
-    "csharp", "dotnet", "terraform", "ansible", "jenkins", "github", "gitlab",
-    "vscode", "vim", "webpack", "vite", "nextjs", "nuxt", "svelte", "lodash",
-    "heroku", "ecs", "lambda", "sqlite", "qwen", "openclaw",
-}
+_model_lock = threading.Lock()
 
 
 def get_merged_entity_terms(
@@ -65,22 +58,19 @@ SYSTEM_PROMPT_TEMPLATE = """You are an autonomous engineering agent with a persi
 Use the memory context above to personalize your responses. Reference stored
 preferences naturally without re-asking.
 
-MANDATORY: Every response MUST begin with a <memory_update> block BEFORE any other text.
-This is required on EVERY turn — no exceptions.
-- If nothing new was learned: <memory_update>{{"skip": true}}</memory_update>
-- If facts were learned: one JSON object per line (JSONL) inside the block
-- Never omit the block. Never output raw memory JSON outside the tags.
+Optional: you may include a <memory_update> block when you learn new facts.
+MnemOS also extracts facts server-side from user messages — compliance is helpful
+but not required for storage.
 
-Format:
+If you include a block:
 <memory_update>
 {{"entity":"subject","relation":"type","value":"detail","category":"preference|persona|system_state","conviction":0.0}}
 </memory_update>
-Your conversational reply follows here.
 
 Categories: preference, persona, system_state.
 Conviction: 1.0=definitive, 0.8=strong, 0.5=stated, 0.3=tentative.
 
-EXAMPLE (multiple facts):
+EXAMPLE:
 User: "We use React and deploy on AWS."
 Assistant:
 <memory_update>
@@ -88,25 +78,22 @@ Assistant:
 {{"entity":"cloud","relation":"uses","value":"aws","category":"system_state","conviction":0.9}}
 </memory_update>
 React and AWS are a solid stack. What features are you building?
-
-EXAMPLE (nothing to store):
-User: "Thanks!"
-Assistant:
-<memory_update>{{"skip": true}}</memory_update>
-You're welcome! Let me know if you need anything else.
 """
 
 # Bump when prompt semantics change — surfaced in /health for Docker verification.
-PROMPT_VERSION = "v3-semantic-safety-extraction"
+PROMPT_VERSION = "v4-dual-path-write"
 
 
 def _get_local_model():
-    """Lazy-load the sentence-transformers model."""
+    """Lazy-load the sentence-transformers model (thread-safe)."""
     global _local_model
-    if _local_model is None:
-        from sentence_transformers import SentenceTransformer
+    if _local_model is not None:
+        return _local_model
+    with _model_lock:
+        if _local_model is None:
+            from sentence_transformers import SentenceTransformer
 
-        _local_model = SentenceTransformer("all-MiniLM-L6-v2")
+            _local_model = SentenceTransformer("all-MiniLM-L6-v2")
     return _local_model
 
 
@@ -125,15 +112,18 @@ def get_local_embedding_sync(text: str) -> list[float]:
     """
     if text in _embedding_cache:
         return _embedding_cache[text]
-    model = _get_local_model()
-    vector = model.encode(text).tolist()
-    if len(vector) != settings.EMBEDDING_DIM:
-        raise ValueError(
-            f"EMBEDDING_DIM={settings.EMBEDDING_DIM} but local model produces "
-            f"{len(vector)}-dim. Fix your .env."
-        )
-    _embedding_cache[text] = vector
-    return vector
+    with _model_lock:
+        if text in _embedding_cache:
+            return _embedding_cache[text]
+        model = _get_local_model()
+        vector = model.encode(text).tolist()
+        if len(vector) != settings.EMBEDDING_DIM:
+            raise ValueError(
+                f"EMBEDDING_DIM={settings.EMBEDDING_DIM} but local model produces "
+                f"{len(vector)}-dim. Fix your .env."
+            )
+        _embedding_cache[text] = vector
+        return vector
 
 
 async def get_embedding(text: str) -> list[float]:
@@ -177,8 +167,8 @@ async def get_embedding(text: str) -> list[float]:
         except (aiohttp.ClientError, KeyError, TypeError) as exc:
             logger.warning("DashScope embedding error: %s", exc)
 
-    vector = get_local_embedding_sync(text)
-    return vector
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, get_local_embedding_sync, text)
 
 
 def store_belief_embedding_sync(
@@ -260,7 +250,7 @@ def _filter_candidates_by_semantic_floor(
     candidates: list[sqlite3.Row],
     query_embedding: list[float],
 ) -> list[sqlite3.Row]:
-    """Drop contextually irrelevant candidates before UCB ranking."""
+    """Drop contextually irrelevant vector hits before UCB ranking."""
     floor = settings.SEMANTIC_SIMILARITY_FLOOR
     eligible = [
         row
@@ -542,11 +532,10 @@ async def build_optimized_qwen_payload(
             embedding = await get_embedding(user_input)
             if VEC_AVAILABLE:
                 candidates = _fetch_candidates_by_vector(user_id, embedding, db_path)
+                candidates = _filter_candidates_by_semantic_floor(candidates, embedding)
             else:
                 entities = extract_entities_robust(user_input, user_id, db_path)
                 candidates = _fetch_candidates_by_keywords(user_id, entities, db_path)
-
-            candidates = _filter_candidates_by_semantic_floor(candidates, embedding)
 
             scored: list[tuple[float, sqlite3.Row]] = []
             for row in candidates:

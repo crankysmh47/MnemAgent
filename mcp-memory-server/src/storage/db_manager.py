@@ -8,6 +8,7 @@ import threading
 from pathlib import Path
 
 from config import settings
+from memory.entity_lexicon import normalize_entity_dict_term
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ def get_db_connection(db_path: Path | None = None) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 5000")
     _load_vec_extension(conn)
     return conn
 
@@ -52,8 +54,9 @@ def _load_vec_extension(conn: sqlite3.Connection) -> bool:
 
         conn.enable_load_extension(True)
         sqlite_vec.load(conn)
+        if not VEC_AVAILABLE:
+            logger.info("sqlite-vec extension loaded successfully")
         VEC_AVAILABLE = True
-        logger.info("sqlite-vec extension loaded successfully")
         return True
     except (ImportError, sqlite3.OperationalError, OSError) as exc:
         logger.warning("sqlite-vec unavailable: %s. Falling back to keyword retrieval.", exc)
@@ -64,18 +67,28 @@ def _load_vec_extension(conn: sqlite3.Connection) -> bool:
 def _backfill_user_entities(conn: sqlite3.Connection) -> None:
     """Seed user_entities from existing beliefs (idempotent, runs each init)."""
     try:
-        conn.execute(
+        rows = conn.execute(
             """
-            INSERT OR IGNORE INTO user_entities (user_id, entity_name, source)
-            SELECT DISTINCT user_id, LOWER(TRIM(entity_source)), 'backfill'
+            SELECT DISTINCT user_id, LOWER(TRIM(entity_source)) AS term
             FROM semantic_graph
             WHERE LENGTH(TRIM(entity_source)) >= 2
             UNION
-            SELECT DISTINCT user_id, LOWER(TRIM(entity_target)), 'backfill'
+            SELECT DISTINCT user_id, LOWER(TRIM(entity_target)) AS term
             FROM semantic_graph
             WHERE LENGTH(TRIM(entity_target)) >= 2
             """
-        )
+        ).fetchall()
+        for row in rows:
+            term = normalize_entity_dict_term(row["term"])
+            if not term:
+                continue
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO user_entities (user_id, entity_name, source)
+                VALUES (?, ?, 'backfill')
+                """,
+                (row["user_id"], term),
+            )
     except sqlite3.Error as exc:
         logger.warning("User entity backfill skipped: %s", exc)
 
@@ -224,8 +237,8 @@ def upsert_user_entities(
     added = 0
     try:
         for name in entity_names:
-            clean = str(name).strip().lower()
-            if len(clean) < 2:
+            clean = normalize_entity_dict_term(name)
+            if not clean:
                 continue
             cursor = conn.execute(
                 """
