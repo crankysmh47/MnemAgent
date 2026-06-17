@@ -44,6 +44,12 @@ Push-Location (Join-Path $Root "mcp-server")
 npm install --silent 2>$null
 Pop-Location
 
+function Write-Utf8JsonFile([string]$Path, $Object, [int]$Depth = 6) {
+  $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+  $json = $Object | ConvertTo-Json -Depth $Depth
+  [System.IO.File]::WriteAllText($Path, $json, $utf8NoBom)
+}
+
 # Workspace
 New-Item -ItemType Directory -Force -Path (Join-Path $WorkspaceDir "skills\mnemos-memory") | Out-Null
 Copy-Item (Join-Path $Root "config\workspace\*") $WorkspaceDir -Recurse -Force
@@ -58,7 +64,7 @@ $mcpWs = @{
     }
   }
 }
-($mcpWs | ConvertTo-Json -Depth 6) | Set-Content (Join-Path $WorkspaceDir ".mcp.json") -Encoding UTF8
+Write-Utf8JsonFile (Join-Path $WorkspaceDir ".mcp.json") $mcpWs 6
 
 # OpenClaw onboard
 $configFile = Join-Path $ConfigDir "openclaw.json"
