@@ -158,37 +158,32 @@ erDiagram
     float node_weight
     float conviction_score
   }
-
   vec_memory {
-    int id PK_FK
-    blob embedding
+    int id FK
+    string embedding_vector
   }
-
   episodic_logs {
     int id PK
     string user_id
     string session_id
-    text user_prompt
-    text agent_response
+    string user_prompt
+    string agent_response
   }
-
   memory_events {
     int id PK
     string user_id
     string event_type
     string entity_source
     string entity_target
-    text detail
+    string detail_json
   }
-
   user_bindings {
     string user_id PK
     string channel
     string sender_id
     string display_name
   }
-
-  semantic_graph ||--o| vec_memory : "belief embedding"
+  semantic_graph ||--o| vec_memory : embeds
 ```
 
 Beliefs are keyed per `user_id`. Channel senders map to a canonical id via `POST /api/user/bind` (`oc_{channel}_{hash16}`).
