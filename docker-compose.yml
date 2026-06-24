@@ -2,6 +2,7 @@ services:
   mnemos-memory:
     build:
       context: .
+      dockerfile: docker/Dockerfile
       args:
         PROMPT_VERSION: v4-dual-path-write
     ports:

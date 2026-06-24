@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-prod.txt .
+COPY requirements/prod.txt ./requirements-prod.txt
 # CPU-only torch keeps the image small (sentence-transformers otherwise pulls CUDA wheels)
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir --default-timeout=600 --retries 10 \
@@ -17,8 +17,7 @@ RUN pip install --upgrade pip \
 
 COPY mcp-memory-server/src/ .
 
-# Surface in image metadata — change to force rebuild when prompt/logic changes.
-ARG PROMPT_VERSION=v2-mandatory-skip
+ARG PROMPT_VERSION=v4-dual-path-write
 ENV MNEMOS_PROMPT_VERSION=${PROMPT_VERSION}
 
 RUN mkdir -p /app/data
