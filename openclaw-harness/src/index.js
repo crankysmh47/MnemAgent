@@ -33,6 +33,27 @@ function resolveSetupUserId() {
   return null;
 }
 
+async function resolveCanonicalUserId() {
+  // Priority 1: env override
+  if (process.env.MNEMOS_DEFAULT_USER_ID) {
+    return process.env.MNEMOS_DEFAULT_USER_ID.trim();
+  }
+  // Priority 2: try MnemOS API to get the canonical user_id (same one the agent uses)
+  try {
+    const resp = await axios.post(`${MNEMOS_URL}/api/user/bind`, {
+      channel: "openclaw",
+      sender_id: process.env.OPENCLAW_AGENT_NAME || "main",
+    }, { timeout: 5000 });
+    if (resp.data?.user_id) {
+      return resp.data.user_id;
+    }
+  } catch {
+    /* MnemOS not reachable — fall through to file-based */
+  }
+  // Priority 3: read from setup-generated file
+  return resolveSetupUserId();
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -87,8 +108,23 @@ app.get("/health", async (_req, res) => {
   res.status(status.status === "ok" ? 200 : 503).json(status);
 });
 
-app.get("/api/setup/default-user-id", (_req, res) => {
-  res.json({ user_id: resolveSetupUserId() });
+app.get("/api/setup/default-user-id", async (_req, res) => {
+  const userId = await resolveCanonicalUserId();
+  res.json({ user_id: userId });
+});
+
+// ── Whoami — returns the canonical user_id the agent uses ──
+app.get("/api/user/whoami", async (_req, res) => {
+  try {
+    const userId = await resolveCanonicalUserId();
+    if (userId) {
+      res.json({ user_id: userId, source: "resolved" });
+    } else {
+      res.json({ user_id: null, hint: "Run setup script or set MNEMOS_DEFAULT_USER_ID" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Chat proxy (API — used by OpenClaw, scripts, and programmatic clients) ──

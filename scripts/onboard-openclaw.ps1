@@ -113,7 +113,20 @@ if ($LASTEXITCODE -ne 0) { throw "openclaw mcp add mnemos failed" }
 
 $UserFile = Join-Path $ConfigDir "mnemos-user-id.txt"
 if (-not (Test-Path $UserFile)) {
-  [guid]::NewGuid().ToString() | Set-Content $UserFile
+  # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
+  try {
+    $body = '{"channel":"openclaw","sender_id":"main"}'
+    $canonical = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/bind" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 10
+    if ($canonical.user_id) {
+      $canonical.user_id | Set-Content $UserFile
+      Write-Host "Canonical user_id resolved: $($canonical.user_id)"
+    } else {
+      throw "No user_id in response"
+    }
+  } catch {
+    Write-Host "WARNING: Could not resolve canonical user_id — using random GUID" -ForegroundColor Yellow
+    [guid]::NewGuid().ToString() | Set-Content $UserFile
+  }
 }
 
 openclaw gateway restart --force | Out-Null

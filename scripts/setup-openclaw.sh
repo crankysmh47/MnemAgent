@@ -35,7 +35,16 @@ openclaw mcp set mnemos "{\"command\":\"node\",\"args\":[\"$MCP_PATH\",\"--trans
 
 USER_FILE="$CONFIG_DIR/mnemos-user-id.txt"
 if [ ! -f "$USER_FILE" ]; then
-  uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid > "$USER_FILE"
+  # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
+  CANONICAL_ID=$(curl -s -X POST http://127.0.0.1:8000/api/user/bind \
+      -H 'Content-Type: application/json' \
+      -d '{"channel":"openclaw","sender_id":"main"}' 2>/dev/null | \
+      python3 -c "import sys,json; print(json.load(sys.stdin).get('user_id',''))" 2>/dev/null)
+  if [ -n "$CANONICAL_ID" ]; then
+    echo "$CANONICAL_ID" > "$USER_FILE"
+  else
+    uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid > "$USER_FILE"
+  fi
 fi
 echo "Shared user_id: $(cat "$USER_FILE")"
 

@@ -20,6 +20,8 @@ def log_memory_event(
     entity_target: str | None = None,
     detail: dict[str, Any] | None = None,
     db_path: Path | None = None,
+    *,
+    conn: sqlite3.Connection | None = None,
 ) -> None:
     """
     Insert one row into memory_events.
@@ -31,29 +33,46 @@ def log_memory_event(
         entity_target: Optional entity target label.
         detail: Optional JSON-serializable context.
         db_path: Optional database path override.
+        conn: Optional existing connection to reuse (avoids SQLite lock contention).
     """
     try:
-        def _write() -> None:
-            conn = get_db_connection(db_path)
-            try:
-                conn.execute(
-                    """
-                    INSERT INTO memory_events (
-                        user_id, event_type, entity_source, entity_target, detail
-                    ) VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        user_id,
-                        event_type,
-                        entity_source,
-                        entity_target,
-                        json.dumps(detail) if detail else None,
-                    ),
-                )
-                conn.commit()
-            finally:
-                conn.close()
+        if conn is not None:
+            conn.execute(
+                """
+                INSERT INTO memory_events (
+                    user_id, event_type, entity_source, entity_target, detail
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    event_type,
+                    entity_source,
+                    entity_target,
+                    json.dumps(detail) if detail else None,
+                ),
+            )
+        else:
+            def _write() -> None:
+                c = get_db_connection(db_path)
+                try:
+                    c.execute(
+                        """
+                        INSERT INTO memory_events (
+                            user_id, event_type, entity_source, entity_target, detail
+                        ) VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            user_id,
+                            event_type,
+                            entity_source,
+                            entity_target,
+                            json.dumps(detail) if detail else None,
+                        ),
+                    )
+                    c.commit()
+                finally:
+                    c.close()
 
-        run_write_with_retry(_write)
+            run_write_with_retry(_write)
     except sqlite3.Error as exc:
         logger.error("Failed to log memory event %s: %s", event_type, exc)

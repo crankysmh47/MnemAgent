@@ -20,12 +20,40 @@ const sessions = new Map();
 
 const MCP_TOOLS = [
   {
-    name: "memory_store",
-    description: "Store a new fact in persistent memory",
+    name: "memory_resolve_user",
+    description:
+      "Resolve channel + sender_id to a stable canonical user_id. MUST be called before any other memory tool. Returns the user_id to use for all subsequent memory operations.",
     inputSchema: {
       type: "object",
       properties: {
-        user_id: { type: "string" },
+        channel: { type: "string", description: "Channel identifier (openclaw, telegram, discord, whatsapp, slack, webchat)" },
+        sender_id: { type: "string", description: "Sender identifier within that channel (e.g. agent name, user handle)" },
+        display_name: { type: "string", description: "Optional human-readable display name" },
+      },
+      required: ["channel", "sender_id"],
+    },
+  },
+  {
+    name: "memory_bind_user",
+    description: "Bind a channel sender to a specific canonical user_id",
+    inputSchema: {
+      type: "object",
+      properties: {
+        channel: { type: "string" },
+        sender_id: { type: "string" },
+        display_name: { type: "string" },
+        user_id: { type: "string", description: "Optional — derived from channel+sender_id if omitted" },
+      },
+      required: ["channel", "sender_id"],
+    },
+  },
+  {
+    name: "memory_store",
+    description: "Store a new fact in persistent memory (salience-gated)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        user_id: { type: "string", description: "REQUIRED — call memory_resolve_user first to get this" },
         entity: { type: "string" },
         relation: { type: "string" },
         value: { type: "string" },
@@ -41,7 +69,7 @@ const MCP_TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        user_id: { type: "string" },
+        user_id: { type: "string", description: "REQUIRED — call memory_resolve_user first to get this" },
         query: { type: "string" },
         top_k: { type: "number" },
       },
@@ -53,17 +81,30 @@ const MCP_TOOLS = [
     description: "Get full brain state with confidence levels",
     inputSchema: {
       type: "object",
-      properties: { user_id: { type: "string" } },
+      properties: { user_id: { type: "string", description: "REQUIRED — call memory_resolve_user first to get this" } },
       required: ["user_id"],
     },
   },
   {
     name: "memory_stats",
-    description: "Get UCB optimization metrics",
+    description: "Get UCB optimization metrics for stored beliefs",
     inputSchema: {
       type: "object",
-      properties: { user_id: { type: "string" } },
+      properties: { user_id: { type: "string", description: "REQUIRED — call memory_resolve_user first to get this" } },
       required: ["user_id"],
+    },
+  },
+  {
+    name: "memory_chat",
+    description: "Send a message through MnemOS memory-augmented chat",
+    inputSchema: {
+      type: "object",
+      properties: {
+        user_id: { type: "string", description: "REQUIRED — call memory_resolve_user first to get this" },
+        session_id: { type: "string" },
+        message: { type: "string" },
+      },
+      required: ["user_id", "session_id", "message"],
     },
   },
 ];
@@ -82,9 +123,47 @@ function broadcast(payload) {
   }
 }
 
-async function callTool(name, args) {
-  const userId = args.user_id || "openclaw-default";
-  console.log(`[MCP] tools/call ${name} user=${userId}`, args);
+function requireUserId(args, session) {
+  const userId = args.user_id || (session && session.user_id);
+  if (!userId) {
+    throw new Error(
+      "user_id is required. Call memory_resolve_user(channel, sender_id) first to obtain your canonical user_id."
+    );
+  }
+  return userId;
+}
+
+async function callTool(name, args, session) {
+  if (name === "memory_resolve_user" || name === "memory_bind_user") {
+    const resp = await axios.post(`${MNEMOS_URL}/api/user/bind`, {
+      channel: args.channel || "openclaw",
+      sender_id: args.sender_id,
+      display_name: args.display_name,
+    });
+    const userId = resp.data.user_id;
+    // Update session so subsequent tool calls use the resolved user_id automatically
+    if (session) {
+      session.user_id = userId;
+      session.display_name = resp.data.display_name || args.display_name;
+    }
+    console.log(`[MCP] ${name} channel=${args.channel} sender=${args.sender_id} → user_id=${userId}`);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            user_id: userId,
+            message:
+              "User identity resolved. Use this user_id for all subsequent memory operations in this session. " +
+              "The session will remember it automatically.",
+          }),
+        },
+      ],
+    };
+  }
+
+  const userId = requireUserId(args, session);
+  console.log(`[MCP] tools/call ${name} user=${userId}`);
 
   if (name === "memory_store") {
     const resp = await axios.post(`${MNEMOS_URL}/api/memory/store`, {
@@ -108,7 +187,7 @@ async function callTool(name, args) {
   if (name === "memory_dump") {
     const resp = await axios.post(`${MNEMOS_URL}/chat`, {
       user_id: userId,
-      session_id: "mcp-adapter",
+      session_id: args.session_id || "mcp-adapter",
       message: "/memory",
     });
     return { content: [{ type: "text", text: resp.data.response }] };
@@ -117,8 +196,17 @@ async function callTool(name, args) {
   if (name === "memory_stats") {
     const resp = await axios.post(`${MNEMOS_URL}/chat`, {
       user_id: userId,
-      session_id: "mcp-adapter",
+      session_id: args.session_id || "mcp-adapter",
       message: "/memory --mode stats",
+    });
+    return { content: [{ type: "text", text: resp.data.response }] };
+  }
+
+  if (name === "memory_chat") {
+    const resp = await axios.post(`${MNEMOS_URL}/chat`, {
+      user_id: userId,
+      session_id: args.session_id || "mcp-adapter",
+      message: args.message,
     });
     return { content: [{ type: "text", text: resp.data.response }] };
   }
@@ -131,14 +219,31 @@ async function handleJsonRpc(message) {
 
   if (method === "initialize") {
     const sessionId = uuidv4();
-    sessions.set(sessionId, { user_id: params?.clientInfo?.name || "openclaw" });
+    const channel = params?.clientInfo?.channel || "openclaw";
+    const senderId = params?.clientInfo?.name || "openclaw";
+    const session = { sessionId, channel, sender_id: senderId, user_id: null };
+
+    // Auto-resolve canonical user_id on session creation
+    try {
+      const bindResp = await axios.post(`${MNEMOS_URL}/api/user/bind`, {
+        channel,
+        sender_id: senderId,
+        display_name: params?.clientInfo?.displayName,
+      });
+      session.user_id = bindResp.data.user_id;
+      console.log(`[MCP] session ${sessionId} auto-resolved → user_id=${session.user_id}`);
+    } catch (err) {
+      console.warn(`[MCP] session ${sessionId} could not auto-resolve user_id: ${err.message}`);
+    }
+
+    sessions.set(sessionId, session);
     return {
       jsonrpc: "2.0",
       id,
       result: {
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "mnemos-mcp-adapter", version: "1.0.0" },
+        serverInfo: { name: "mnemos-mcp-adapter", version: "1.1.0" },
         sessionId,
       },
     };
@@ -154,7 +259,10 @@ async function handleJsonRpc(message) {
 
   if (method === "tools/call") {
     try {
-      const result = await callTool(params.name, params.arguments || {});
+      // Look up session by matching the request — OpenClaw passes sessionId via headers or params
+      const sessionId = params?._meta?.sessionId || message.sessionId;
+      const session = sessionId ? sessions.get(sessionId) : null;
+      const result = await callTool(params.name, params.arguments || {}, session);
       return { jsonrpc: "2.0", id, result };
     } catch (err) {
       return {
@@ -206,8 +314,13 @@ app.get("/mcp", (req, res) => {
   });
 });
 
+// Track SSE sessions by MCP sessionId (passed as ?sessionId= query param)
 app.post("/mcp/message", async (req, res) => {
   const message = req.body;
+  // Attach sessionId from query so handleJsonRpc can look up the session
+  if (req.query.sessionId && !message.sessionId) {
+    message.sessionId = req.query.sessionId;
+  }
   const response = await handleJsonRpc(message);
   if (response) {
     broadcast(response);
@@ -219,8 +332,9 @@ app.post("/mcp/message", async (req, res) => {
 
 app.post("/tools/call", async (req, res) => {
   try {
-    const { name, arguments: args } = req.body;
-    const result = await callTool(name, args || {});
+    const { name, arguments: args, session_id } = req.body;
+    const session = session_id ? sessions.get(session_id) : null;
+    const result = await callTool(name, args || {}, session);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -19,7 +19,16 @@ cp "$HARNESS/openclaw-config/mnemos.config.json" "$CONFIG_DIR/mnemos.config.json
 
 USER_FILE="$CONFIG_DIR/mnemos-user-id.txt"
 if [[ ! -f "$USER_FILE" ]]; then
-  uuidgen > "$USER_FILE" 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())" > "$USER_FILE"
+  # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
+  CANONICAL_ID=$(curl -s -X POST http://127.0.0.1:8000/api/user/bind \
+      -H 'Content-Type: application/json' \
+      -d '{"channel":"openclaw","sender_id":"main"}' 2>/dev/null | \
+      python3 -c "import sys,json; print(json.load(sys.stdin).get('user_id',''))" 2>/dev/null)
+  if [[ -n "$CANONICAL_ID" ]]; then
+    echo "$CANONICAL_ID" > "$USER_FILE"
+  else
+    uuidgen > "$USER_FILE" 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())" > "$USER_FILE"
+  fi
 fi
 USER_ID="$(cat "$USER_FILE")"
 echo "Shared user_id: $USER_ID"

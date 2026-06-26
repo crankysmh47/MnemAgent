@@ -121,6 +121,7 @@ def evaluate_memory_utility_feedback(
                         "new_q": new_q,
                     },
                     db_path=db_path,
+                    conn=conn,
                 )
             else:
                 new_q = max(0.0, new_q - Q_PENALTY)
@@ -169,6 +170,7 @@ def _run_decay_and_prune(user_id: str, db_path: Path | None = None) -> None:
                 entity_target=decay_row["entity_target"],
                 detail={"old_weight": old_weight, "new_weight": new_weight},
                 db_path=db_path,
+                conn=conn,
             )
 
         conn.execute(
@@ -199,6 +201,7 @@ def _run_decay_and_prune(user_id: str, db_path: Path | None = None) -> None:
                     "weight": float(pruned_row["node_weight"]),
                 },
                 db_path=db_path,
+                conn=conn,
             )
             delete_vec_embedding(int(pruned_row["id"]), db_path)
 
@@ -312,6 +315,7 @@ def consolidate_and_prune_memory(
                     "new_value": value,
                 },
                 db_path=db_path,
+                conn=conn,
             )
 
         conn.execute(
@@ -350,6 +354,7 @@ def consolidate_and_prune_memory(
                     "belief_id": belief_id,
                 },
                 db_path=db_path,
+                conn=conn,
             )
 
         conn.commit()

@@ -23,7 +23,18 @@ Write-Host "Copied mnemos.config.json -> $ConfigDir"
 # 3. Shared user id for TUI + web UI
 $UserFile = Join-Path $ConfigDir "mnemos-user-id.txt"
 if (-not (Test-Path $UserFile)) {
-  [guid]::NewGuid().ToString() | Set-Content $UserFile
+  # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
+  try {
+    $body = '{"channel":"openclaw","sender_id":"main"}'
+    $canonical = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/bind" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 10
+    if ($canonical.user_id) {
+      $canonical.user_id | Set-Content $UserFile
+    } else {
+      throw "No user_id in response"
+    }
+  } catch {
+    [guid]::NewGuid().ToString() | Set-Content $UserFile
+  }
 }
 $UserId = Get-Content $UserFile
 Write-Host "Shared user_id: $UserId (use in chat UI localStorage: mnemos_user_id)"

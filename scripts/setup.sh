@@ -317,9 +317,20 @@ step "Copy workspace files" copy_workspace
 # Generate a persistent user ID
 USER_FILE="$CONFIG_DIR/mnemos-user-id.txt"
 if [ ! -f "$USER_FILE" ]; then
-    uuidgen 2>/dev/null > "$USER_FILE" 2>/dev/null || \
-        python3 -c "import uuid; print(uuid.uuid4())" > "$USER_FILE" 2>/dev/null || \
-        date +%s | md5sum | head -c 32 > "$USER_FILE"
+    # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
+    CANONICAL_ID=$(curl -s -X POST http://127.0.0.1:8000/api/user/bind \
+        -H 'Content-Type: application/json' \
+        -d '{"channel":"openclaw","sender_id":"main"}' 2>/dev/null | \
+        python3 -c "import sys,json; print(json.load(sys.stdin).get('user_id',''))" 2>/dev/null)
+    if [ -n "$CANONICAL_ID" ]; then
+        echo "$CANONICAL_ID" > "$USER_FILE"
+        echo "Canonical user_id resolved: $CANONICAL_ID"
+    else
+        echo "WARNING: Could not resolve canonical user_id — using random fallback"
+        uuidgen 2>/dev/null > "$USER_FILE" 2>/dev/null || \
+            python3 -c "import uuid; print(uuid.uuid4())" > "$USER_FILE" 2>/dev/null || \
+            date +%s | md5sum | head -c 32 > "$USER_FILE"
+    fi
 fi
 USER_ID=$(cat "$USER_FILE" 2>/dev/null || echo "your-user-id")
 

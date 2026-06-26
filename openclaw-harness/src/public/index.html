@@ -36,7 +36,7 @@
     <span class="build-stamp" title="UI build stamp">· v2026-06-14</span>
   </div>
 
-  <label>User <input id="userId" placeholder="demo-brain" /></label>
+  <label>User <input id="userId" placeholder="Loading…" /></label>
 
   <div class="filter-group" id="categoryFilters">
     <span class="filter-chip cat-preference active" data-cat="preference">Preferences</span>
@@ -169,7 +169,9 @@ function uid() {
   const params = new URLSearchParams(location.search);
   if (params.get('user')) return params.get('user');
   if (window.__mnemosDefaultUserId) return window.__mnemosDefaultUserId;
-  return 'demo-brain';
+  // If we have a canonical user_id from the whoami endpoint, use it
+  if (window.__mnemosCanonicalUserId) return window.__mnemosCanonicalUserId;
+  return '';  // empty = unconfigured; the input placeholder guides the user
 }
 
 function currentUser() {
@@ -1244,16 +1246,48 @@ async function pollLive() {
 function initUserId() {
   const input = document.getElementById('userId');
   if (!input) return;
-  input.value = uid();
+  const resolved = uid();
+  if (resolved) {
+    input.value = resolved;
+    input.placeholder = 'your-user-id';
+  } else {
+    input.value = '';
+    input.placeholder = 'Run setup or enter user_id';
+  }
 }
 
-fetch('/api/setup/default-user-id')
-  .then((r) => (r.ok ? r.json() : null))
-  .catch(() => null)
-  .then((data) => {
-    if (data?.user_id) window.__mnemosDefaultUserId = data.user_id;
-  })
-  .finally(initUserId);
+async function resolveDefaultUserId() {
+  // Try the whoami endpoint first (canonical ID from MnemOS API)
+  try {
+    const whoamiResp = await fetch('/api/user/whoami');
+    if (whoamiResp.ok) {
+      const whoami = await whoamiResp.json();
+      if (whoami?.user_id) {
+        window.__mnemosCanonicalUserId = whoami.user_id;
+        window.__mnemosDefaultUserId = whoami.user_id;
+        return whoami.user_id;
+      }
+    }
+  } catch {
+    /* whoami not available */
+  }
+  // Fall back to setup default
+  try {
+    const resp = await fetch('/api/setup/default-user-id');
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data?.user_id) {
+        window.__mnemosDefaultUserId = data.user_id;
+        return data.user_id;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+resolveDefaultUserId().finally(initUserId);
 
 document.getElementById('userId').addEventListener('change', () => {
   const user = document.getElementById('userId').value.trim();
