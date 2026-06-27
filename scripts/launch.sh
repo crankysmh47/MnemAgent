@@ -144,23 +144,35 @@ if check_openclaw; then
     step "Register MnemOS MCP tools" bash -c "
         MCP_PATH='$ROOT/mcp-server/src/index.js'
         openclaw mcp unset mnemos 2>/dev/null
-        openclaw mcp add mnemos \
-            --command node \
-            --arg \"\$MCP_PATH\" \
-            --arg '--transport' \
-            --arg 'stdio' \
-            --env 'MNEMOS_URL=http://localhost:8000' \
-            --timeout 120 \
-            --connect-timeout 30 >/dev/null 2>&1
+        MCP_SET_JSON='{\"command\":\"node\",\"args\":[\"'\"\$MCP_PATH\"'\",\"--transport\",\"stdio\"],\"env\":{\"MNEMOS_URL\":\"http://localhost:8000\"}}'
+        if ! openclaw mcp set mnemos \"\$MCP_SET_JSON\" >/dev/null 2>&1; then
+            # Fallback for older OpenClaw versions
+            openclaw mcp add mnemos \
+                --command node \
+                --arg \"\$MCP_PATH\" \
+                --arg '--transport' \
+                --arg 'stdio' \
+                --env 'MNEMOS_URL=http://localhost:8000' \
+                --timeout 120 \
+                --connect-timeout 30 >/dev/null 2>&1
+        fi
     "
 
-    # Free model bundle
+    # Free model bundle (fallback only — warn about stalls)
     FREE_PATCH="$ROOT/config/openclaw/free-models.patch.json"
     if [ -f "$FREE_PATCH" ]; then
-        step "Apply free model bundle" bash -c "
-            cat '$FREE_PATCH' | openclaw config patch --stdin >/dev/null 2>&1
-            openclaw config set gateway.auth.mode none >/dev/null 2>&1
-        "
+        # Only apply free bundle if user doesn't have a DashScope key
+        if grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null && \
+           ! grep -q '^QWEN_API_KEY=sk-or-v1' "$ROOT/.env" 2>/dev/null; then
+            log_gray "  DashScope key detected — skipping free model bundle (not needed)"
+        else
+            step "Apply free model bundle (WARNING: may stall 2–6 min/reply)" bash -c "
+                cat '$FREE_PATCH' | openclaw config patch --stdin >/dev/null 2>&1
+                openclaw config set gateway.auth.mode none >/dev/null 2>&1
+            "
+            log_yellow "  WARNING: Free OpenRouter models may stall for 2–6 minutes per reply."
+            log_yellow "  For a usable experience, get a DashScope key and set QWEN_API_KEY in .env"
+        fi
     fi
 
     # Gateway management

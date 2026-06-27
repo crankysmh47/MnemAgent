@@ -164,19 +164,33 @@ openclaw onboard \
 # Install MCP server dependencies
 cd mcp-server && npm install && cd ..
 
-# Register via stdio
+# Register via stdio — try mcp set first (current OpenClaw), fall back to mcp add
 openclaw mcp unset mnemos 2>/dev/null || true
-openclaw mcp add mnemos \
-  --command node \
-  --arg "$(pwd)/mcp-server/src/index.js" \
-  --arg "--transport" \
-  --arg "stdio" \
-  --env "MNEMOS_URL=http://localhost:8000" \
-  --timeout 120 \
-  --connect-timeout 30
+MCP_PATH="$(pwd)/mcp-server/src/index.js"
+if ! openclaw mcp set mnemos \
+  "{\"command\":\"node\",\"args\":[\"$MCP_PATH\",\"--transport\",\"stdio\"],\"env\":{\"MNEMOS_URL\":\"http://localhost:8000\"}}" 2>/dev/null; then
+  # Older OpenClaw versions use mcp add
+  openclaw mcp add mnemos \
+    --command node \
+    --arg "$MCP_PATH" \
+    --arg "--transport" \
+    --arg "stdio" \
+    --env "MNEMOS_URL=http://localhost:8000" \
+    --timeout 120 \
+    --connect-timeout 30
+fi
 ```
 
-### 7. Apply Free Model Bundle
+> **IMPORTANT**: If this step fails silently, the agent will have NO memory tools.
+> It will fall back to OpenClaw's broken built-in memory and may give confidently
+> wrong answers (including leaking demo data). Always verify with `openclaw mcp probe mnemos`
+> and ensure it shows 7 tools.
+
+### 7. Apply Free Model Bundle (OPTIONAL — only if no DashScope key)
+
+> **WARNING**: Free OpenRouter models may stall for **2–6 minutes per reply**.
+> If you have a DashScope API key, skip this step — the setup will use qwen-turbo
+> directly, which is fast and reliable. Only apply the free bundle as a last resort.
 
 ```bash
 cat config/openclaw/free-models.patch.json | openclaw config patch --stdin
@@ -325,17 +339,24 @@ openclaw config set agents.defaults.model.primary "openrouter/$QWEN_MODEL"
 openclaw gateway restart --force
 ```
 
-### Free Tier Models (OpenRouter)
+### Free Tier Models (OpenRouter) — USE WITH CAUTION
+
+> **⚠️ WARNING**: Free OpenRouter models may **stall for 2–6 minutes per reply**.
+> This is not a MnemOS bug — it's the OpenRouter free tier being overloaded.
+> For a usable experience, use a DashScope API key with `qwen-turbo` instead.
+> The free bundle is a fallback, not the recommended default.
 
 The `config/openclaw/free-models.patch.json` file bundles multiple free OpenRouter models as fallbacks:
 
 | Model | Quality | Speed |
 |-------|---------|-------|
-| `openrouter/free` | Auto-best | Auto |
+| `openrouter/free` | Auto-best | Auto (often slow) |
 | `deepseek/deepseek-r1-0528:free` | High | Medium |
 | `qwen/qwen-2.5-72b-instruct:free` | High | Fast |
 | `meta-llama/llama-3.3-70b-instruct:free` | High | Fast |
 | `qwen/qwen3-coder:free` | Very High | Medium |
+
+**How to avoid free model stalls**: Get a DashScope API key from https://dashscope.aliyuncs.com, set it in `.env` as `QWEN_API_KEY`, and set `QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1`. The setup scripts will auto-detect it and skip the free bundle.
 
 ---
 
@@ -369,6 +390,9 @@ The `config/openclaw/free-models.patch.json` file bundles multiple free OpenRout
 | Probe shows 0 tools | `openclaw mcp unset mnemos` then re-register |
 | "Connection timeout" | Is MnemOS Docker running? `curl http://localhost:8000/health` |
 | Node errors in MCP | `cd mcp-server && npm install` |
+| **"index metadata is missing"** or **"memory search is paused"** | Your MCP tools are NOT registered. The agent has fallen back to OpenClaw's broken built-in memory. Run `openclaw mcp list` — if `mnemos` is missing, re-register: `openclaw mcp set mnemos '{"command":"node","args":["<path-to-mcp-server>/src/index.js","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000"}}'` |
+| **Agent gives wrong facts (e.g. "FAST student")** | This is demo data from `USER.md` leaking because memory search failed. Fix the MCP registration first (above). The fixed USER.md is now a template that won't be treated as real data. |
+| **No reply for 2–6 minutes** | You're using a free OpenRouter model. Switch to a DashScope key: set `QWEN_API_KEY` and `QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1` in `.env`, then re-run setup. |
 
 ### Python issues
 
@@ -393,6 +417,19 @@ If ports 8000, 8001, or 3000 are already in use on your machine:
 1. Edit `docker-compose.yml` to change the host ports (e.g., `"8000:8000"` to `"8005:8000"`)
 2. Update `.env` with the new ports
 3. Re-run setup
+
+#### Port 3000 OAuth clash
+
+OpenClaw's browser OAuth login (for OpenRouter) redirects to `localhost:3000`. If the MnemOS visualizer container is already running on port 3000, the OAuth callback fails with **"Cannot GET /openrouter-oauth/callback"**.
+
+**Fix**: Stop the visualizer container before logging in, then restart it:
+```bash
+docker compose stop openclaw-harness
+# Complete the OAuth login in your browser
+docker compose start openclaw-harness
+```
+
+Or skip the browser OAuth entirely — use `openclaw login --api-key <your-key>` instead.
 
 ---
 

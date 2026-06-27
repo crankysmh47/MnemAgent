@@ -16,14 +16,77 @@ function Get-DotEnvValue([string]$Name) {
 }
 
 Write-Host "=== OpenClaw + MnemOS Onboarding ===" -ForegroundColor Cyan
+Write-Host ""
+
+# ═══ Pre-flight warnings ═══
+Write-Host "Pre-flight checks:" -ForegroundColor DarkGray
+
+# Port 3000 clash: OpenClaw OAuth callback uses localhost:3000, but our
+# visualizer also binds port 3000.  The OAuth flow will fail with
+# "Cannot GET /openrouter-oauth/callback" if the visualizer is still running.
+$port3000InUse = $false
+try {
+    $conn = [System.Net.Sockets.TcpClient]::new("127.0.0.1", 3000)
+    $port3000InUse = $true
+    $conn.Close()
+} catch { }
+if ($port3000InUse) {
+    Write-Host "  WARNING: Port 3000 is in use (probably the MnemOS visualizer container)." -ForegroundColor Yellow
+    Write-Host "  If this script needs to run an OAuth login flow, the callback will FAIL" -ForegroundColor Yellow
+    Write-Host "  because OpenClaw also redirects to localhost:3000.  To fix:" -ForegroundColor Yellow
+    Write-Host "    1. docker compose stop openclaw-harness" -ForegroundColor DarkGray
+    Write-Host "    2. Complete the login in your browser" -ForegroundColor DarkGray
+    Write-Host "    3. docker compose start openclaw-harness" -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+# API key: OpenClaw uses its own credential store (openclaw.json), NOT .env.
+# The .env file is only read by the MnemOS Python server.  Editing .env
+# without also configuring OpenClaw has no effect on the agent's model.
+Write-Host "  Note: API keys go through 'openclaw' auth, not just .env" -ForegroundColor DarkGray
+Write-Host "        This script handles both for you." -ForegroundColor DarkGray
+Write-Host ""
 
 $apiKey = Get-DotEnvValue "QWEN_API_KEY"
 $baseUrl = Get-DotEnvValue "QWEN_BASE_URL"
 $modelId = Get-DotEnvValue "QWEN_MODEL"
 if (-not $apiKey) { throw "QWEN_API_KEY missing in .env" }
 if (-not $baseUrl) { $baseUrl = "https://openrouter.ai/api/v1" }
-# OpenClaw: free router + fallbacks (see config/openclaw/free-models.patch.json)
-$onboardModel = "openrouter/free"
+
+# Smart default: if the user has a DashScope key, use qwen-turbo directly
+# (free OpenRouter models stall for 2–6 minutes — unacceptable default experience).
+$isDashScopeKey = $apiKey -match "^sk-[a-f0-9]" -and $apiKey -notmatch "^sk-or-v1"
+$isOpenRouterKey = $apiKey -match "^sk-or-v1"
+$isPlaceholderKey = $apiKey -match "^sk-or-v1-xxxxxxxxxxxx" -or $apiKey -match "^sk-xxxxxxxxxxxx"
+
+if ($isPlaceholderKey) {
+    Write-Host "WARNING: QWEN_API_KEY is still the placeholder value." -ForegroundColor Yellow
+    Write-Host "  Edit .env and replace QWEN_API_KEY with your real API key, then re-run this script." -ForegroundColor Yellow
+    Write-Host "  Get a free key at https://openrouter.ai/keys or https://dashscope.aliyuncs.com" -ForegroundColor Yellow
+    throw "Placeholder API key — add your real key to .env"
+}
+
+if ($isDashScopeKey) {
+    # Use DashScope directly — fast, reliable, hackathon target
+    $baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    if (-not $modelId -or $modelId -match ":free$") {
+        $modelId = "qwen-turbo"
+    }
+    $onboardModel = $modelId
+    Write-Host "LLM: DashScope $modelId (Alibaba Cloud) — fast path"
+} elseif ($isOpenRouterKey) {
+    # OpenRouter key — use the model from .env, fall back to free bundle with warning
+    $onboardModel = if ($modelId -and $modelId -notmatch ":free$") { $modelId } else { "openrouter/free" }
+    Write-Host "LLM: OpenRouter $onboardModel"
+    if ($onboardModel -eq "openrouter/free") {
+        Write-Host "  WARNING: Free models may stall for 2–6 minutes per reply." -ForegroundColor Yellow
+        Write-Host "  For a usable experience, set QWEN_MODEL=qwen-turbo in .env and use a DashScope key." -ForegroundColor Yellow
+    }
+} else {
+    # Unknown key format — try as custom provider
+    $onboardModel = if ($modelId) { $modelId } else { "qwen-turbo" }
+    Write-Host "LLM: Custom provider — $onboardModel"
+}
 $freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
 
 Write-Host "LLM: OpenRouter free bundle via $baseUrl"
@@ -99,17 +162,34 @@ if (Test-Path $freePatch) {
 openclaw config set gateway.auth.mode none 2>$null
 
 # MnemOS MCP (stdio -> spawns mcp-server -> MnemOS :8000)
+# Try mcp set first (current OpenClaw CLI), fall back to mcp add (older versions).
+# If both fail the agent has NO memory tools — it will fall back to its broken
+# built-in index and leak workspace demo data as real user memory.  We must
+# surface a clear error here rather than let the user continue blind.
 Write-Host "Registering MnemOS MCP..."
 openclaw mcp unset mnemos 2>$null | Out-Null
-openclaw mcp add mnemos `
-  --command node `
-  --arg $McpJs `
-  --arg "--transport" `
-  --arg "stdio" `
-  --env "MNEMOS_URL=http://localhost:8000" `
-  --timeout 120 `
-  --connect-timeout 30
-if ($LASTEXITCODE -ne 0) { throw "openclaw mcp add mnemos failed" }
+
+$mcpSetJson = '{"command":"node","args":["' + $McpJs + '","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000"}}'
+openclaw mcp set mnemos $mcpSetJson 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  mcp set unavailable — trying mcp add (older OpenClaw)" -ForegroundColor DarkGray
+    openclaw mcp add mnemos `
+      --command node `
+      --arg $McpJs `
+      --arg "--transport" `
+      --arg "stdio" `
+      --env "MNEMOS_URL=http://localhost:8000" `
+      --timeout 120 `
+      --connect-timeout 30
+}
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "ERROR: Could not register MnemOS MCP tools." -ForegroundColor Red
+    Write-Host "Without these tools the agent CANNOT use memory — it will give WRONG answers." -ForegroundColor Red
+    Write-Host "Manual fix:  openclaw mcp set mnemos '$mcpSetJson'" -ForegroundColor Yellow
+    Write-Host "Then verify:  openclaw mcp probe mnemos" -ForegroundColor Yellow
+    throw "MCP registration failed — memory tools are required"
+}
 
 $UserFile = Join-Path $ConfigDir "mnemos-user-id.txt"
 if (-not (Test-Path $UserFile)) {

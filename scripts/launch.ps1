@@ -142,23 +142,40 @@ if (Test-OpenClawInstalled) {
     Step "Register MnemOS MCP tools" {
         $McpJs = (Join-Path $Root "mcp-server/src/index.js") -replace "\\", "/"
         openclaw mcp unset mnemos 2>$null | Out-Null
-        openclaw mcp add mnemos `
-            --command node `
-            --arg $McpJs `
-            --arg "--transport" `
-            --arg "stdio" `
-            --env "MNEMOS_URL=http://localhost:8000" `
-            --timeout 120 `
-            --connect-timeout 30 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "openclaw mcp add failed" }
+        $mcpSetJson = '{"command":"node","args":["' + $McpJs + '","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000"}}'
+        openclaw mcp set mnemos $mcpSetJson 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            # Fallback for older OpenClaw versions
+            openclaw mcp add mnemos `
+                --command node `
+                --arg $McpJs `
+                --arg "--transport" `
+                --arg "stdio" `
+                --env "MNEMOS_URL=http://localhost:8000" `
+                --timeout 120 `
+                --connect-timeout 30 2>&1 | Out-Null
+        }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  ERROR: MCP registration failed — memory tools are required" -ForegroundColor Red
+            Write-Host "  Manual fix: openclaw mcp set mnemos '$mcpSetJson'" -ForegroundColor Yellow
+            throw "MCP registration failed"
+        }
     }
 
-    # Free model bundle
+    # Free model bundle (fallback only — warn about stalls)
     $freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
+    $apiKey = Get-DotEnvValue "QWEN_API_KEY"
+    $isDashScopeKey = $apiKey -and $apiKey -match "^sk-[a-f0-9]" -and $apiKey -notmatch "^sk-or-v1"
     if (Test-Path $freePatch) {
-        Step "Apply free model bundle" {
-            Get-Content $freePatch -Raw | openclaw config patch --stdin 2>&1 | Out-Null
-            openclaw config set gateway.auth.mode none 2>$null | Out-Null
+        if ($isDashScopeKey) {
+            Write-Host "  DashScope key detected — skipping free model bundle (not needed)" -ForegroundColor DarkGray
+        } else {
+            Step "Apply free model bundle (WARNING: may stall 2–6 min/reply)" {
+                Get-Content $freePatch -Raw | openclaw config patch --stdin 2>&1 | Out-Null
+                openclaw config set gateway.auth.mode none 2>$null | Out-Null
+            }
+            Write-Host "  WARNING: Free OpenRouter models may stall for 2–6 minutes per reply." -ForegroundColor Yellow
+            Write-Host "  For a usable experience, get a DashScope key and set it in .env" -ForegroundColor Yellow
         }
     }
 

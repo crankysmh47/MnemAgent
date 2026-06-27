@@ -1,0 +1,68 @@
+# MnemAgent — files excluded from Docker build context
+# Keeps images lean and builds fast — no need to redeploy for doc-only changes.
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+*.egg-info
+dist
+build
+
+# Node
+node_modules
+npm-debug.log
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (large, not needed inside containers)
+docs
+*.md
+!CLAUDE.md
+
+# Tests (not needed at runtime)
+tests
+.pytest_cache
+.coverage
+htmlcov
+
+# Config (env is injected via env_file / environment)
+.env
+.env.*
+
+# Temp
+tmp
+temp
+*.tmp
+*.log
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Scripts (not needed in images)
+scripts
+
+# Claude
+.claude
+
+# OpenClaw runtime (not needed in MnemOS images)
+openclaw-harness/node_modules
+openclaw-harness/mcp-adapter/node_modules
+mcp-server/node_modules

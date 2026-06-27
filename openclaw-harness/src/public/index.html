@@ -379,7 +379,7 @@ function updateNodeDetail(graph) {
   const edgeCount = computeSemanticLinks(visible).length;
   const el = document.getElementById('nodeDetail');
   if (total === 0) {
-    el.textContent = 'No memories — click Refresh or open ?user=demo-brain';
+    el.textContent = 'No memories — chat with the agent to store facts, or open ?user=demo-brain for a demo';
   } else if (visible.length === 0) {
     el.textContent = `${total} memories hidden by filters — enable category or vividness chips`;
   } else {
@@ -1250,6 +1250,14 @@ function initUserId() {
   if (resolved) {
     input.value = resolved;
     input.placeholder = 'your-user-id';
+    // Persist canonical ID to localStorage so future loads (and the agent)
+    // share the same user_id — this prevents the "0 memories" mismatch.
+    try {
+      const stored = localStorage.getItem('mnemos_user_id');
+      if (!stored || stored.trim() !== resolved.trim()) {
+        localStorage.setItem('mnemos_user_id', resolved.trim());
+      }
+    } catch { /* ignore */ }
   } else {
     input.value = '';
     input.placeholder = 'Run setup or enter user_id';
@@ -1257,7 +1265,8 @@ function initUserId() {
 }
 
 async function resolveDefaultUserId() {
-  // Try the whoami endpoint first (canonical ID from MnemOS API)
+  // Try the whoami endpoint first (canonical ID from MnemOS API,
+  // same ID the agent uses — eliminates visualizer / agent mismatch).
   try {
     const whoamiResp = await fetch('/api/user/whoami');
     if (whoamiResp.ok) {
@@ -1269,9 +1278,9 @@ async function resolveDefaultUserId() {
       }
     }
   } catch {
-    /* whoami not available */
+    /* whoami not available — MnemOS may be starting up */
   }
-  // Fall back to setup default
+  // Fall back to setup-generated file or env override
   try {
     const resp = await fetch('/api/setup/default-user-id');
     if (resp.ok) {

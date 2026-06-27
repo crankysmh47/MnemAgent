@@ -274,20 +274,33 @@ step "MCP server npm dependencies" bash -c "
 "
 
 # Register MnemOS MCP (stdio transport)
+# Try mcp set first (current OpenClaw CLI), fall back to mcp add (older versions).
 register_mcp() {
     openclaw mcp unset mnemos 2>/dev/null || true
-    openclaw mcp add mnemos \
-        --command node \
-        --arg "$MCP_JS" \
-        --arg "--transport" \
-        --arg "stdio" \
-        --env "MNEMOS_URL=http://localhost:8000" \
-        --timeout 120 \
-        --connect-timeout 30 >/dev/null 2>&1
+    MCP_SET_JSON="{\"command\":\"node\",\"args\":[\"$MCP_JS\",\"--transport\",\"stdio\"],\"env\":{\"MNEMOS_URL\":\"http://localhost:8000\"}}"
+    if ! openclaw mcp set mnemos "$MCP_SET_JSON" >/dev/null 2>&1; then
+        log_gray "  mcp set unavailable — trying mcp add (older OpenClaw)"
+        openclaw mcp add mnemos \
+            --command node \
+            --arg "$MCP_JS" \
+            --arg "--transport" \
+            --arg "stdio" \
+            --env "MNEMOS_URL=http://localhost:8000" \
+            --timeout 120 \
+            --connect-timeout 30 >/dev/null 2>&1
+    fi
 }
 step "Register MnemOS MCP tools" register_mcp
+if ! openclaw mcp probe mnemos >/dev/null 2>&1; then
+    log_red ""
+    log_red "ERROR: Could not register MnemOS MCP tools."
+    log_red "Without these tools the agent CANNOT use memory — it will give WRONG answers."
+    log_red "Manual fix:  openclaw mcp set mnemos '$MCP_SET_JSON'"
+    log_red "Then verify:  openclaw mcp probe mnemos"
+    exit 1
+fi
 
-# Apply free model bundle (OpenRouter free tier fallbacks)
+# Apply free model bundle (OpenRouter free tier fallbacks — WARN about stalls)
 FREE_PATCH="$ROOT/config/openclaw/free-models.patch.json"
 apply_free_patch() {
     if [ -f "$FREE_PATCH" ]; then
@@ -296,7 +309,15 @@ apply_free_patch() {
     fi
 }
 if [ -f "$FREE_PATCH" ]; then
-    step "Apply free model bundle" apply_free_patch
+    # Only apply free bundle if user doesn't have a DashScope key
+    if grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null && \
+       ! grep -q '^QWEN_API_KEY=sk-or-v1' "$ROOT/.env" 2>/dev/null; then
+        log_gray "  DashScope key detected — skipping free model bundle (not needed)"
+    else
+        step "Apply free model bundle (WARNING: may stall 2–6 min/reply)" apply_free_patch
+        log_yellow "  WARNING: Free OpenRouter models may stall for 2–6 minutes per reply."
+        log_yellow "  For a usable experience, get a DashScope key and set QWEN_API_KEY in .env"
+    fi
 fi
 
 # Copy workspace files to ~/.openclaw/workspace/

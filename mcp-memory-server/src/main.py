@@ -194,10 +194,20 @@ async def lifespan(app: FastAPI):
     loop = asyncio.get_running_loop()
     from memory.waking import get_local_embedding_sync
 
+    # Pre-load the embedding model before accepting requests.
+    # The all-MiniLM-L6-v2 model is ~90 MB and downloads from HuggingFace on
+    # first use.  Doing it during startup means the first user request is fast
+    # instead of timing out after 2+ minutes.
     async def _warmup_embeddings() -> None:
-        await loop.run_in_executor(None, get_local_embedding_sync, "mnemos warmup")
+        try:
+            await loop.run_in_executor(None, get_local_embedding_sync, "mnemos warmup")
+            logger.info("Embedding model warmup complete.")
+        except Exception as exc:
+            logger.warning("Embedding warmup failed (will retry on first use): %s", exc)
 
-    asyncio.create_task(_warmup_embeddings())
+    # Await, don't fire-and-forget — the server should be fully ready before
+    # the Docker healthcheck passes and before user requests arrive.
+    await _warmup_embeddings()
     logger.info("MnemOS booted successfully.")
     yield
     logger.info("MnemOS shutting down.")
