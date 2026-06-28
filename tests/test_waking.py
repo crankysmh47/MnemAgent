@@ -212,6 +212,21 @@ async def test_build_payload_empty_graph(initialized_db: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_build_payload_does_not_inject_for_irrelevant_casual_chat(populated_db: Path) -> None:
+    with patch("memory.waking.get_embedding", new=AsyncMock(return_value=[0.1] * 384)):
+        result = await build_optimized_qwen_payload(
+            "user1",
+            "s1",
+            "Say hello in a friendly way, nothing else.",
+            10,
+            populated_db,
+        )
+    assert result["injected_ids"] == []
+    system_msg = result["payload"]["messages"][0]["content"]
+    assert "(no stored memories yet)" in system_msg
+
+
+@pytest.mark.asyncio
 async def test_build_payload_updates_last_accessed(populated_db: Path) -> None:
     with patch("memory.waking.get_embedding", new=AsyncMock(return_value=[0.1] * 384)):
         result = await build_optimized_qwen_payload(

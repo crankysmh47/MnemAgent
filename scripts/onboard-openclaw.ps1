@@ -55,7 +55,7 @@ if (-not $baseUrl) { $baseUrl = "https://openrouter.ai/api/v1" }
 
 # Smart default: if the user has a DashScope key, use qwen-turbo directly
 # (free OpenRouter models stall for 2–6 minutes — unacceptable default experience).
-$isDashScopeKey = $apiKey -match "^sk-[a-f0-9]" -and $apiKey -notmatch "^sk-or-v1"
+$isAlibabaKey = ($apiKey -match "^sk-ws-") -or ($apiKey -match "^sk-[a-f0-9]" -and $apiKey -notmatch "^sk-or-v1")
 $isOpenRouterKey = $apiKey -match "^sk-or-v1"
 $isPlaceholderKey = $apiKey -match "^sk-or-v1-xxxxxxxxxxxx" -or $apiKey -match "^sk-xxxxxxxxxxxx"
 
@@ -66,17 +66,19 @@ if ($isPlaceholderKey) {
     throw "Placeholder API key — add your real key to .env"
 }
 
-if ($isDashScopeKey) {
+if ($isAlibabaKey) {
     # Use DashScope directly — fast, reliable, hackathon target
-    $baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    if (-not $baseUrl) { $baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1" }
     if (-not $modelId -or $modelId -match ":free$") {
         $modelId = "qwen-turbo"
     }
     $onboardModel = $modelId
-    Write-Host "LLM: DashScope $modelId (Alibaba Cloud) — fast path"
+    $providerId = "dashscope"
+    Write-Host "LLM: Alibaba Qwen $modelId via $baseUrl"
 } elseif ($isOpenRouterKey) {
     # OpenRouter key — use the model from .env, fall back to free bundle with warning
     $onboardModel = if ($modelId -and $modelId -notmatch ":free$") { $modelId } else { "openrouter/free" }
+    $providerId = "openrouter"
     Write-Host "LLM: OpenRouter $onboardModel"
     if ($onboardModel -eq "openrouter/free") {
         Write-Host "  WARNING: Free models may stall for 2–6 minutes per reply." -ForegroundColor Yellow
@@ -85,11 +87,10 @@ if ($isDashScopeKey) {
 } else {
     # Unknown key format — try as custom provider
     $onboardModel = if ($modelId) { $modelId } else { "qwen-turbo" }
+    $providerId = "custom"
     Write-Host "LLM: Custom provider — $onboardModel"
 }
 $freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
-
-Write-Host "LLM: OpenRouter free bundle via $baseUrl"
 
 # MnemOS stack
 Write-Host "Starting MnemOS Docker stack..."
@@ -142,7 +143,7 @@ if (-not (Test-Path $configFile)) {
     --custom-base-url $baseUrl `
     --custom-model-id $onboardModel `
     --custom-compatibility openai `
-    --custom-provider-id openrouter `
+    --custom-provider-id $providerId `
     --skip-channels `
     --skip-skills `
     --skip-search `
@@ -156,7 +157,7 @@ if (-not (Test-Path $configFile)) {
 }
 
 # Free model bundle + local gateway auth
-if (Test-Path $freePatch) {
+if ((-not $isAlibabaKey) -and (Test-Path $freePatch)) {
   Get-Content $freePatch -Raw | openclaw config patch --stdin
 }
 openclaw config set gateway.auth.mode none 2>$null

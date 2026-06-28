@@ -21,6 +21,7 @@ from memory.response_grounding import (
     fetch_salience_rejected_values,
     fetch_suppressed_values,
     is_compound_probe,
+    should_inject_memory_context,
 )
 from storage.db_manager import (
     VEC_AVAILABLE,
@@ -517,11 +518,15 @@ async def build_optimized_qwen_payload(
             conn.close()
 
         compound = is_compound_probe(user_input)
+        memory_relevant = compound or should_inject_memory_context(user_input)
         suppressed = fetch_suppressed_values(user_id, db_path)
         rejected = fetch_salience_rejected_values(user_id, db_path)
         forbidden = list(dict.fromkeys(suppressed + rejected))
 
-        if compound or node_count <= settings.MAX_INJECTED_FACTS:
+        if not memory_relevant:
+            selected = []
+            selected_ids = set()
+        elif compound or node_count <= settings.MAX_INJECTED_FACTS:
             selected = fetch_all_active_beliefs(
                 user_id,
                 db_path,

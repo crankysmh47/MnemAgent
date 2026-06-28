@@ -15,10 +15,24 @@ _COMPOUND_PROBE_RE = re.compile(
     r")\b"
 )
 
+_MEMORY_RELEVANCE_RE = re.compile(
+    r"(?i)\b("
+    r"remember|recall|remind|memory|stored|previous|earlier|preference|prefer|"
+    r"what do i|what did i|what is my|what are my|what should|which should|"
+    r"stack|backend|frontend|framework|language|database|codename|project|"
+    r"settings|setup|use for|using for"
+    r")\b"
+)
+
 
 def is_compound_probe(user_input: str) -> bool:
     """Detect multi-fact recall questions where all injected beliefs must surface."""
     return bool(_COMPOUND_PROBE_RE.search(user_input))
+
+
+def should_inject_memory_context(user_input: str) -> bool:
+    """True when memory is likely relevant enough to inject into the prompt."""
+    return bool(_MEMORY_RELEVANCE_RE.search(user_input))
 
 
 _HEDGED_TEACH_RE = re.compile(

@@ -75,6 +75,43 @@ async def test_chat_with_memory_update(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_chat_with_memory_update_skips_secondary_extraction(test_client: AsyncClient) -> None:
+    raw = (
+        '<memory_update>{"entity":"project","relation":"codename","value":"HelioForge",'
+        '"category":"system_state","conviction":1.0}</memory_update> Noted!'
+    )
+    with patch("main.call_qwen_api", new=AsyncMock(return_value=raw)):
+        with patch(
+            "main.extract_facts_from_user_message",
+            new=AsyncMock(
+                return_value=[
+                    {
+                        "entity": "hackathon_project_codename",
+                        "relation": "is",
+                        "value": "HelioForge",
+                        "category": "system_state",
+                        "conviction": 1.0,
+                    }
+                ]
+            ),
+        ) as secondary:
+            resp = await test_client.post(
+                "/chat",
+                json={
+                    "user_id": "dedupe-test",
+                    "session_id": "s1",
+                    "message": "My hackathon project codename is HelioForge.",
+                },
+            )
+    assert resp.status_code == 200
+    secondary.assert_not_awaited()
+
+    dump = await test_client.get("/api/memory/dump/dedupe-test")
+    response = dump.json()["response"]
+    assert response.count("HelioForge") == 1
+
+
+@pytest.mark.asyncio
 async def test_chat_request_validation(test_client: AsyncClient) -> None:
     resp = await test_client.post("/chat", json={"user_id": "u1"})
     assert resp.status_code == 422

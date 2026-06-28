@@ -165,9 +165,9 @@ if (Test-OpenClawInstalled) {
     # Free model bundle (fallback only — warn about stalls)
     $freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
     $apiKey = Get-DotEnvValue "QWEN_API_KEY"
-    $isDashScopeKey = $apiKey -and $apiKey -match "^sk-[a-f0-9]" -and $apiKey -notmatch "^sk-or-v1"
+    $isAlibabaKey = $apiKey -and (($apiKey -match "^sk-ws-") -or ($apiKey -match "^sk-[a-f0-9]" -and $apiKey -notmatch "^sk-or-v1"))
     if (Test-Path $freePatch) {
-        if ($isDashScopeKey) {
+        if ($isAlibabaKey) {
             Write-Host "  DashScope key detected — skipping free model bundle (not needed)" -ForegroundColor DarkGray
         } else {
             Step "Apply free model bundle (WARNING: may stall 2–6 min/reply)" {

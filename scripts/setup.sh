@@ -226,6 +226,7 @@ log_cyan "[5/7] OpenClaw onboarding ..."
 
 OPENCLAW_CONFIG_FILE="$CONFIG_DIR/openclaw.json"
 BASE_URL="${QWEN_BASE_URL:-$(get_env QWEN_BASE_URL || echo 'https://openrouter.ai/api/v1')}"
+MODEL_ID="${QWEN_MODEL:-$(get_env QWEN_MODEL || echo 'openrouter/free')}"
 
 # Use API key from env var or .env
 if [ -z "$API_KEY" ] || echo "$API_KEY" | grep -qiE "xxxx|sk-or-v1-xxxxxxxx"; then
@@ -233,6 +234,14 @@ if [ -z "$API_KEY" ] || echo "$API_KEY" | grep -qiE "xxxx|sk-or-v1-xxxxxxxx"; th
     [ -z "$ONBOARD_KEY" ] && ONBOARD_KEY="sk-or-v1-placeholder"
 else
     ONBOARD_KEY="$API_KEY"
+fi
+
+PROVIDER_ID="openrouter"
+if echo "$ONBOARD_KEY" | grep -qE '^sk-ws-|^sk-[a-f0-9]'; then
+    if ! echo "$ONBOARD_KEY" | grep -q '^sk-or-v1'; then
+        PROVIDER_ID="dashscope"
+        [ "$MODEL_ID" = "openrouter/free" ] && MODEL_ID="qwen3.5-flash"
+    fi
 fi
 
 do_onboard() {
@@ -247,9 +256,9 @@ do_onboard() {
         --auth-choice custom-api-key \
         --custom-api-key "$ONBOARD_KEY" \
         --custom-base-url "$BASE_URL" \
-        --custom-model-id "openrouter/free" \
+        --custom-model-id "$MODEL_ID" \
         --custom-compatibility openai \
-        --custom-provider-id openrouter \
+        --custom-provider-id "$PROVIDER_ID" \
         --skip-channels \
         --skip-skills \
         --skip-search \
@@ -309,10 +318,11 @@ apply_free_patch() {
     fi
 }
 if [ -f "$FREE_PATCH" ]; then
-    # Only apply free bundle if user doesn't have a DashScope key
-    if grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null && \
+    # Only apply free bundle if user doesn't have an Alibaba Qwen key
+    if { grep -q '^QWEN_API_KEY=sk-ws-' "$ROOT/.env" 2>/dev/null || \
+       grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null; } && \
        ! grep -q '^QWEN_API_KEY=sk-or-v1' "$ROOT/.env" 2>/dev/null; then
-        log_gray "  DashScope key detected — skipping free model bundle (not needed)"
+        log_gray "  Alibaba Qwen key detected — skipping free model bundle (not needed)"
     else
         step "Apply free model bundle (WARNING: may stall 2–6 min/reply)" apply_free_patch
         log_yellow "  WARNING: Free OpenRouter models may stall for 2–6 minutes per reply."

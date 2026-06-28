@@ -5,6 +5,7 @@ from __future__ import annotations
 from memory.response_grounding import (
     ground_response_with_injection,
     is_compound_probe,
+    should_inject_memory_context,
     strip_suppressed_mentions,
 )
 
@@ -16,6 +17,14 @@ def test_is_compound_probe_detects_stack_summary() -> None:
 
 def test_is_compound_probe_rejects_simple_chat() -> None:
     assert not is_compound_probe("Thanks, that helps!")
+
+
+def test_should_inject_memory_context_rejects_casual_greeting() -> None:
+    assert not should_inject_memory_context("Say hello in a friendly way, nothing else.")
+
+
+def test_should_inject_memory_context_accepts_recall_request() -> None:
+    assert should_inject_memory_context("What is my project codename and preferred backend?")
 
 
 def test_strip_suppressed_mentions_removes_stale_value() -> None:

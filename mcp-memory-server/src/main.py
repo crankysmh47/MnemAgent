@@ -152,7 +152,7 @@ async def _run_dreaming_phase(
     Dual-path write system: LLM-reported facts + server-side user extraction.
 
     Path 1: Primary dual-output extraction (when the model emitted real facts).
-    Path 2: Server-side extraction from the user message (always runs).
+    Path 2: Server-side extraction from the user message when Path 1 found no facts.
     Path 3: UCB utility feedback.
     Path 4: Episodic log (+ optional cloud sync).
     """
@@ -160,6 +160,7 @@ async def _run_dreaming_phase(
     try:
         async with _dreaming_semaphore:
             loop = asyncio.get_running_loop()
+            llm_facts: list[dict] = []
 
             # Path 1: LLM dual-output (bonus when compliant — not required for storage)
             if memory_dicts is not None:
@@ -172,7 +173,7 @@ async def _run_dreaming_phase(
                     await _consolidate_facts(loop, user_id, llm_facts, user_prompt)
 
             # Path 2: Server-side teach extractor (robust to skip / non-compliance)
-            if settings.ENABLE_DREAMING_EXTRACTION:
+            if settings.ENABLE_DREAMING_EXTRACTION and not llm_facts:
                 server_facts = await extract_facts_from_user_message(
                     user_prompt,
                     user_id,
