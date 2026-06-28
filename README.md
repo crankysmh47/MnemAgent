@@ -219,7 +219,7 @@ docker compose up -d --build
 | Verify MCP tools | `openclaw mcp probe mnemos` |
 | Terminal proof | `powershell -File scripts/prove-memory.ps1` |
 
-Copy `config/env.template` to `.env`. OpenRouter free models work for development; DashScope Qwen is recommended for demos and evaluation.
+Copy `config/env.template` to `.env`. A DashScope Qwen API key is required (`qwen3.5-flash` is the default).
 
 ---
 
@@ -297,7 +297,7 @@ MnemAgent/
 
 | Mode | LLM | Memory DB | Embeddings |
 |------|-----|-----------|------------|
-| Local dev | OpenRouter free (default in `env.template`) | SQLite Docker volume | `all-MiniLM-L6-v2` |
+| Local dev | DashScope Qwen trial (default in `env.template`) | SQLite Docker volume | `all-MiniLM-L6-v2` |
 | Demo / eval | DashScope Qwen | Same | Same |
 | Cloud backup | — | OSS snapshot every 50 turns | — |
 

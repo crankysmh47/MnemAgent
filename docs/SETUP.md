@@ -72,9 +72,8 @@ bash scripts/setup.sh
 6. Installs OpenClaw globally via npm
 7. Runs `openclaw onboard` with your credentials
 8. Registers the MnemOS MCP toolset (7 tools via stdio transport)
-9. Applies the free-model bundle (OpenRouter free tier fallbacks)
-10. Copies workspace files to `~/.openclaw/workspace/`
-11. Starts the OpenClaw gateway
+9. Copies workspace files to `~/.openclaw/workspace/`
+10. Starts the OpenClaw gateway
 12. Verifies MCP probe returns 7 tools
 13. Prints a success banner with quick-start commands
 
@@ -102,8 +101,8 @@ If the one-command script fails or you prefer manual control, follow these steps
 
 ```bash
 cp config/env.template .env
-# Edit .env — set QWEN_API_KEY to your OpenRouter API key
-# Get a free key at: https://openrouter.ai/keys
+# Edit .env — set QWEN_API_KEY to your DashScope API key
+# Get a key at: https://dashscope.aliyuncs.com
 ```
 
 ### 2. Python Virtual Environment
@@ -146,9 +145,9 @@ openclaw onboard \
   --auth-choice custom-api-key \
   --custom-api-key "$QWEN_API_KEY" \
   --custom-base-url "$QWEN_BASE_URL" \
-  --custom-model-id "openrouter/free" \
+  --custom-model-id "$QWEN_MODEL" \
   --custom-compatibility openai \
-  --custom-provider-id openrouter \
+  --custom-provider-id dashscope \
   --skip-channels \
   --skip-skills \
   --skip-search \
@@ -186,25 +185,14 @@ fi
 > wrong answers (including leaking demo data). Always verify with `openclaw mcp probe mnemos`
 > and ensure it shows 7 tools.
 
-### 7. Apply Free Model Bundle (OPTIONAL — only if no DashScope key)
-
-> **WARNING**: Free OpenRouter models may stall for **2–6 minutes per reply**.
-> If you have a DashScope API key, skip this step — the setup will use qwen-turbo
-> directly, which is fast and reliable. Only apply the free bundle as a last resort.
-
-```bash
-cat config/openclaw/free-models.patch.json | openclaw config patch --stdin
-openclaw config set gateway.auth.mode none
-```
-
-### 8. Copy Workspace Files
+### 7. Copy Workspace Files
 
 ```bash
 mkdir -p ~/.openclaw/workspace/skills/mnemos-memory
 cp -r config/workspace/* ~/.openclaw/workspace/
 ```
 
-### 9. Start Gateway
+### 8. Start Gateway
 
 ```bash
 openclaw gateway restart --force
@@ -212,7 +200,7 @@ sleep 5
 openclaw gateway health
 ```
 
-### 10. Verify
+### 9. Verify
 
 ```bash
 openclaw mcp list
@@ -305,13 +293,10 @@ pwsh scripts/integration-test.ps1   # Linux/macOS with PowerShell
 
 ```bash
 # Use cheapest model
-openclaw config set agents.defaults.model.primary "openrouter/qwen/qwen-2.5-72b-instruct:free"
+openclaw config set agents.defaults.model.primary "dashscope/qwen-flash"
 
 # Use best quality
-openclaw config set agents.defaults.model.primary "openrouter/qwen/qwen-max"
-
-# Use balanced
-openclaw config set agents.defaults.model.primary "openrouter/qwen/qwen-plus"
+openclaw config set agents.defaults.model.primary "dashscope/qwen-max"
 ```
 
 ### Via .env file
@@ -320,43 +305,21 @@ Edit `.env` and change `QWEN_MODEL`:
 
 ```
 # Cheapest, daily use
-QWEN_MODEL=qwen-turbo
+QWEN_MODEL=qwen-flash
 
 # Balanced
 QWEN_MODEL=qwen-plus
 
 # Best quality (demos, eval)
 QWEN_MODEL=qwen-max
-
-# Free OpenRouter model
-QWEN_MODEL=deepseek/deepseek-r1-0528:free
 ```
 
 Then re-onboard if needed, or just update the gateway config:
 
 ```bash
-openclaw config set agents.defaults.model.primary "openrouter/$QWEN_MODEL"
+openclaw config set agents.defaults.model.primary "dashscope/$QWEN_MODEL"
 openclaw gateway restart --force
 ```
-
-### Free Tier Models (OpenRouter) — USE WITH CAUTION
-
-> **⚠️ WARNING**: Free OpenRouter models may **stall for 2–6 minutes per reply**.
-> This is not a MnemOS bug — it's the OpenRouter free tier being overloaded.
-> For a usable experience, use a DashScope API key with `qwen-turbo` instead.
-> The free bundle is a fallback, not the recommended default.
-
-The `config/openclaw/free-models.patch.json` file bundles multiple free OpenRouter models as fallbacks:
-
-| Model | Quality | Speed |
-|-------|---------|-------|
-| `openrouter/free` | Auto-best | Auto (often slow) |
-| `deepseek/deepseek-r1-0528:free` | High | Medium |
-| `qwen/qwen-2.5-72b-instruct:free` | High | Fast |
-| `meta-llama/llama-3.3-70b-instruct:free` | High | Fast |
-| `qwen/qwen3-coder:free` | Very High | Medium |
-
-**How to avoid free model stalls**: Get a DashScope API key from https://dashscope.aliyuncs.com, set it in `.env` as `QWEN_API_KEY`, and set `QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1`. The setup scripts will auto-detect it and skip the free bundle.
 
 ---
 
@@ -392,7 +355,6 @@ The `config/openclaw/free-models.patch.json` file bundles multiple free OpenRout
 | Node errors in MCP | `cd mcp-server && npm install` |
 | **"index metadata is missing"** or **"memory search is paused"** | Your MCP tools are NOT registered. The agent has fallen back to OpenClaw's broken built-in memory. Run `openclaw mcp list` — if `mnemos` is missing, re-register: `openclaw mcp set mnemos '{"command":"node","args":["<path-to-mcp-server>/src/index.js","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000"}}'` |
 | **Agent gives wrong facts (e.g. "FAST student")** | This is demo data from `USER.md` leaking because memory search failed. Fix the MCP registration first (above). The fixed USER.md is now a template that won't be treated as real data. |
-| **No reply for 2–6 minutes** | You're using a free OpenRouter model. Switch to a DashScope key: set `QWEN_API_KEY` and `QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1` in `.env`, then re-run setup. |
 
 ### Python issues
 
@@ -408,7 +370,6 @@ The `config/openclaw/free-models.patch.json` file bundles multiple free OpenRout
 |---------|-----|
 | "QWEN_API_KEY missing" | Edit `.env` and add your key |
 | `.env` not being read | Make sure `.env` is in the repo root (same level as `docker-compose.yml`) |
-| Rate limited by OpenRouter | Wait a minute or switch to a different free model in `.env` |
 
 ### Port conflicts
 
@@ -417,19 +378,6 @@ If ports 8000, 8001, or 3000 are already in use on your machine:
 1. Edit `docker-compose.yml` to change the host ports (e.g., `"8000:8000"` to `"8005:8000"`)
 2. Update `.env` with the new ports
 3. Re-run setup
-
-#### Port 3000 OAuth clash
-
-OpenClaw's browser OAuth login (for OpenRouter) redirects to `localhost:3000`. If the MnemOS visualizer container is already running on port 3000, the OAuth callback fails with **"Cannot GET /openrouter-oauth/callback"**.
-
-**Fix**: Stop the visualizer container before logging in, then restart it:
-```bash
-docker compose stop openclaw-harness
-# Complete the OAuth login in your browser
-docker compose start openclaw-harness
-```
-
-Or skip the browser OAuth entirely — use `openclaw login --api-key <your-key>` instead.
 
 ---
 

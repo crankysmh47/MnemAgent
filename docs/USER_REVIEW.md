@@ -32,7 +32,7 @@ You are not testing a standalone chatbot. You are testing **OpenClaw with a pers
 - **Linux / macOS:** follow the bash path below.
 - **Windows:** **WSL 2 + Ubuntu is strongly recommended** (`bash scripts/setup.sh`). Native PowerShell works but is a second-class path (see Windows section).
 
-You also need a **free LLM API key** from [OpenRouter](https://openrouter.ai/keys) (default in the project). No DashScope key is required for basic testing.
+You also need a **free trial LLM API key** from [DashScope](https://dashscope.aliyuncs.com) (default in the project).
 
 ---
 
@@ -56,10 +56,10 @@ cp config/env.template .env
 Edit `.env` and set:
 
 ```
-QWEN_API_KEY=sk-or-v1-your-real-key-here
+QWEN_API_KEY=sk-your-real-dashscope-key-here
 ```
 
-Leave the OpenRouter defaults unless instructed otherwise.
+Leave the DashScope defaults unless instructed otherwise.
 
 **3. One-command setup** (first run: **2–5 minutes** while Docker builds)
 
@@ -307,7 +307,6 @@ Use **new sessions** (close/reopen dashboard or new `--session-id` in CLI).
 
 - [ ] **Memory down:** stop Docker → send chat message → note error quality (graceful vs cryptic)
 - [ ] **Bad API key:** note error message clarity
-- [ ] **Rate limit** (OpenRouter free): note behavior when model is throttled
 - [ ] Gateway running but MCP broken → what does the user see?
 
 ### K. Optional channel scripts (only if enabled)

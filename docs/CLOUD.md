@@ -209,7 +209,7 @@ All variables are read from `.env` at container start. Required variables are **
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| **`QWEN_API_KEY`** | (required) | DashScope or OpenRouter API key |
+| **`QWEN_API_KEY`** | (required) | DashScope API key |
 | `QWEN_MODEL` | `qwen-flash` | Model ID for chat/completions |
 | `QWEN_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | API base URL |
 | `HOST` | `0.0.0.0` | uvicorn bind address |
