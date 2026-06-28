@@ -33,6 +33,7 @@ eval/results/
 # IDE
 .idea/
 .vscode/
+.claude/
 *.swp
 
 # OS
