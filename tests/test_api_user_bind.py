@@ -16,6 +16,24 @@ async def test_user_bind_endpoint(test_client: AsyncClient) -> None:
     assert data["channel"] == "telegram"
 
 
+async def test_user_bind_endpoint_can_attach_existing_user_id(test_client: AsyncClient) -> None:
+    resp = await test_client.post(
+        "/api/user/bind",
+        json={
+            "channel": "discord",
+            "sender_id": "tester-1",
+            "display_name": "Tester",
+            "user_id": "review-shared-user",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["user_id"] == "review-shared-user"
+
+    bindings = await test_client.get("/api/user/bindings/review-shared-user")
+    assert bindings.status_code == 200
+    assert bindings.json()["bindings"][0]["channel"] == "discord"
+
+
 async def test_memory_dump_endpoint(test_client: AsyncClient) -> None:
     store = await test_client.post(
         "/api/memory/store",

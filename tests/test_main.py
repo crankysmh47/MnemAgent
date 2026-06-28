@@ -98,6 +98,41 @@ async def test_chat_qwen_failure_graceful(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_chat_qwen_failure_still_stores_clear_teach_message(test_client: AsyncClient) -> None:
+    with patch(
+        "main.call_qwen_api",
+        new=AsyncMock(return_value="I'm having trouble connecting right now. Please try again."),
+    ):
+        with patch(
+            "main.build_optimized_qwen_payload",
+            new=AsyncMock(
+                return_value={
+                    "payload": {},
+                    "injected_ids": [],
+                    "injected_values": [],
+                }
+            ),
+        ):
+            resp = await test_client.post(
+                "/chat",
+                json={
+                    "user_id": "fallback-teach",
+                    "session_id": "s1",
+                    "message": (
+                        "Remember this: my project codename is HelioForge, "
+                        "and my preferred backend language is Python."
+                    ),
+                },
+            )
+    assert resp.status_code == 200
+    assert "Saved to memory" in resp.json()["response"]
+
+    dump = await test_client.get("/api/memory/dump/fallback-teach")
+    assert "HelioForge" in dump.json()["response"]
+    assert "Python" in dump.json()["response"]
+
+
+@pytest.mark.asyncio
 async def test_main_background_task_error_doesnt_crash(test_client: AsyncClient) -> None:
     with patch("main._run_dreaming_phase", side_effect=Exception("boom")):
         with patch("main.call_qwen_api", new=AsyncMock(return_value="ok")):

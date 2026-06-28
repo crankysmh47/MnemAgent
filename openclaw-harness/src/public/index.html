@@ -160,17 +160,17 @@ const CHART_GRID = 'rgba(180, 150, 120, 0.14)';
 const CHART_TICK = '#7A6E62';
 
 function uid() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('user')) return params.get('user');
+  // If we have a canonical user_id from the whoami endpoint, use it
+  if (window.__mnemosCanonicalUserId) return window.__mnemosCanonicalUserId;
+  if (window.__mnemosDefaultUserId) return window.__mnemosDefaultUserId;
   try {
     const stored = localStorage.getItem('mnemos_user_id');
     if (stored && stored.trim()) return stored.trim();
   } catch {
     /* ignore */
   }
-  const params = new URLSearchParams(location.search);
-  if (params.get('user')) return params.get('user');
-  if (window.__mnemosDefaultUserId) return window.__mnemosDefaultUserId;
-  // If we have a canonical user_id from the whoami endpoint, use it
-  if (window.__mnemosCanonicalUserId) return window.__mnemosCanonicalUserId;
   return '';  // empty = unconfigured; the input placeholder guides the user
 }
 

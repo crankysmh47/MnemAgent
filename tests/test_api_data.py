@@ -81,3 +81,69 @@ def test_search_memories(initialized_db) -> None:
     )
     results = search_memories("u1", "python", top_k=5, db_path=initialized_db)
     assert len(results) >= 1
+
+
+def test_search_memories_tokenizes_natural_compound_queries(initialized_db) -> None:
+    facts = [
+        ("backend_language", "prefers", "Python", "preference"),
+        ("frontend_framework", "uses", "React", "system_state"),
+        ("project_codename", "is", "Atlas", "system_state"),
+    ]
+    for entity, relation, value, category in facts:
+        consolidate_and_prune_memory(
+            "u1",
+            {
+                "entity": entity,
+                "relation": relation,
+                "value": value,
+                "category": category,
+                "conviction": 1.0,
+            },
+            initialized_db,
+        )
+
+    results = search_memories(
+        "u1",
+        "what do I use for Python React backend work on Atlas",
+        top_k=5,
+        db_path=initialized_db,
+    )
+    pairs = {(r["entity_source"], r["entity_target"]) for r in results}
+    assert ("backend_language", "Python") in pairs
+    assert ("frontend_framework", "React") in pairs
+    assert ("project_codename", "Atlas") in pairs
+
+
+def test_search_memories_compound_queries_preserve_category_filter(initialized_db) -> None:
+    consolidate_and_prune_memory(
+        "u1",
+        {
+            "entity": "backend_language",
+            "relation": "prefers",
+            "value": "Python",
+            "category": "preference",
+            "conviction": 1.0,
+        },
+        initialized_db,
+    )
+    consolidate_and_prune_memory(
+        "u1",
+        {
+            "entity": "backend_runtime",
+            "relation": "uses",
+            "value": "Python",
+            "category": "system_state",
+            "conviction": 1.0,
+        },
+        initialized_db,
+    )
+
+    results = search_memories(
+        "u1",
+        "backend python",
+        top_k=5,
+        category="system_state",
+        db_path=initialized_db,
+    )
+    assert results
+    assert {r["category"] for r in results} == {"system_state"}

@@ -11,6 +11,7 @@ import pytest
 
 from llm.qwen_client import (
     call_qwen_api,
+    extract_facts_deterministically,
     extract_facts_from_conversation,
     extract_facts_from_user_message,
     extract_memory_update,
@@ -29,6 +30,17 @@ def test_extract_memory_update_valid() -> None:
     assert result is not None
     assert result["entity"] == "x"
     assert result["value"] == "y"
+
+
+def test_extract_facts_deterministically_handles_clear_teach_message() -> None:
+    facts = extract_facts_deterministically(
+        "Remember this for future chats: my hackathon project codename is HelioForge, "
+        "my preferred backend language is Python, and my frontend framework is React."
+    )
+    triples = {(f["entity"], f["relation"], f["value"]) for f in facts}
+    assert ("hackathon_project_codename", "is", "HelioForge") in triples
+    assert ("backend_language", "prefers", "Python") in triples
+    assert ("frontend_framework", "is", "React") in triples
 
 
 def test_extract_memory_update_no_tags() -> None:

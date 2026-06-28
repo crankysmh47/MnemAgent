@@ -12,6 +12,36 @@ from typing import Any
 from config import settings
 from storage.db_manager import get_db_connection, get_total_turns
 
+_QUERY_STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "can",
+    "for",
+    "from",
+    "i",
+    "in",
+    "is",
+    "it",
+    "me",
+    "my",
+    "of",
+    "on",
+    "or",
+    "our",
+    "the",
+    "to",
+    "use",
+    "using",
+    "what",
+    "with",
+}
+
 
 def _ucb_score(q_i: float, n_i: int, total_turns: int) -> float:
     return q_i + settings.UCB_EXPLORATION_C * math.sqrt(
@@ -21,6 +51,19 @@ def _ucb_score(q_i: float, n_i: int, total_turns: int) -> float:
 
 def _norm_term(value: str | None) -> str:
     return re.sub(r"[_\s]+", "-", (value or "").lower()).strip()
+
+
+def _search_terms(query: str) -> list[str]:
+    """Tokenize natural memory_search queries into useful SQL LIKE terms."""
+    seen: set[str] = set()
+    terms: list[str] = []
+    for raw in re.findall(r"[a-zA-Z0-9_+-]+", query.lower()):
+        term = raw.strip("_+-")
+        if len(term) < 2 or term in _QUERY_STOP_WORDS or term in seen:
+            continue
+        seen.add(term)
+        terms.append(term)
+    return terms[:12]
 
 
 def _build_graph_edges(beliefs: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -301,21 +344,49 @@ def search_memories(
     min_weight = min_confidence if min_confidence is not None else settings.PRUNE_THRESHOLD
     conn = get_db_connection(db_path)
     try:
-        pattern = f"%{query.lower()}%"
+        terms = _search_terms(query)
         sql = """
-            SELECT * FROM semantic_graph
+            SELECT *, 0 AS term_matches FROM semantic_graph
             WHERE user_id = ? AND node_weight > ?
-              AND (
-                LOWER(entity_source) LIKE ?
-                OR LOWER(entity_target) LIKE ?
-                OR LOWER(relation) LIKE ?
-              )
         """
-        params: list[Any] = [user_id, min_weight, pattern, pattern, pattern]
+        params: list[Any] = [user_id, min_weight]
+
+        if terms:
+            term_clauses: list[str] = []
+            rank_cases: list[str] = []
+            rank_params: list[Any] = []
+            for term in terms:
+                pattern = f"%{term}%"
+                term_clauses.append(
+                    """
+                    LOWER(entity_source) LIKE ?
+                    OR LOWER(entity_target) LIKE ?
+                    OR LOWER(relation) LIKE ?
+                    """
+                )
+                params.extend([pattern, pattern, pattern])
+                rank_cases.append(
+                    """
+                    CASE WHEN (
+                        LOWER(entity_source) LIKE ?
+                        OR LOWER(entity_target) LIKE ?
+                        OR LOWER(relation) LIKE ?
+                    ) THEN 1 ELSE 0 END
+                    """
+                )
+                rank_params.extend([pattern, pattern, pattern])
+            sql = f"""
+                SELECT *, ({' + '.join(rank_cases)}) AS term_matches
+                FROM semantic_graph
+                WHERE user_id = ? AND node_weight > ?
+                  AND ({' OR '.join(f'({clause})' for clause in term_clauses)})
+            """
+            params = rank_params + [user_id, min_weight] + params[2:]
+
         if category:
             sql += " AND category = ?"
             params.append(category)
-        sql += " ORDER BY base_utility_q DESC LIMIT ?"
+        sql += " ORDER BY term_matches DESC, base_utility_q DESC, node_weight DESC LIMIT ?"
         params.append(top_k)
         rows = conn.execute(sql, params).fetchall()
         return [_belief_row(row, total_turns) for row in rows]

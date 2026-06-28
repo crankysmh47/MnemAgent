@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 _embedding_cache: dict[str, list[float]] = {}
 _local_model = None
-_model_lock = threading.Lock()
+_model_lock = threading.RLock()
 
 
 def get_merged_entity_terms(

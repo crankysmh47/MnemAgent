@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 _TIMEOUT = aiohttp.ClientTimeout(total=30)
 _MAX_RETRIES = 3
-_FALLBACK_RESPONSE = "I'm having trouble connecting right now. Please try again."
+QWEN_FALLBACK_RESPONSE = "I'm having trouble connecting right now. Please try again."
 _MEMORY_TAG_PATTERN = re.compile(r"<memory_update>.*?</memory_update>", re.DOTALL)
 _MEMORY_EXTRACT_PATTERN = re.compile(r"<memory_update>(.*?)</memory_update>", re.DOTALL)
 _BARE_MEMORY_JSON_PATTERN = re.compile(
@@ -73,18 +73,23 @@ async def call_qwen_api(payload: dict) -> str:
                     return data["choices"][0]["message"]["content"]
         except asyncio.TimeoutError:
             logger.error("Qwen API timeout")
-            return _FALLBACK_RESPONSE
+            return QWEN_FALLBACK_RESPONSE
         except aiohttp.ClientError as exc:
             logger.error("Qwen API client error: %s", exc)
-            return _FALLBACK_RESPONSE
+            return QWEN_FALLBACK_RESPONSE
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
             logger.error("Unexpected Qwen response shape: %s", exc)
-            return _FALLBACK_RESPONSE
+            return QWEN_FALLBACK_RESPONSE
         except QwenAPIError:
-            return _FALLBACK_RESPONSE
+            return QWEN_FALLBACK_RESPONSE
 
     logger.error("Qwen API rate limit retries exhausted")
-    return _FALLBACK_RESPONSE
+    return QWEN_FALLBACK_RESPONSE
+
+
+def is_qwen_fallback_response(response: str) -> bool:
+    """Return True when chat generation fell back because the model was unavailable."""
+    return response.strip() == QWEN_FALLBACK_RESPONSE
 
 
 def _parse_memory_dict(raw_json: str) -> dict | None:
@@ -131,6 +136,75 @@ def _parse_fact_array(raw: str) -> list[dict]:
     return facts
 
 
+def extract_facts_deterministically(user_message: str) -> list[dict]:
+    """
+    Lightweight local extractor for explicit teach statements.
+
+    This is only a resilience path for model/API outages. It intentionally
+    handles clear patterns rather than trying to infer fuzzy memories.
+    """
+    facts: list[dict] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    def add(entity: str, relation: str, value: str, category: str, conviction: float = 0.9) -> None:
+        entity = re.sub(r"\s+", "_", entity.strip().lower())
+        entity = re.sub(r"^(?:my|our|the)_", "", entity)
+        entity = re.sub(r"^preferred_", "", entity)
+        value = value.strip().strip("'\"` ")
+        value = re.sub(r"\s+$", "", value)
+        if not entity or not value or len(entity) > 64 or len(value) > 80:
+            return
+        key = (entity, relation, value.lower())
+        if key in seen:
+            return
+        seen.add(key)
+        facts.append(
+            {
+                "entity": entity,
+                "relation": relation,
+                "value": value,
+                "category": category,
+                "conviction": conviction,
+            }
+        )
+
+    clause_text = re.sub(r"\bremember this for future chats?:?", "", user_message, flags=re.I)
+    clause_text = re.sub(r"\band\s+(my|our)\b", r"\1", clause_text, flags=re.I)
+    clauses = re.split(r"[,.;]\s*", clause_text)
+    for clause in clauses:
+        clause = clause.strip()
+        if not clause:
+            continue
+
+        mine = re.search(
+            r"\b(?:my|our)\s+(preferred\s+)?([a-zA-Z0-9 _-]{2,48}?)\s+(?:is|are|=)\s+(.+)$",
+            clause,
+            flags=re.I,
+        )
+        if mine:
+            preferred, entity, value = mine.groups()
+            category = "preference" if preferred else "system_state"
+            add(entity, "prefers" if preferred else "is", value, category, 1.0)
+            continue
+
+        prefer = re.search(r"\bI\s+prefer\s+(.+?)\s+for\s+([a-zA-Z0-9 _-]{2,48})$", clause, flags=re.I)
+        if prefer:
+            value, entity = prefer.groups()
+            add(entity, "prefers", value, "preference", 1.0)
+            continue
+
+        uses = re.search(
+            r"\b(?:I|we)\s+(?:use|am using|are using)\s+(.+?)\s+for\s+([a-zA-Z0-9 _-]{2,48})$",
+            clause,
+            flags=re.I,
+        )
+        if uses:
+            value, entity = uses.groups()
+            add(entity, "uses", value, "system_state", 0.9)
+
+    return facts
+
+
 async def extract_facts_from_user_message(user_message: str, user_id: str) -> list[dict]:
     """
     Server-side fact extractor — reads the user message directly.
@@ -165,7 +239,11 @@ Example output:
     facts = _parse_fact_array(raw)
     if facts:
         logger.info("Server-side user extraction recovered %s fact(s)", len(facts))
-    return facts
+        return facts
+    local_facts = extract_facts_deterministically(user_message)
+    if local_facts:
+        logger.info("Local deterministic extraction recovered %s fact(s)", len(local_facts))
+    return local_facts
 
 
 async def extract_facts_from_conversation(

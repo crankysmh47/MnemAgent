@@ -139,6 +139,7 @@ async function callTool(name, args, session) {
       channel: args.channel || "openclaw",
       sender_id: args.sender_id,
       display_name: args.display_name,
+      user_id: args.user_id,
     });
     const userId = resp.data.user_id;
     // Update session so subsequent tool calls use the resolved user_id automatically

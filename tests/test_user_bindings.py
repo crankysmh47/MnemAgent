@@ -22,6 +22,21 @@ def test_resolve_user(initialized_db: Path) -> None:
     assert uid.startswith("oc_discord_")
 
 
+def test_bind_user_can_attach_channel_to_existing_user_id(initialized_db: Path) -> None:
+    bound = bind_user(
+        "telegram",
+        "12345",
+        "Alice",
+        user_id="review-shared-user",
+        db_path=initialized_db,
+    )
+    assert bound["user_id"] == "review-shared-user"
+
+    bindings = list_bindings_for_user("review-shared-user", db_path=initialized_db)
+    assert len(bindings) == 1
+    assert bindings[0]["channel"] == "telegram"
+
+
 def test_list_bindings_for_user(initialized_db: Path) -> None:
     bound = bind_user("whatsapp", "+15551234", db_path=initialized_db)
     bindings = list_bindings_for_user(bound["user_id"], db_path=initialized_db)

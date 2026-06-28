@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from contextlib import asynccontextmanager
 from functools import partial
 
@@ -13,9 +14,12 @@ from pydantic import BaseModel, Field
 
 from config import settings
 from llm.qwen_client import (
+    QWEN_FALLBACK_RESPONSE,
     call_qwen_api,
+    extract_facts_deterministically,
     extract_facts_from_user_message,
     extract_memory_updates,
+    is_qwen_fallback_response,
     strip_memory_tags,
 )
 from memory.waking import PROMPT_VERSION
@@ -89,6 +93,25 @@ class UserBindRequest(BaseModel):
     channel: str
     sender_id: str
     display_name: str | None = None
+    user_id: str | None = None
+
+
+def _local_outage_response(user_prompt: str, injected_values: list[str], facts: list[dict]) -> str:
+    """Best-effort response when the upstream model is unavailable."""
+    if injected_values and re.search(
+        r"\b(what|which|remind|remember|recall|stack|prefer|preference|codename|language|framework)\b",
+        user_prompt,
+        flags=re.I,
+    ):
+        values = ", ".join(dict.fromkeys(str(v) for v in injected_values if v))
+        return f"From memory: {values}."
+    if facts:
+        names = ", ".join(
+            f"{fact['entity']} {fact['relation']} {fact['value']}"
+            for fact in facts[:4]
+        )
+        return f"Saved to memory: {names}. Live model generation is temporarily unavailable."
+    return "I’m here, but live model generation is temporarily unavailable. Memory tools are still online."
 
 
 async def _consolidate_facts(
@@ -207,7 +230,10 @@ async def lifespan(app: FastAPI):
 
     # Await, don't fire-and-forget — the server should be fully ready before
     # the Docker healthcheck passes and before user requests arrive.
-    await _warmup_embeddings()
+    try:
+        await asyncio.wait_for(_warmup_embeddings(), timeout=45)
+    except asyncio.TimeoutError:
+        logger.warning("Embedding warmup timed out; continuing startup.")
     logger.info("MnemOS booted successfully.")
     yield
     logger.info("MnemOS shutting down.")
@@ -269,7 +295,19 @@ async def chat(request: ChatRequest) -> ChatResponse:
         total_turns,
     )
     raw_response = await call_qwen_api(result["payload"])
-    clean_response = strip_memory_tags(raw_response)
+    local_fallback_facts: list[dict] = []
+    if is_qwen_fallback_response(raw_response):
+        local_fallback_facts = extract_facts_deterministically(request.message)
+
+    clean_response = (
+        _local_outage_response(
+            request.message,
+            result.get("injected_values", []),
+            local_fallback_facts,
+        )
+        if is_qwen_fallback_response(raw_response)
+        else strip_memory_tags(raw_response)
+    )
     clean_response = ground_response_with_injection(
         clean_response,
         request.message,
@@ -278,6 +316,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
         result.get("rejected"),
     )
     memory_dicts = extract_memory_updates(raw_response)
+    if local_fallback_facts:
+        memory_dicts.extend(local_fallback_facts)
 
     dreaming = _run_dreaming_phase(
         request.user_id,
@@ -403,6 +443,7 @@ async def api_user_bind(request: UserBindRequest) -> dict:
         channel,
         sender_id,
         request.display_name,
+        request.user_id,
     )
 
 

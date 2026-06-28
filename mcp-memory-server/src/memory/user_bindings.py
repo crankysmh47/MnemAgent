@@ -20,6 +20,7 @@ def bind_user(
     channel: str,
     sender_id: str,
     display_name: str | None = None,
+    user_id: str | None = None,
     db_path: Path | None = None,
 ) -> dict:
     """
@@ -29,12 +30,13 @@ def bind_user(
         channel: Channel name (telegram, discord, whatsapp, etc.).
         sender_id: Platform-specific sender identifier.
         display_name: Optional human-readable name.
+        user_id: Optional existing canonical MnemOS user id to bind to.
         db_path: Optional database path override.
 
     Returns:
         Dict with user_id, channel, sender_id, created (bool).
     """
-    user_id = _canonical_user_id(channel, sender_id)
+    user_id = (user_id or "").strip() or _canonical_user_id(channel, sender_id)
     conn = get_db_connection(db_path)
     try:
         existing = conn.execute(
@@ -84,7 +86,12 @@ def resolve_user(
     Returns:
         Canonical user_id string.
     """
-    return bind_user(channel, sender_id, display_name, db_path)["user_id"]
+    return bind_user(
+        channel,
+        sender_id,
+        display_name=display_name,
+        db_path=db_path,
+    )["user_id"]
 
 
 def list_bindings_for_user(user_id: str, db_path: Path | None = None) -> list[dict]:

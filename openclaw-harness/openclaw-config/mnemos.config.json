@@ -5,7 +5,15 @@
   "mcp_server": {
     "transport": "http_sse",
     "url": "http://localhost:8001/mcp",
-    "capabilities": ["memory_store", "memory_search", "memory_dump", "memory_stats"]
+    "capabilities": [
+      "memory_resolve_user",
+      "memory_bind_user",
+      "memory_store",
+      "memory_search",
+      "memory_dump",
+      "memory_stats",
+      "memory_chat"
+    ]
   },
   "memory": {
     "override_builtin": true,
