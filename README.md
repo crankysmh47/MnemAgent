@@ -53,6 +53,8 @@ MnemOS implements a **two-phase cognitive loop** on every turn:
 
 Detailed methodology and scores: [docs/REPORT.md](docs/REPORT.md), [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md).
 
+Product-level verification evidence: [docs/VERIFICATION.md](docs/VERIFICATION.md).
+
 ---
 
 ## System context
