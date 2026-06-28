@@ -323,6 +323,7 @@ node openclaw-harness/scripts/check-visualizer.mjs
 | [docs/README.md](docs/README.md) | Documentation index |
 | [docs/SETUP.md](docs/SETUP.md) | Prerequisites, models, channels, troubleshooting |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Waking/dreaming detail, schema, design decisions |
+| [docs/CLOUD.md](docs/CLOUD.md) | Alibaba Cloud ECS + OSS deployment guide |
 | [docs/REPORT.md](docs/REPORT.md) | Benchmark results and design rationale |
 | [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md) | Live OpenClaw integration proof |
 
