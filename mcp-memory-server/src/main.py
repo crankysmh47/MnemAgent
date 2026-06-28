@@ -125,7 +125,8 @@ async def _consolidate_facts(
         if fact.get("skip"):
             continue
         conviction = float(fact.get("conviction", 0.5))
-        if conviction < settings.EXTRACTION_MIN_CONVICTION:
+        category = str(fact.get("category", "preference"))
+        if conviction < settings.EXTRACTION_MIN_CONVICTION and category != "system_state":
             continue
         await loop.run_in_executor(
             None,

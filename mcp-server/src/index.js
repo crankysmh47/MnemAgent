@@ -13,6 +13,23 @@ import { z } from "zod";
 
 const MNEMOS_URL = (process.env.MNEMOS_URL || "http://localhost:8000").replace(/\/$/, "");
 const DEFAULT_PORT = Number(process.env.MCP_PORT || process.env.PORT || 8001);
+const DEFAULT_USER_ID = (process.env.MNEMOS_DEFAULT_USER_ID || "").trim();
+const PLACEHOLDER_USER_IDS = new Set([
+  "",
+  "default",
+  "default_user",
+  "default-user",
+  "placeholder",
+  "placeholder_user",
+  "placeholder-user",
+  "user",
+  "user_123",
+  "test_user",
+  "test-user",
+  "unknown",
+  "unknown_user",
+  "unknown-user",
+]);
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -59,6 +76,29 @@ function toolError(err) {
   };
 }
 
+function normalizeUserId(userId) {
+  const raw = String(userId || "").trim();
+  if (DEFAULT_USER_ID && PLACEHOLDER_USER_IDS.has(raw.toLowerCase())) {
+    return DEFAULT_USER_ID;
+  }
+  return raw;
+}
+
+function withNormalizedUser(args) {
+  return { ...args, user_id: normalizeUserId(args.user_id) };
+}
+
+function withDefaultBinding(args) {
+  if (!DEFAULT_USER_ID) {
+    return args;
+  }
+  const channel = String(args.channel || "").trim().toLowerCase();
+  if (channel !== "webchat") {
+    return args;
+  }
+  return { ...args, user_id: DEFAULT_USER_ID };
+}
+
 async function runTool(handler) {
   try {
     return await handler();
@@ -86,7 +126,7 @@ function createMcpServer() {
     },
     async (args) =>
       runTool(async () => {
-        const result = await mnemosRequest("post", "/api/memory/store", args);
+        const result = await mnemosRequest("post", "/api/memory/store", withNormalizedUser(args));
         return toolText(result);
       })
   );
@@ -103,6 +143,7 @@ function createMcpServer() {
     },
     async (args) =>
       runTool(async () => {
+        const normalized = withNormalizedUser(args);
         const params = new URLSearchParams({ query: args.query, top_k: String(args.top_k) });
         if (args.category) params.set("category", args.category);
         if (args.min_confidence !== undefined) {
@@ -110,7 +151,7 @@ function createMcpServer() {
         }
         const result = await mnemosRequest(
           "get",
-          `/api/memory/search/${encodeURIComponent(args.user_id)}?${params}`
+          `/api/memory/search/${encodeURIComponent(normalized.user_id)}?${params}`
         );
         return toolText(result.results);
       })
@@ -122,10 +163,11 @@ function createMcpServer() {
     { user_id: z.string(), format: z.enum(["text", "markdown", "json"]).optional() },
     async (args) =>
       runTool(async () => {
+        const normalized = withNormalizedUser(args);
         const fmt = args.format ? `?format=${args.format}` : "";
         const result = await mnemosRequest(
           "get",
-          `/api/memory/dump/${encodeURIComponent(args.user_id)}${fmt}`
+          `/api/memory/dump/${encodeURIComponent(normalized.user_id)}${fmt}`
         );
         if (args.format === "json" && result.beliefs) {
           return toolText(result.beliefs);
@@ -141,10 +183,11 @@ function createMcpServer() {
     { user_id: z.string(), format: z.enum(["text", "markdown", "json"]).optional() },
     async (args) =>
       runTool(async () => {
+        const normalized = withNormalizedUser(args);
         const fmt = args.format ? `?format=${args.format}` : "";
         const result = await mnemosRequest(
           "get",
-          `/api/memory/stats/${encodeURIComponent(args.user_id)}${fmt}`
+          `/api/memory/stats/${encodeURIComponent(normalized.user_id)}${fmt}`
         );
         if (args.format === "json" && result.beliefs) {
           return toolText(result);
@@ -164,7 +207,7 @@ function createMcpServer() {
     },
     async (args) =>
       runTool(async () => {
-        const result = await mnemosRequest("post", "/chat", args);
+        const result = await mnemosRequest("post", "/chat", withNormalizedUser(args));
         return toolText(result.response);
       })
   );
@@ -179,7 +222,7 @@ function createMcpServer() {
     },
     async (args) =>
       runTool(async () => {
-        const result = await mnemosRequest("post", "/api/user/bind", args);
+        const result = await mnemosRequest("post", "/api/user/bind", withDefaultBinding(args));
         return toolText(result);
       })
   );
@@ -194,7 +237,7 @@ function createMcpServer() {
     },
     async (args) =>
       runTool(async () => {
-        const result = await mnemosRequest("post", "/api/user/bind", args);
+        const result = await mnemosRequest("post", "/api/user/bind", withDefaultBinding(args));
         return toolText(result);
       })
   );

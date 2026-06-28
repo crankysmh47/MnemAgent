@@ -58,6 +58,29 @@ get_env() {
     grep -s "^${key}=" "$env_file" | cut -d= -f2- || true
 }
 
+ensure_mnemos_user_id() {
+    local user_file="$CONFIG_DIR/mnemos-user-id.txt"
+    if [ -f "$user_file" ]; then
+        cat "$user_file"
+        return 0
+    fi
+
+    mkdir -p "$CONFIG_DIR"
+    local canonical_id
+    canonical_id=$(curl -s -X POST http://127.0.0.1:8000/api/user/bind \
+        -H 'Content-Type: application/json' \
+        -d '{"channel":"openclaw","sender_id":"main"}' 2>/dev/null | \
+        python3 -c "import sys,json; print(json.load(sys.stdin).get('user_id',''))" 2>/dev/null || true)
+    if [ -n "$canonical_id" ]; then
+        echo "$canonical_id" > "$user_file"
+    elif command -v uuidgen >/dev/null 2>&1; then
+        uuidgen > "$user_file"
+    else
+        python3 -c "import uuid; print(uuid.uuid4())" > "$user_file"
+    fi
+    cat "$user_file"
+}
+
 # Wait for HTTP health endpoint
 wait_health() {
     local url="$1" label="$2" timeout="${3:-60}"
@@ -141,10 +164,13 @@ if check_openclaw; then
         bash -c "cd '$ROOT/mcp-server' && npm install --silent 2>/dev/null"
 
     # Register MnemOS MCP
+    USER_ID="$(ensure_mnemos_user_id)"
+    log_gray "  MnemOS user_id: $USER_ID"
     step "Register MnemOS MCP tools" bash -c "
         MCP_PATH='$ROOT/mcp-server/src/index.js'
+        USER_ID='$USER_ID'
         openclaw mcp unset mnemos 2>/dev/null
-        MCP_SET_JSON='{\"command\":\"node\",\"args\":[\"'\"\$MCP_PATH\"'\",\"--transport\",\"stdio\"],\"env\":{\"MNEMOS_URL\":\"http://localhost:8000\"}}'
+        MCP_SET_JSON='{\"command\":\"node\",\"args\":[\"'\"\$MCP_PATH\"'\",\"--transport\",\"stdio\"],\"env\":{\"MNEMOS_URL\":\"http://localhost:8000\",\"MNEMOS_DEFAULT_USER_ID\":\"'\"\$USER_ID\"'\"}}'
         if ! openclaw mcp set mnemos \"\$MCP_SET_JSON\" >/dev/null 2>&1; then
             # Fallback for older OpenClaw versions
             openclaw mcp add mnemos \
@@ -153,6 +179,7 @@ if check_openclaw; then
                 --arg '--transport' \
                 --arg 'stdio' \
                 --env 'MNEMOS_URL=http://localhost:8000' \
+                --env \"MNEMOS_DEFAULT_USER_ID=\$USER_ID\" \
                 --timeout 120 \
                 --connect-timeout 30 >/dev/null 2>&1
         fi
@@ -174,6 +201,12 @@ if check_openclaw; then
             log_yellow "  For a usable experience, get a DashScope key and set QWEN_API_KEY in .env"
         fi
     fi
+    if grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null && \
+       ! grep -q '^QWEN_API_KEY=sk-or-v1' "$ROOT/.env" 2>/dev/null; then
+        openclaw config set agents.defaults.model.primary "dashscope/qwen-flash" >/dev/null 2>&1 || true
+    fi
+    openclaw config set gateway.auth.mode none >/dev/null 2>&1 || true
+    openclaw plugins disable memory-core >/dev/null 2>&1 || true
 
     # Gateway management
     step "Gateway health check" bash -c "

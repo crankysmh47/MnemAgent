@@ -15,6 +15,29 @@ function Get-DotEnvValue([string]$Name) {
   return $null
 }
 
+function Ensure-MnemosUserId {
+  $UserFile = Join-Path $ConfigDir "mnemos-user-id.txt"
+  if (Test-Path $UserFile) {
+    return (Get-Content $UserFile -Raw).Trim()
+  }
+
+  try {
+    $body = '{"channel":"openclaw","sender_id":"main"}'
+    $canonical = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/bind" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 10
+    if ($canonical.user_id) {
+      $canonical.user_id | Set-Content $UserFile
+      Write-Host "Canonical user_id resolved: $($canonical.user_id)"
+      return $canonical.user_id
+    }
+    throw "No user_id in response"
+  } catch {
+    Write-Host "WARNING: Could not resolve canonical user_id - using random GUID" -ForegroundColor Yellow
+    $fallback = [guid]::NewGuid().ToString()
+    $fallback | Set-Content $UserFile
+    return $fallback
+  }
+}
+
 Write-Host "=== OpenClaw + MnemOS Onboarding ===" -ForegroundColor Cyan
 Write-Host ""
 
@@ -104,6 +127,8 @@ for ($i = 0; $i -lt 40; $i++) {
   } catch { Start-Sleep -Seconds 2 }
 }
 
+$MnemosUserId = Ensure-MnemosUserId
+
 Push-Location (Join-Path $Root "mcp-server")
 npm install --silent 2>$null
 Pop-Location
@@ -123,7 +148,10 @@ $mcpWs = @{
       mnemos = @{
         command = "node"
         args = @($McpJs, "--transport", "stdio")
-        env = @{ MNEMOS_URL = "http://localhost:8000" }
+        env = @{
+          MNEMOS_URL = "http://localhost:8000"
+          MNEMOS_DEFAULT_USER_ID = $MnemosUserId
+        }
       }
     }
   }
@@ -161,6 +189,10 @@ if ((-not $isAlibabaKey) -and (Test-Path $freePatch)) {
   Get-Content $freePatch -Raw | openclaw config patch --stdin
 }
 openclaw config set gateway.auth.mode none 2>$null
+openclaw plugins disable memory-core 2>$null | Out-Null
+if ($isAlibabaKey) {
+  openclaw config set agents.defaults.model.primary "dashscope/qwen-flash" 2>$null | Out-Null
+}
 
 # MnemOS MCP (stdio -> spawns mcp-server -> MnemOS :8000)
 # Try mcp set first (current OpenClaw CLI), fall back to mcp add (older versions).
@@ -170,7 +202,7 @@ openclaw config set gateway.auth.mode none 2>$null
 Write-Host "Registering MnemOS MCP..."
 openclaw mcp unset mnemos 2>$null | Out-Null
 
-$mcpSetJson = '{"command":"node","args":["' + $McpJs + '","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000"}}'
+$mcpSetJson = '{"command":"node","args":["' + $McpJs + '","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000","MNEMOS_DEFAULT_USER_ID":"' + $MnemosUserId + '"}}'
 openclaw mcp set mnemos $mcpSetJson 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "  mcp set unavailable — trying mcp add (older OpenClaw)" -ForegroundColor DarkGray
@@ -180,6 +212,7 @@ if ($LASTEXITCODE -ne 0) {
       --arg "--transport" `
       --arg "stdio" `
       --env "MNEMOS_URL=http://localhost:8000" `
+      --env "MNEMOS_DEFAULT_USER_ID=$MnemosUserId" `
       --timeout 120 `
       --connect-timeout 30
 }
@@ -193,22 +226,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $UserFile = Join-Path $ConfigDir "mnemos-user-id.txt"
-if (-not (Test-Path $UserFile)) {
-  # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
-  try {
-    $body = '{"channel":"openclaw","sender_id":"main"}'
-    $canonical = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/bind" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 10
-    if ($canonical.user_id) {
-      $canonical.user_id | Set-Content $UserFile
-      Write-Host "Canonical user_id resolved: $($canonical.user_id)"
-    } else {
-      throw "No user_id in response"
-    }
-  } catch {
-    Write-Host "WARNING: Could not resolve canonical user_id — using random GUID" -ForegroundColor Yellow
-    [guid]::NewGuid().ToString() | Set-Content $UserFile
-  }
-}
 
 openclaw gateway restart --force | Out-Null
 Start-Sleep -Seconds 5

@@ -70,6 +70,29 @@ function Get-DotEnvValue([string]$Name) {
     return $null
 }
 
+function Ensure-MnemosUserId {
+    $UserFile = Join-Path $ConfigDir "mnemos-user-id.txt"
+    if (Test-Path $UserFile) {
+        return (Get-Content $UserFile -Raw).Trim()
+    }
+
+    try {
+        $body = '{"channel":"openclaw","sender_id":"main"}'
+        $canonical = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/bind" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 10
+        if ($canonical.user_id) {
+            $canonical.user_id | Set-Content $UserFile
+            Write-Host "  Canonical MnemOS user_id: $($canonical.user_id)" -ForegroundColor Gray
+            return $canonical.user_id
+        }
+        throw "No user_id in response"
+    } catch {
+        $fallback = [guid]::NewGuid().ToString()
+        $fallback | Set-Content $UserFile
+        Write-Yellow "  Could not resolve canonical user_id; using $fallback"
+        return $fallback
+    }
+}
+
 # ═══════════════════════════════════════════════════════════════════════════
 Write-Cyan "╔══════════════════════════════════════════════════════════════╗"
 Write-Cyan "║         MnemAgent Unified Launcher                         ║"
@@ -141,8 +164,9 @@ if (Test-OpenClawInstalled) {
     # Register MnemOS MCP
     Step "Register MnemOS MCP tools" {
         $McpJs = (Join-Path $Root "mcp-server/src/index.js") -replace "\\", "/"
+        $MnemosUserId = Ensure-MnemosUserId
         openclaw mcp unset mnemos 2>$null | Out-Null
-        $mcpSetJson = '{"command":"node","args":["' + $McpJs + '","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000"}}'
+        $mcpSetJson = '{"command":"node","args":["' + $McpJs + '","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000","MNEMOS_DEFAULT_USER_ID":"' + $MnemosUserId + '"}}'
         openclaw mcp set mnemos $mcpSetJson 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
             # Fallback for older OpenClaw versions
@@ -152,6 +176,7 @@ if (Test-OpenClawInstalled) {
                 --arg "--transport" `
                 --arg "stdio" `
                 --env "MNEMOS_URL=http://localhost:8000" `
+                --env "MNEMOS_DEFAULT_USER_ID=$MnemosUserId" `
                 --timeout 120 `
                 --connect-timeout 30 2>&1 | Out-Null
         }
@@ -178,6 +203,12 @@ if (Test-OpenClawInstalled) {
             Write-Host "  For a usable experience, get a DashScope key and set it in .env" -ForegroundColor Yellow
         }
     }
+
+    if ($isAlibabaKey) {
+        openclaw config set agents.defaults.model.primary "dashscope/qwen-flash" 2>$null | Out-Null
+    }
+    openclaw config set gateway.auth.mode none 2>$null | Out-Null
+    openclaw plugins disable memory-core 2>$null | Out-Null
 
     # Gateway management
     Step "Gateway health check" {

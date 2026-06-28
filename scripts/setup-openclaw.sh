@@ -48,6 +48,12 @@ if [ ! -f "$USER_FILE" ]; then
 fi
 echo "Shared user_id: $(cat "$USER_FILE")"
 
+USER_ID="$(cat "$USER_FILE")"
+openclaw mcp set mnemos "{\"command\":\"node\",\"args\":[\"$MCP_PATH\",\"--transport\",\"stdio\"],\"env\":{\"MNEMOS_URL\":\"http://localhost:8000\",\"MNEMOS_DEFAULT_USER_ID\":\"$USER_ID\"}}" 2>/dev/null || \
+  echo "Note: openclaw mcp set with user id failed - register manually"
+openclaw config set gateway.auth.mode none >/dev/null 2>&1 || true
+openclaw plugins disable memory-core >/dev/null 2>&1 || true
+
 (cd "$ROOT" && docker compose up -d --build)
 
 echo ""
