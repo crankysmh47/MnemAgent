@@ -55,6 +55,8 @@ Detailed methodology and scores: [docs/REPORT.md](docs/REPORT.md), [docs/LIVE_EV
 
 Product-level verification evidence: [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
+Judge-safe deployment checklist: [docs/JUDGE_DEPLOYMENT.md](docs/JUDGE_DEPLOYMENT.md).
+
 ---
 
 ## System context
@@ -219,7 +221,7 @@ docker compose up -d --build
 | Verify MCP tools | `openclaw mcp probe mnemos` |
 | Terminal proof | `powershell -File scripts/prove-memory.ps1` |
 
-Copy `config/env.template` to `.env`. A DashScope Qwen API key is required (`qwen3.5-flash` is the default).
+Copy `config/env.template` to `.env`. A DashScope Qwen API key is required (`qwen-flash` is the judge-safe default for routine runs).
 
 ---
 

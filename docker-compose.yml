@@ -13,6 +13,7 @@ services:
       - .env
     environment:
       - DB_PATH=/app/data/memory_state.db
+      - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -29,6 +30,7 @@ services:
       - "8001:8001"
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
+      - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
       - MCP_PORT=8001
     depends_on:
       mnemos-memory:
@@ -67,6 +69,7 @@ services:
       - ./openclaw-harness/src/public:/app/src/public:ro
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
+      - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
       - MCP_ADAPTER_URL=http://mnemos-mcp:8001
       - PORT=3000
     depends_on:
