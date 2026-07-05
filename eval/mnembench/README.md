@@ -17,7 +17,7 @@ MnemBench is a standalone benchmark suite for evaluating memory-augmented langua
 - **Context window efficiency** — injected memory stays O(1) as the graph grows
 - **Cross-user isolation** — User A's facts don't leak into User B's probes
 
-It's designed to work with **any memory system** that exposes an OpenAI-compatible chat endpoint. MnemOS, LoCoMo, MemGPT, or a custom implementation — if you can POST to `/chat` and optionally store facts via `/api/memory/store`, you can benchmark it.
+It's designed to work with **any memory system** that exposes an OpenAI-compatible chat endpoint. If you can POST to `/chat` and optionally store facts via `/api/memory/store`, you can benchmark it.
 
 ## Why MnemBench?
 
@@ -100,6 +100,15 @@ This uses pre-recorded fixture responses so you can see the output format withou
 python -m eval.mnembench \
   --server http://localhost:8000 \
   --baseline http://localhost:8002
+```
+
+### Generate a judge-facing summary:
+
+```bash
+python -m eval.mnembench \
+  --server http://localhost:8000 \
+  --baseline http://localhost:8002 \
+  --judge-report
 ```
 
 ### Run one scenario with repeats:
@@ -190,6 +199,7 @@ python -m eval.mnembench [options]
 | `--dry-run`, `-n` | Use pre-recorded fixture responses. No API calls. |
 | `--no-baseline` | Skip baseline comparison. Run with-memory only. |
 | `--no-seed-memory` | Don't auto-seed facts via `/api/memory/store`. |
+| `--judge-report` | Also write a compact Track 1 judge-facing Markdown summary. |
 | `--list` | Print available scenarios and exit. |
 | `--no-progress` | Suppress per-scenario progress output. |
 | `--version` | Print version and exit. |

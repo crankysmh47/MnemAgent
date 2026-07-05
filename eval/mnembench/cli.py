@@ -39,6 +39,7 @@ async def _run(
     repeat: int,
     no_baseline: bool,
     progress: bool,
+    judge_report: bool,
 ) -> None:
     """Execute the benchmark."""
     from eval.mnembench.scenarios import ALL_MNEMBENCH_SCENARIOS
@@ -94,6 +95,7 @@ async def _run(
             with_report=with_report,
             without_report=without_report,
             output_dir=output_dir,
+            judge_report=judge_report,
         )
         agg = comparison.aggregate
         print(f"\nComparison summary:")
@@ -104,11 +106,14 @@ async def _run(
         paths = write_report(
             with_report=with_report,
             output_dir=output_dir,
+            judge_report=judge_report,
         )
 
     print(f"\nReports written:")
     print(f"  Markdown: {paths['markdown']}")
     print(f"  JSON:     {paths['json']}")
+    if "judge_markdown" in paths:
+        print(f"  Judge:    {paths['judge_markdown']}")
 
 
 def main() -> None:
@@ -185,6 +190,11 @@ def main() -> None:
         help="Suppress progress output",
     )
     parser.add_argument(
+        "--judge-report",
+        action="store_true",
+        help="Also write a compact Track 1 judge-facing Markdown summary",
+    )
+    parser.add_argument(
         "--version",
         action="store_true",
         help="Print version and exit",
@@ -212,6 +222,7 @@ def main() -> None:
             repeat=args.repeat,
             no_baseline=args.no_baseline,
             progress=not args.no_progress,
+            judge_report=args.judge_report,
         )
     )
 

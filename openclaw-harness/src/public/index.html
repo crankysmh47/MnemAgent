@@ -10,7 +10,7 @@
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/visualizer.css?v=20260614-stream2" />
+  <link rel="stylesheet" href="/visualizer.css?v=20260705-cortex" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
@@ -504,7 +504,7 @@ function graphLayout(width, height) {
   const availH = Math.max(280, height - padY * 2);
   const scaleX = availW / brainW;
   const scaleY = availH / brainH;
-  const brainScale = Math.min(scaleX, scaleY) * 1.056;
+  const brainScale = Math.min(scaleX, scaleY) * 0.98;
   const cx = railW + padX + availW / 2;
   const cy = height / 2;
   return { cx, cy, brainScale, railW };
@@ -630,9 +630,9 @@ function nodeRadius(b, total) {
 
 function categoryHue(cat) {
   const c = normalizeCategory(cat);
-  if (c === 'persona') return { fill: '#E8B4A8', stroke: '#C4785A', glow: 'rgba(196, 120, 90, 0.35)' };
-  if (c === 'system_state') return { fill: '#C9D4E8', stroke: '#6B8BB5', glow: 'rgba(107, 139, 181, 0.35)' };
-  return { fill: '#F0C75A', stroke: '#C9920A', glow: 'rgba(212, 160, 23, 0.4)' };
+  if (c === 'persona') return { fill: '#F09D8C', stroke: '#A94F42', core: '#FFE0D4', glow: 'rgba(255, 126, 90, 0.42)' };
+  if (c === 'system_state') return { fill: '#9FC7F0', stroke: '#426E9C', core: '#E4F3FF', glow: 'rgba(119, 188, 255, 0.4)' };
+  return { fill: '#FFC400', stroke: '#8E5600', core: '#FFF7C6', glow: 'rgba(255, 199, 0, 0.58)' };
 }
 
 function deriveLinks(nodes) {
@@ -657,6 +657,56 @@ function synapsePath(d) {
   const cx = mx - (dy / dist) * bend;
   const cy = my + (dx / dist) * bend;
   return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`;
+}
+
+function addGraphDefs(root, cx, cy, brainScale) {
+  const defs = root.append('defs');
+  const gradient = defs.append('radialGradient')
+    .attr('id', 'cortexGradient')
+    .attr('cx', '52%')
+    .attr('cy', '38%')
+    .attr('r', '68%');
+  gradient.append('stop').attr('offset', '0%').attr('stop-color', '#FFE2CA').attr('stop-opacity', 0.96);
+  gradient.append('stop').attr('offset', '42%').attr('stop-color', '#D99074').attr('stop-opacity', 0.74);
+  gradient.append('stop').attr('offset', '76%').attr('stop-color', '#7E4036').attr('stop-opacity', 0.42);
+  gradient.append('stop').attr('offset', '100%').attr('stop-color', '#2A1713').attr('stop-opacity', 0.24);
+
+  const filter = defs.append('filter')
+    .attr('id', 'cortexShadow')
+    .attr('x', '-30%')
+    .attr('y', '-30%')
+    .attr('width', '160%')
+    .attr('height', '160%');
+  filter.append('feDropShadow')
+    .attr('dx', 0)
+    .attr('dy', 18 * brainScale)
+    .attr('stdDeviation', 9 * brainScale)
+    .attr('flood-color', '#150B08')
+    .attr('flood-opacity', 0.34);
+  filter.append('feDropShadow')
+    .attr('dx', 0)
+    .attr('dy', 0)
+    .attr('stdDeviation', 5 * brainScale)
+    .attr('flood-color', '#FFC369')
+    .attr('flood-opacity', 0.18);
+
+  defs.append('radialGradient')
+    .attr('id', 'cortexHotspot')
+    .attr('cx', cx)
+    .attr('cy', cy)
+    .attr('gradientUnits', 'userSpaceOnUse')
+    .attr('r', 140 * brainScale)
+    .selectAll('stop')
+    .data([
+      { offset: '0%', color: '#FFF1CE', opacity: 0.36 },
+      { offset: '65%', color: '#D99074', opacity: 0.08 },
+      { offset: '100%', color: '#000000', opacity: 0 },
+    ])
+    .join('stop')
+    .attr('offset', d => d.offset)
+    .attr('stop-color', d => d.color)
+    .attr('stop-opacity', d => d.opacity);
+  return defs;
 }
 
 function renderGraph(data) {
@@ -686,6 +736,7 @@ function renderGraph(data) {
     const { cx, cy, brainScale } = graphLayout(width, height);
     const root = svg.append('g').attr('class', 'graph-root');
     const brainD = brainPath(cx, cy, brainScale);
+    addGraphDefs(root, cx, cy, brainScale);
     root.append('path').attr('d', brainD).attr('class', 'brain-fill');
     root.append('path').attr('d', brainD).attr('class', 'brain-outline');
     root.append('text')
@@ -712,7 +763,7 @@ function renderGraph(data) {
   svg.call(zoom.transform, savedZoom || d3.zoomIdentity);
   root.attr('transform', savedZoom || d3.zoomIdentity);
 
-  const defs = root.append('defs');
+  const defs = addGraphDefs(root, cx, cy, brainScale);
   const clipId = 'brain-clip';
   const brainD = brainPath(cx, cy, brainScale);
   defs.append('clipPath').attr('id', clipId)
@@ -760,7 +811,9 @@ function renderGraph(data) {
 
   const links = deriveLinks(nodes);
   const allPinned = nodes.length > 0 && nodes.every(nd => nd.pinned);
-  const charge = -Math.min(120, 42 + n * 1.5);
+  const narrowFilter = [...document.querySelectorAll('#confidenceFilters .filter-chip.active')].length < 3
+    || [...document.querySelectorAll('#categoryFilters .filter-chip.active')].length < 3;
+  const charge = -Math.min(110, 34 + n * 1.1);
   const linkDist = Math.max(32, 42 - n * 0.12);
 
   const linkLayer = graphG.append('g').attr('class', 'link-layer');
@@ -778,14 +831,19 @@ function renderGraph(data) {
     });
 
   const particleLayer = graphG.append('g').attr('class', 'particle-layer');
-  const particles = links.slice(0, Math.min(links.length, 56)).flatMap((link, li) =>
-    [{ link, id: `${li}-a`, t: Math.random(), speed: 0.003 + Math.random() * 0.004 }]
-  );
+  const particles = links.slice(0, Math.min(links.length, 96)).flatMap((link, li) => {
+    const primary = { link, id: `${li}-a`, t: Math.random(), speed: 0.0035 + Math.random() * 0.0045 };
+    if (li % 3 !== 0) return [primary];
+    return [
+      primary,
+      { link, id: `${li}-b`, t: Math.random(), speed: 0.0024 + Math.random() * 0.0032 },
+    ];
+  });
   const particleSel = particleLayer.selectAll('circle')
     .data(particles, d => d.id)
     .join('circle')
     .attr('class', 'memory-particle')
-    .attr('r', 2.5);
+    .attr('r', d => 1.8 + Math.min(1.8, d.link.weight * 2));
 
   const nodeLayer = graphG.append('g').attr('class', 'node-layer');
   const nodeG = nodeLayer.selectAll('g.node')
@@ -810,31 +868,36 @@ function renderGraph(data) {
     };
   }
 
-  function tick() {
-    resolveOverlaps(nodes, bounds, brainMargin, 1);
+  function drawFrame() {
     linkPaths.attr('d', synapsePath);
     nodeG.attr('transform', d => `translate(${d.x},${d.y})`);
     particleSel.each(function(d) {
       const p = pointOnPath(d.link, d.t);
-      d3.select(this).attr('cx', p.x).attr('cy', p.y).attr('fill', categoryHue(d.link.source.category).stroke);
+      const hue = categoryHue(d.link.source.category);
+      d3.select(this)
+        .attr('cx', p.x)
+        .attr('cy', p.y)
+        .attr('fill', hue.core)
+        .attr('stroke', hue.stroke)
+        .attr('stroke-width', 0.5);
     });
   }
 
-  let framesSinceCool = 0;
+  function tick() {
+    resolveOverlaps(nodes, bounds, brainMargin, narrowFilter ? 0 : 1);
+    drawFrame();
+  }
+
   function animateFlow() {
+    if (document.hidden) {
+      particleLoopId = requestAnimationFrame(animateFlow);
+      return;
+    }
     particles.forEach(d => {
       d.t += d.speed;
       if (d.t > 1) d.t = 0;
     });
-    tick();
-    const cooled = !sim || sim.alpha() < 0.01;
-    const noDrag = !nodes.some(n => n.fx != null || n.fy != null);
-    if (cooled && noDrag) {
-      framesSinceCool++;
-      if (framesSinceCool > 60) { particleLoopId = null; return; }
-    } else {
-      framesSinceCool = 0;
-    }
+    drawFrame();
     particleLoopId = requestAnimationFrame(animateFlow);
   }
 
@@ -843,19 +906,20 @@ function renderGraph(data) {
     sim = d3.forceSimulation(nodes)
       .force('link', d3.forceLink(links).distance(linkDist).strength(0.28))
       .force('charge', d3.forceManyBody().strength(charge))
-      .force('center', d3.forceCenter(cx, cy).strength(0.05))
+      .force('center', d3.forceCenter(cx, cy).strength(narrowFilter ? 0.025 : 0.05))
       .force('collision', d3.forceCollide()
         .radius(d => collisionRadius(d))
-        .strength(0.92)
-        .iterations(3))
-      .force('x', d3.forceX(d => cx + d.hemisphere * bounds.rx * 0.09).strength(d => d.pinned ? 0 : 0.025))
-      .force('y', d3.forceY(cy).strength(d => d.pinned ? 0 : 0.02))
+        .strength(narrowFilter ? 0.72 : 0.9)
+        .iterations(narrowFilter ? 2 : 3))
+      .force('x', d3.forceX(d => cx + d.hemisphere * bounds.rx * 0.09).strength(d => d.pinned ? 0 : (narrowFilter ? 0.012 : 0.025)))
+      .force('y', d3.forceY(cy).strength(d => d.pinned ? 0 : (narrowFilter ? 0.01 : 0.02)))
       .force('contain', forceBrainContain(cx, cy, bounds.rx, bounds.ry, brainMargin))
-      .alpha(0.85)
-      .alphaDecay(0.035);
+      .alpha(narrowFilter ? 0.45 : 0.8)
+      .alphaDecay(narrowFilter ? 0.075 : 0.042);
     sim.on('tick', tick);
   } else {
     resolveOverlaps(nodes, bounds, brainMargin, 14);
+    drawFrame();
   }
 
   nodeG.call(
@@ -874,7 +938,7 @@ function renderGraph(data) {
         d.x = p.x;
         d.y = p.y;
         resolveOverlaps(nodes, bounds, brainMargin, 2);
-        tick();
+        drawFrame();
       })
       .on('end', (e, d) => {
         if (sim && !e.active) sim.alphaTarget(0);
@@ -887,7 +951,7 @@ function renderGraph(data) {
           d.fx = null;
           d.fy = null;
           nodeG.filter(n => n.id === d.id).classed('node-fixed', false);
-          tick();
+          drawFrame();
           return;
         }
         d.pinned = true;
@@ -896,14 +960,19 @@ function renderGraph(data) {
         nodeG.filter(n => n.id === d.id).classed('node-fixed', true);
         saveNodeLayout(user, d.id, d.x, d.y);
         liveNodePositions[String(d.id)] = { x: d.x, y: d.y };
-        tick();
+        drawFrame();
       })
   );
 
   nodeG.append('circle')
     .attr('class', 'neuron-glow')
-    .attr('r', d => d.r + 8)
+    .attr('r', d => d.r + 10)
     .attr('fill', d => categoryHue(d.category).glow);
+
+  nodeG.append('circle')
+    .attr('class', 'neuron-ring')
+    .attr('r', d => d.r + 3.5)
+    .attr('style', (_, i) => `animation-delay:${(i % 6) * -0.55}s`);
 
   nodeG.append('circle')
     .attr('class', 'neuron-body')
@@ -929,6 +998,13 @@ function renderGraph(data) {
       showRailFocus(d);
     });
 
+  nodeG.append('circle')
+    .attr('class', 'neuron-core')
+    .attr('r', d => Math.max(2.4, d.r * 0.34))
+    .attr('cx', d => -d.r * 0.18)
+    .attr('cy', d => -d.r * 0.2)
+    .attr('fill', d => categoryHue(d.category).core);
+
   tick();
   if (particles.length) animateFlow();
 
@@ -941,9 +1017,9 @@ function renderGraph(data) {
     .attr('rx', 14)
     .attr('class', 'legend-bg');
   [
-    { label: 'Persona', color: '#E8B4A8', stroke: '#C4785A' },
-    { label: 'System', color: '#C9D4E8', stroke: '#6B8BB5' },
-    { label: 'Preference', color: '#F0C75A', stroke: '#C9920A' },
+    { label: 'Persona', color: '#F09D8C', stroke: '#A94F42' },
+    { label: 'System', color: '#9FC7F0', stroke: '#426E9C' },
+    { label: 'Preference', color: '#FFC400', stroke: '#8E5600' },
   ].forEach((item, i) => {
     const g = legend.append('g').attr('transform', `translate(0, ${i * 34})`);
     g.append('circle').attr('r', 9).attr('cx', 10).attr('cy', 10).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 2.2);
@@ -983,9 +1059,9 @@ function renderMetrics(m, graph) {
 
   const catLegend = document.getElementById('catLegend');
   const catItems = [
-    { key: 'preference', label: 'Preferences', color: '#F0C75A' },
-    { key: 'persona', label: 'Persona', color: '#E8B4A8' },
-    { key: 'system_state', label: 'System', color: '#C9D4E8' },
+    { key: 'preference', label: 'Preferences', color: '#FFC400' },
+    { key: 'persona', label: 'Persona', color: '#F09D8C' },
+    { key: 'system_state', label: 'System', color: '#9FC7F0' },
   ].filter(item => summary.cats[item.key] > 0);
   catLegend.innerHTML = catItems.map(item =>
     `<div class="mini-legend-row"><span class="swatch" style="background:${item.color}"></span>${item.label} <strong>${summary.cats[item.key]}</strong></div>`
@@ -1023,9 +1099,9 @@ function renderMetrics(m, graph) {
   const confTotal = summary.conf.high + summary.conf.mid + summary.conf.low || 1;
   const confBars = document.getElementById('confBars');
   confBars.innerHTML = [
-    { key: 'high', label: 'Vivid', color: '#F0C75A', count: summary.conf.high },
-    { key: 'mid', label: 'Stable', color: '#D4A86A', count: summary.conf.mid },
-    { key: 'low', label: 'Fading', color: '#C4B09A', count: summary.conf.low },
+    { key: 'high', label: 'Vivid', color: '#FFC400', count: summary.conf.high },
+    { key: 'mid', label: 'Stable', color: '#D78A5E', count: summary.conf.mid },
+    { key: 'low', label: 'Fading', color: '#A88972', count: summary.conf.low },
   ].map(item => {
     const pct = Math.round((item.count / confTotal) * 100);
     return `<div class="conf-row" title="${item.count} memories">
@@ -1124,12 +1200,13 @@ function prependEvents(events) {
 
 function setLiveStatus(mode, detail) {
   const label = document.getElementById('liveLabel');
+  const stamp = '<span class="build-stamp" title="UI build stamp">· v2026-07-05</span>';
   if (mode === 'ok') {
-    label.innerHTML = '<span class="live-dot"></span> Synaptic stream';
+    label.innerHTML = `<span class="live-dot"></span> Synaptic stream ${stamp}`;
   } else if (mode === 'paused') {
-    label.textContent = 'Paused';
+    label.innerHTML = `Paused ${stamp}`;
   } else {
-    label.textContent = detail ? `Offline · ${detail}` : 'Offline';
+    label.innerHTML = detail ? `Offline · ${detail} ${stamp}` : `Offline ${stamp}`;
   }
 }
 
@@ -1352,7 +1429,7 @@ document.querySelectorAll('.filter-chip').forEach(el => {
   });
 });
 
-const STREAM_COLLAPSED_KEY = 'mnemos_stream_collapsed';
+const STREAM_COLLAPSED_KEY = 'mnemos_stream_collapsed_v2';
 const STREAM_MOTION_MS = 420;
 let streamResizeTimer = null;
 let streamAnimating = false;
@@ -1412,10 +1489,10 @@ document.getElementById('toggleStreamBtn')?.addEventListener('click', () => {
   setStreamCollapsed(!panel?.classList.contains('collapsed'));
 });
 
-if (localStorage.getItem(STREAM_COLLAPSED_KEY) === '1') {
-  setStreamCollapsed(true, { animate: false });
-} else {
+if (localStorage.getItem(STREAM_COLLAPSED_KEY) === '0') {
   document.body.classList.add('stream-expanded');
+} else {
+  setStreamCollapsed(true, { animate: false });
 }
 
 requestAnimationFrame(() => {

@@ -363,6 +363,88 @@ def generate_mnembench_report(
     return "\n".join(lines)
 
 
+def generate_judge_report(
+    comparison: MnemBenchComparison | None = None,
+    with_report: MnemBenchReport | None = None,
+) -> str:
+    """Generate a compact, judge-facing MnemBench summary.
+
+    This report is intentionally shorter than the full benchmark report so it
+    can be shown in a video, README screenshot, or submission description.
+    """
+    if comparison is not None:
+        with_report = comparison.with_report
+    if with_report is None:
+        raise ValueError("Must provide either comparison or with_report")
+
+    lines: list[str] = [
+        "# MnemBench Judge Summary",
+        "",
+        f"**Generated:** {datetime.now(timezone.utc).isoformat()}",
+        "",
+        "MnemBench evaluates whether a memory agent becomes more useful across",
+        "long-running, multi-session workflows without storing noise, leaking stale",
+        "facts, or exceeding a bounded context budget.",
+        "",
+        "## Headline",
+        "",
+    ]
+
+    if comparison is not None:
+        agg = comparison.aggregate
+        lines.extend([
+            "| Metric | MnemOS | Baseline | Delta |",
+            "|--------|-------:|---------:|------:|",
+            f"| Average probe score | {agg.get('with_avg_score', 0):.1%} | {agg.get('without_avg_score', 0):.1%} | {agg.get('avg_score_delta', 0):+.1%} |",
+            f"| Composite score | {agg.get('with_avg_composite', 0):.3f} | {agg.get('without_avg_composite', 0):.3f} | {agg.get('avg_composite_delta', 0):+.3f} |",
+            f"| Pass rate | {agg.get('with_pass_rate', 0):.1%} | {agg.get('without_pass_rate', 0):.1%} | {agg.get('scenarios_improved', 0)}/{agg.get('scenarios_total', 0)} scenarios improved |",
+        ])
+    else:
+        lines.extend([
+            "| Metric | MnemOS |",
+            "|--------|-------:|",
+            f"| Average probe score | {with_report.average_score:.1%} |",
+            f"| Composite score | {with_report.average_composite:.3f} |",
+            f"| Pass rate | {with_report.pass_rate:.1%} |",
+        ])
+
+    lines.extend([
+        "",
+        "## Track 1 Mapping",
+        "",
+        "| Track 1 requirement | MnemBench evidence |",
+        "|--------------------|--------------------|",
+        "| Persistent cross-session memory | ten-session recall, project-style compound probes |",
+        "| Timely forgetting and stale-fact control | contradiction chain, interference gauntlet, temporal decay |",
+        "| Efficient memory storage | salience gate and overload resistance |",
+        "| Critical recall under limited context | context-window efficiency and dormant resurrection |",
+        "| User isolation | cross-user isolation |",
+        "",
+        "## Scenario Scores",
+        "",
+        "| Scenario | Score | Composite | Pass |",
+        "|----------|------:|----------:|:----:|",
+    ])
+
+    for run in with_report.runs:
+        passed = "Yes" if run.score_summary.get("pass", False) else "No"
+        lines.append(
+            f"| {run.scenario_id} | {run.average_probe_score:.1%} | {run.composite_score:.3f} | {passed} |"
+        )
+
+    lines.extend([
+        "",
+        "## Interpretation",
+        "",
+        "A high score means the agent is not just answering individual prompts well.",
+        "It is preserving useful memory across sessions, rejecting weak facts,",
+        "replacing stale beliefs, and recalling relevant facts without dumping the",
+        "entire graph into context.",
+    ])
+
+    return "\n".join(lines)
+
+
 # ==============================================================================
 # JSON export
 # ==============================================================================
@@ -442,6 +524,7 @@ def write_report(
     without_report: MnemBenchReport | None = None,
     output_dir: str | Path = "eval/results",
     prefix: str = "mnembench",
+    judge_report: bool = False,
 ) -> dict[str, Path]:
     """Write Markdown and JSON reports to disk.
 
@@ -453,7 +536,8 @@ def write_report(
         prefix: Filename prefix.
 
     Returns:
-        Dict with "markdown" and "json" paths.
+        Dict with "markdown" and "json" paths. If judge_report is True, also
+        includes "judge_markdown".
     """
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -468,4 +552,11 @@ def write_report(
     json_path = out_dir / f"{prefix}_results_{timestamp}.json"
     json_path.write_text(json.dumps(json_data, indent=2, default=str), encoding="utf-8")
 
-    return {"markdown": md_path, "json": json_path}
+    paths = {"markdown": md_path, "json": json_path}
+    if judge_report:
+        judge_md = generate_judge_report(comparison, with_report)
+        judge_path = out_dir / f"{prefix}_judge_report_{timestamp}.md"
+        judge_path.write_text(judge_md, encoding="utf-8")
+        paths["judge_markdown"] = judge_path
+
+    return paths

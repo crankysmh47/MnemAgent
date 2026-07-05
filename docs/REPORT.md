@@ -12,23 +12,29 @@ MnemOS is a persistent memory layer for AI agents that solves the two fatal flaw
 
 Across our live agentic benchmark suite, MnemOS achieves **86.5% average probe score** compared to **64.6% for the baseline** (vanilla LLM without memory) — a **+21.9 percentage point advantage**. The headline result is **project continuity**: MnemOS scores **88% vs 25% on final probes** — demonstrating that cross-session memory is the fundamental differentiator.
 
-## 2. The Memory Landscape (2025–2026)
+## 2. Track 1 Fit
 
-The field of agent memory evaluation has matured rapidly. As of mid-2026, three benchmarks define the landscape:
+The Track 1 prompt asks for an agent that persistently accumulates experience,
+remembers user preferences, improves decisions across turns and sessions, stores
+memory efficiently, forgets outdated information, and recalls critical facts
+inside limited context windows.
 
-| Benchmark | Scale | Key Capabilities Tested |
-|-----------|-------|------------------------|
-| **LoCoMo** | 300 turns, 35 sessions | Single/multi-hop, temporal, open-domain recall |
-| **LongMemEval** | 500 Qs, ~115K tokens | Knowledge updates, multi-session reasoning, abstention |
-| **BEAM** | 1M–10M tokens, 2,000 Qs | Contradiction resolution, temporal ordering, multi-hop |
+MnemOS is built directly around those constraints:
 
-**Key open problems** identified by the research community in 2026 that MnemOS directly addresses:
+| Track 1 Requirement | MnemOS Mechanism |
+|--------------------|------------------|
+| Persistent memory | Per-user semantic graph, episodic logs, and OpenClaw MCP tools |
+| Accumulated experience | Every successful turn can consolidate facts into long-term memory |
+| User preferences | Persona/preference/system-state categories with confidence scores |
+| Better cross-session decisions | New OpenClaw sessions can call `mnemos__memory_dump` or `mnemos__memory_search` |
+| Efficient storage | Salience Auction rejects low-conviction memories before database write |
+| Efficient retrieval | sqlite-backed graph retrieval plus UCB scoring, capped injected facts |
+| Timely forgetting | Synaptic decay for inactive nodes and hard pruning below threshold |
+| Limited context windows | Compound probes inject only bounded, relevant beliefs instead of the full graph |
 
-1. **Write quality** — almost no benchmark measures the *decision of what to store*. MnemOS's Salience Auction gates ingestion on conviction, novelty, and utility.
-2. **Forgetting / consolidation** — no widely adopted benchmark scores these dynamics directly. MnemOS implements synaptic decay (×0.85 per 45min of inactivity) and hard pruning (weight < 0.1).
-3. **Memory staleness** — confidently-wrong high-relevance facts are harder than decaying irrelevant ones. MnemOS's UCB retrieval formula mathematically forces dormant memories to resurface.
-
-The Mem0 State of AI Agent Memory 2026 report confirms: "Write quality" and "Forgetting/eviction/consolidation" remain unsolved in production systems. These are precisely the problems MnemOS was architected to solve.
+The key engineering claim is simple: MnemOS does not treat memory as a flat
+append-only transcript. A belief must earn storage, earn retrieval, and survive
+decay.
 
 ## 3. Benchmark Results
 
@@ -77,24 +83,22 @@ When using hand-crafted fixture responses (representing the architecture working
 
 The dry-run represents the architecture's ceiling — with a model fine-tuned to follow the `<memory_update>` output format, MnemOS achieves near-perfect memory across all categories while the baseline collapses on contradiction, interference, and context.
 
-## 4. Comparison to Published Benchmarks
+## 4. MnemBench Companion Evaluation
 
-MnemOS maps to the following standardized benchmark categories:
+MnemBench is our long-running memory evaluation companion. For this submission,
+it is used to stress the behaviors that matter for a persistent agent product:
 
-| Standard Benchmark | MnemOS Capability | Live Score | Dry-Run Score |
-|-------------------|-------------------|------------|---------------|
-| LongMemEval (knowledge updates) | Contradiction handling | +8.3% | +90% |
-| BEAM (contradiction resolution) | Proactive interference prevention | +83.4%* | +75% |
-| LoCoMo (multi-session recall) | Cross-session continuity | +83.4%* | +30% |
-| agent-memory-bench (fact-recall) | Memory recall precision | Tied | +30% |
-| agent-memory-bench (memory-update) | Contradiction overwrite | +8.3% | +90% |
+1. **Cross-session recall** — facts taught in separate sessions must be recalled together.
+2. **Contradiction chains** — updated facts must suppress stale values.
+3. **Salience gating** — tentative statements should not pollute the graph.
+4. **Interference prevention** — old values should not leak after updates.
+5. **Dormant retrieval** — relevant but rarely used beliefs should resurface.
+6. **Context efficiency** — prompt memory should stay bounded as the graph grows.
+7. **Cross-user isolation** — one user's memory must not leak into another user's answers.
 
-*Project continuity result across 5 sessions
-
-**MnemOS's unique contributions** that no published benchmark directly measures:
-1. **Salience precision** (what gets stored vs. rejected)
-2. **Forgetting accuracy** (what decays vs. persists)
-3. **Closed-loop feedback** (Q_i learning over time via UCB)
+MnemBench should be split into its own public repository after submission
+packaging so external benchmark comparisons can live there without diluting the
+MnemOS product narrative in this repository.
 
 ## 5. Architectural Validation
 
@@ -168,6 +172,9 @@ Cross-session recall confirmed: facts stored in session A are retrievable in ses
 
 MnemOS demonstrates that architectural memory management — selective ingestion, mathematical retrieval, and controlled forgetting — provides measurable advantages over stateless LLM baselines. The 91.7% vs 8.3% project continuity result proves that cross-session memory is the fundamental differentiator for persistent AI agents.
 
-The system addresses the key open problems identified by the 2026 memory agent research community: write quality (salience auction), forgetting (synaptic decay), and staleness (UCB exploration). These are not patches — they are architectural guarantees built into the system from the ground up.
+The system addresses the core Track 1 product problems: write quality (salience
+auction), forgetting (synaptic decay), and stale-memory suppression
+(contradiction overwrite plus response grounding). These are not patches — they
+are architectural guarantees built into the system from the ground up.
 
 **MnemOS — Memory that earns its place.**
