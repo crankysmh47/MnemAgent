@@ -343,11 +343,10 @@ body:not(.stream-ready) .event-feed-body {
   position: relative;
   z-index: 1;
   background:
-    radial-gradient(ellipse 34% 28% at 76% 32%, rgba(75, 226, 197, 0.18), transparent 72%),
-    radial-gradient(ellipse 26% 22% at 35% 70%, rgba(93, 178, 255, 0.12), transparent 72%),
-    radial-gradient(ellipse 22% 18% at 56% 42%, rgba(255, 196, 0, 0.2), transparent 74%),
+    radial-gradient(ellipse 22% 18% at 56% 42%, rgba(255, 196, 0, 0.18), transparent 74%),
     radial-gradient(ellipse 54% 46% at 58% 50%, rgba(255, 217, 190, 0.8), rgba(145, 79, 62, 0.24) 48%, transparent 76%),
-    radial-gradient(ellipse 85% 75% at 65% 45%, rgba(255, 199, 87, 0.16), transparent 62%),
+    radial-gradient(ellipse 82% 72% at 65% 45%, rgba(255, 174, 82, 0.13), transparent 62%),
+    radial-gradient(ellipse 88% 78% at 50% 55%, rgba(86, 42, 38, 0.18), transparent 68%),
     linear-gradient(165deg, #3A261D 0%, #1D1512 58%, #140F0D 100%);
   border-radius: 0 0 24px 24px;
 }
@@ -363,10 +362,9 @@ body:not(.stream-ready) .event-feed-body {
 
 .graph-viewport::before {
   background:
-    radial-gradient(ellipse 36% 30% at 72% 30%, rgba(64, 239, 200, 0.08), transparent 70%),
-    linear-gradient(115deg, transparent 0 48%, rgba(255, 206, 132, 0.08) 49%, transparent 51% 100%),
-    repeating-linear-gradient(165deg, rgba(255, 225, 180, 0.035) 0 1px, transparent 1px 13px);
-  opacity: 0.82;
+    linear-gradient(115deg, transparent 0 48%, rgba(255, 206, 132, 0.065) 49%, transparent 51% 100%),
+    repeating-linear-gradient(165deg, rgba(255, 225, 180, 0.028) 0 1px, transparent 1px 13px);
+  opacity: 0.72;
 }
 
 .graph-viewport::after {
@@ -576,17 +574,17 @@ body:not(.stream-ready) .event-feed-body {
 }
 
 .memory-particle {
-  opacity: 1;
+  opacity: 0.94;
   filter:
-    drop-shadow(0 0 6px rgba(255, 207, 85, 0.95))
-    drop-shadow(0 0 14px rgba(75, 226, 197, 0.3));
+    drop-shadow(0 0 5px rgba(255, 207, 85, 0.92))
+    drop-shadow(0 0 12px rgba(255, 132, 82, 0.18));
   mix-blend-mode: screen;
 }
 
 .node .neuron-glow {
   opacity: 0.42;
   transition: opacity 0.2s, r 0.2s;
-  animation: neuron-pulse 3.6s ease-in-out infinite;
+  animation: neuron-pulse 4.8s ease-in-out infinite;
 }
 
 .node .neuron-body {
@@ -628,13 +626,13 @@ body:not(.stream-ready) .event-feed-body {
 }
 
 @keyframes neuron-pulse {
-  0%, 100% { opacity: 0.34; transform: scale(1); }
-  50% { opacity: 0.62; transform: scale(1.05); }
+  0%, 100% { opacity: 0.36; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.035); }
 }
 
 @keyframes ring-breathe {
-  0%, 100% { opacity: 0.38; transform: scale(1); }
-  50% { opacity: 0.82; transform: scale(1.1); }
+  0%, 100% { opacity: 0.32; transform: scale(1); }
+  50% { opacity: 0.66; transform: scale(1.065); }
 }
 
 .node:active { cursor: grabbing; }

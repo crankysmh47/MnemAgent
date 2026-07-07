@@ -1,149 +1,186 @@
 # MnemOS
 
-Persistent memory layer for AI agents. MnemOS gates what enters long-term storage, retrieves beliefs with exploration-aware scoring, learns utility from usage, and prunes stale facts on a schedule.
+Persistent memory for OpenClaw agents.
 
-**Submission:** Qwen Global AI Hackathon — Track 1: MemoryAgent  
-**Repository:** https://github.com/crankysmh47/MnemAgent  
-**License:** MIT
+MnemOS gives an agent a long-term memory layer that is selective, inspectable, and user-scoped. It does not simply dump chat logs into a vector store. It decides what deserves storage, retrieves a bounded set of useful beliefs, resolves contradictions, and lets stale memories fade.
 
----
+Submission: Qwen Global AI Hackathon, Track 1: MemoryAgent
 
-## Problem
+Repository: https://github.com/crankysmh47/MnemAgent
 
-RAG-style agent memory typically stores every utterance and retrieves by embedding similarity alone. That produces two recurring failures:
+License: MIT
 
-1. **Proactive interference** — outdated facts remain injectable alongside current ones.
-2. **Unbounded noise** — low-value remarks accumulate until pruning is applied too late.
+## Table of contents
 
-MnemOS addresses both at ingestion and retrieval, not as post-hoc filters.
+- [Quick start](#quick-start)
+- [Visualizer snapshot](#visualizer-snapshot)
+- [What MnemOS does](#what-mnemos-does)
+- [Architecture](#architecture)
+- [Memory engine](#memory-engine)
+- [OpenClaw integration](#openclaw-integration)
+- [Evaluation](#evaluation)
+- [MnemBench status](#mnembench-status)
+- [Demo video plan](#demo-video-plan)
+- [Repository layout](#repository-layout)
+- [Configuration](#configuration)
+- [Verification](#verification)
+- [Deployment notes](#deployment-notes)
+- [Cloud proof strategy](#cloud-proof-strategy)
+- [License](#license)
 
----
+## Quick start
 
-## Solution
+Prerequisites:
 
-MnemOS implements a **two-phase cognitive loop** on every turn:
+- Docker Desktop
+- Python 3.11+
+- Node.js 18+
+- OpenClaw CLI, for the real agent path
+- A Qwen-compatible API key in `.env`
 
-| Phase | Timing | Responsibility |
-|-------|--------|----------------|
-| **Waking** | Synchronous (user-facing) | Embed query, UCB-ranked retrieval, prompt assembly, LLM call, response grounding |
-| **Dreaming** | Awaited before `/chat` reply by default (`AWAIT_DREAMING=true`) | Dual-path write, utility feedback, decay/prune, episodic log |
+Clone and start the stack:
 
-**Dual-path write** (prompt version `v4-dual-path-write`):
+```bash
+git clone https://github.com/crankysmh47/MnemAgent.git
+cd MnemAgent
+cp config/env.template .env
+docker compose up -d --build
+```
 
-1. Parse `<memory_update>` facts from the LLM response when present.
-2. Run server-side extraction on the user message when the model skips or non-complies.
-3. Apply UCB utility feedback on injected beliefs.
-4. Append an episodic turn and optionally sync to cloud storage.
+On Windows, the one-command local path is:
 
-**Ingestion rule:** store when `conviction >= 0.4` or `category == system_state`.
+```powershell
+cd C:\sem4\MnemAgent
+.\scripts\launch.ps1
+.\scripts\onboard-openclaw.ps1
+```
 
-**Retrieval score:** `Score_i = Q_i + c * sqrt(ln(T) / (N_i + 1))` with `c = 0.3`.
+Useful URLs and commands:
 
----
+| Surface | URL or command |
+|---------|----------------|
+| Memory visualizer | http://localhost:3000?user=demo-brain |
+| MnemOS API health | http://localhost:8000/health |
+| MCP server health | http://localhost:8001/health |
+| OpenClaw gateway | http://localhost:18789 |
+| OpenClaw dashboard | `openclaw dashboard` |
+| MCP proof | `openclaw mcp probe mnemos` |
+| Local memory proof | `powershell -File scripts/prove-memory.ps1` |
 
-## Hackathon alignment (Track 1: MemoryAgent)
+## Visualizer snapshot
 
-| Requirement | MnemOS mechanism | Evidence |
-|-------------|------------------|----------|
-| Efficient storage | Salience auction rejects low-conviction noise before graph write | `salience_noise` scenario; dry-run 100% vs 75% baseline |
-| Efficient retrieval | sqlite-vec KNN + UCB exploration; cap at 6 injected facts | O(1) prompt overhead regardless of graph size |
-| Timely forgetting | Synaptic decay (inactive > 45 min) and hard prune (`node_weight < 0.1`) | Forgetting category +6.7 pp live vs baseline |
-| Critical recall in limited context | Compound-probe full-belief injection; cross-session `user_id` graph | Project continuity **79–92%** vs **8%** baseline |
-| Agent integration | Seven MCP tools; OpenClaw gateway; multi-channel ready | `openclaw mcp probe mnemos` → 7 tools |
+![MnemOS memory visualizer](docs/assets/visualizer-snapshot.png)
 
-Detailed methodology and scores: [docs/REPORT.md](docs/REPORT.md), [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md).
+The visualizer is intentionally not another chat UI. It shows the memory graph: beliefs, categories, confidence, recall count, and semantic links.
 
-Product-level verification evidence: [docs/VERIFICATION.md](docs/VERIFICATION.md).
+## What MnemOS does
 
-Judge-safe deployment checklist: [docs/JUDGE_DEPLOYMENT.md](docs/JUDGE_DEPLOYMENT.md).
+MnemOS solves two common agent memory failures.
 
----
+First, ordinary RAG memory tends to over-store. Low-confidence thoughts, abandoned ideas, and casual suggestions enter the same store as real user preferences. MnemOS gates facts before they touch long-term memory.
 
-## System context
+Second, flat memory tends to recall stale facts. If a user switches from Express to FastAPI, both can remain retrievable unless the system has explicit contradiction handling. MnemOS keys beliefs by user, entity, and relation, so current facts replace superseded ones.
+
+The system is built around four behaviors:
+
+| Behavior | Mechanism |
+|----------|-----------|
+| Selective storage | Salience auction: store only conviction >= 0.4, except `system_state` facts |
+| Bounded recall | sqlite-vec candidate search, UCB ranking, max 6 injected facts |
+| Contradiction handling | Unique belief key: `(user_id, entity_source, relation)` |
+| Forgetting | Inactive nodes decay and are pruned below `node_weight < 0.1` |
+
+## Architecture
 
 ```mermaid
 flowchart TB
-  subgraph Channels["User channels"]
-    CLI["OpenClaw CLI / TUI"]
-    WEB["WebChat"]
-    TG["Telegram"]
-    DC["Discord"]
+  subgraph UserSurfaces["User surfaces"]
+    OCWEB["OpenClaw web UI / dashboard"]
+    OCTUI["OpenClaw TUI / CLI"]
+    VIZ["MnemOS visualizer :3000"]
   end
 
-  GW["OpenClaw Gateway\n:18789"]
-  MCP["MnemOS MCP Server\n:8001 stdio or HTTP"]
-  API["MnemOS Memory API\n:8000 FastAPI"]
-  VIZ["Memory Visualizer\n:3000"]
-  DB[("SQLite + sqlite-vec\nsemantic_graph, vec_memory")]
-  OSS[("Alibaba OSS\noptional backup")]
+  GW["OpenClaw Gateway :18789"]
+  MCP["MnemOS MCP server :8001 / stdio"]
+  API["MnemOS Memory API :8000"]
+  QWEN["Qwen-compatible LLM API"]
+  DB[("SQLite memory_state.db")]
+  VEC[("sqlite-vec embeddings")]
+  OSS[("Alibaba OSS backup")]
 
-  Channels --> GW
-  GW -->|"7 MCP tools"| MCP
+  OCWEB --> GW
+  OCTUI --> GW
+  GW -->|"mnemos__memory_* tools"| MCP
   MCP --> API
   VIZ --> API
+  API --> QWEN
   API --> DB
-  API -.->|"every 50 turns"| OSS
+  API --> VEC
+  API -. periodic snapshot .-> OSS
 ```
 
----
+The product path is OpenClaw -> MCP -> MnemOS. The web visualizer is a companion surface for judges and developers to see memory forming in real time.
 
-## Turn sequence
+## Memory engine
+
+Every chat turn goes through two phases.
+
+### Waking phase
+
+The waking phase is the user-facing path. It runs before the LLM answer is returned.
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant U as User
-  participant A as Agent / Harness
+  participant A as OpenClaw / Harness
   participant W as Waking phase
-  participant L as Qwen LLM
-  participant D as Dreaming phase
   participant G as Semantic graph
+  participant L as Qwen-compatible LLM
 
-  U->>A: message
-  A->>W: user_id, session_id, text
-  W->>G: embed query, KNN, UCB rank
-  G-->>W: top beliefs (max 6)
-  W->>L: system prompt + injected memory
-  L-->>W: reply + optional memory_update tags
-  W->>W: strip tags, ground response
-  W->>D: await consolidation pipeline
-  D->>G: salience gate, store, decay, prune
-  D->>G: utility feedback on injected ids
-  W-->>A: clean response
-  A-->>U: reply
+  U->>A: message with user_id/session_id
+  A->>W: chat request
+  W->>G: retrieve candidates
+  W->>W: rank with UCB
+  W->>L: prompt + bounded memory context
+  L-->>W: response + optional memory_update
+  W->>W: strip memory tags and ground response
+  W-->>A: clean answer
+  A-->>U: final reply
 ```
 
----
+Retrieval uses:
 
-## Component view
+- embeddings when sqlite-vec is available;
+- keyword fallback using a global and per-user entity dictionary;
+- UCB ranking: `Score_i = Q_i + c * sqrt(ln(T) / (N_i + 1))`;
+- associative hops for larger graphs;
+- a hard cap of 6 injected memories.
+
+### Dreaming phase
+
+The dreaming phase consolidates memory after the answer path has the information it needs.
 
 ```mermaid
 flowchart LR
-  subgraph Presentation
-    HARNESS["openclaw-harness"]
-    MCPNODE["mcp-server"]
-  end
-
-  subgraph Core["mcp-memory-server"]
-    MAIN["main.py\nFastAPI routes"]
-    WAKE["memory/waking.py\nretrieval + prompt"]
-    DREAM["memory/dreaming.py\nconsolidation + decay"]
-    GROUND["memory/response_grounding.py"]
-    BIND["memory/user_bindings.py"]
-    STORE["storage/db_manager.py"]
-  end
-
-  HARNESS --> MAIN
-  MCPNODE --> MAIN
-  MAIN --> WAKE
-  MAIN --> DREAM
-  MAIN --> GROUND
-  MAIN --> BIND
-  WAKE --> STORE
-  DREAM --> STORE
+  RAW["Extracted memory facts"] --> SAL["Salience auction"]
+  SAL -->|"accepted"| UPSERT["Atomic belief upsert"]
+  SAL -->|"rejected"| EVENT["memory_events"]
+  UPSERT --> DICT["Per-user entity dictionary"]
+  UPSERT --> DECAY["Decay inactive nodes"]
+  DECAY --> PRUNE["Prune weak nodes"]
+  PRUNE --> LOG["Episodic log"]
+  LOG --> OSS["Optional OSS snapshot"]
 ```
 
----
+The salience rule is deliberately simple:
+
+```text
+store if conviction >= 0.4 OR category == system_state
+otherwise reject and log the event
+```
+
+That means "Maybe we should try Svelte someday" does not pollute long-term memory, while "The production region is ap-southeast-1" can be stored even if the model assigns lower confidence.
 
 ## Data model
 
@@ -163,8 +200,9 @@ erDiagram
     float conviction_score
   }
   vec_memory {
-    int id FK
-    string embedding_vector
+    int rowid PK
+    vector embedding
+    int metadata_id
   }
   episodic_logs {
     int id PK
@@ -179,7 +217,13 @@ erDiagram
     string event_type
     string entity_source
     string entity_target
-    string detail_json
+    string detail
+  }
+  user_entities {
+    int id PK
+    string user_id
+    string entity_name
+    string source
   }
   user_bindings {
     string user_id PK
@@ -190,157 +234,345 @@ erDiagram
   semantic_graph ||--o| vec_memory : embeds
 ```
 
-Beliefs are keyed per `user_id`. Channel senders map to a canonical id via `POST /api/user/bind` (`oc_{channel}_{hash16}`).
+The important constraint is on `semantic_graph`: one active value per `(user_id, entity_source, relation)`. That is the contradiction-resolution path.
 
----
+## OpenClaw integration
 
-## Quick start
-
-**Prerequisites:** Docker Desktop, Node.js 18+, Python 3.11+. Windows users may use WSL or PowerShell scripts.
-
-```bash
-git clone https://github.com/crankysmh47/MnemAgent.git
-cd MnemAgent
-cp config/env.template .env    # set QWEN_API_KEY
-docker compose up -d --build
-```
-
-**Windows (full stack + OpenClaw):**
-
-```powershell
-.\scripts\launch.ps1
-.\scripts\onboard-openclaw.ps1
-```
-
-| Resource | URL / command |
-|----------|----------------|
-| Memory visualizer | http://localhost:3000?user=demo-brain |
-| MnemOS API health | http://localhost:8000/health |
-| MCP server health | http://localhost:8001/health |
-| OpenClaw dashboard | `openclaw dashboard` |
-| Verify MCP tools | `openclaw mcp probe mnemos` |
-| Terminal proof | `powershell -File scripts/prove-memory.ps1` |
-
-Copy `config/env.template` to `.env`. A DashScope Qwen API key is required (`qwen-flash` is the judge-safe default for routine runs).
-
----
-
-## Services
-
-| Container | Port | Role |
-|-----------|------|------|
-| `mnemos-memory` | 8000 | Beliefs, `/chat`, retrieval, dreaming, REST API |
-| `mnemos-mcp` | 8001 | MCP tool surface for agents |
-| `openclaw-harness` | 3000 | Live belief graph, event stream, API proxy |
-
-```bash
-docker compose up -d --build
-```
-
----
-
-## MCP tools
+MnemOS exposes seven MCP tools to OpenClaw:
 
 | Tool | Purpose |
 |------|---------|
-| `memory_resolve_user` | Bind channel sender to canonical `user_id` |
-| `memory_bind_user` | Explicit user binding (same upsert path) |
-| `memory_store` | Salience-gated fact ingestion |
-| `memory_search` | Keyword search over beliefs |
-| `memory_dump` | Full brain state (`/memory`) |
-| `memory_stats` | UCB optimization table |
-| `memory_chat` | Memory-augmented chat via MnemOS `/chat` |
+| `memory_resolve_user` | Map a channel sender to a canonical `user_id` |
+| `memory_bind_user` | Explicitly bind a channel and sender |
+| `memory_store` | Store a salience-gated belief |
+| `memory_search` | Search beliefs for a user |
+| `memory_dump` | Show the full active brain state |
+| `memory_stats` | Show UCB utility and recall statistics |
+| `memory_chat` | Route a chat turn through MnemOS |
 
-Agent operating rules: [config/workspace/AGENTS.md](config/workspace/AGENTS.md).
+Typical agent proof:
 
-Multiple agents share one brain when they use the same `MNEMOS_URL` and resolved `user_id`.
+```powershell
+docker compose up -d
+openclaw gateway start
+openclaw mcp probe mnemos
+```
 
----
+Expected result: `mnemos` exposes 7 tools.
 
-## Evaluation summary
+## Evaluation
+
+The evaluation story has two layers.
+
+The product repo keeps the hackathon-facing proof: live agentic tests, OpenClaw MCP checks, visualizer checks, and deployment preflight.
+
+MnemBench is the companion benchmark suite for long-running memory behavior. It currently lives in this repository under `eval/mnembench/` and is planned as a separate public repository after the MnemOS submission is stable.
+
+Headline local result from the current docs:
 
 | Suite | MnemOS | Baseline | Notes |
 |-------|--------|----------|-------|
-| Agentic (live, 4 scenarios) | **86.5%** | 64.6% | Headline: project continuity **79–92%** vs **8%** |
-| Single-turn (live, 25 scenarios) | 43.7% | 45.0% | Wins contradiction (+15 pp) and forgetting (+6.7 pp) |
-| Dry-run (architectural ceiling) | **100%** | 29% | Model-compliant structured output |
+| Live agentic benchmark | 86.5% | 64.6% | Cross-session and project-continuity advantage |
+| Single-turn live benchmark | 43.7% | 45.0% | Useful for regression, less representative of persistent memory |
+| Dry-run architectural ceiling | 100% | 29% | Confirms deterministic memory logic when extraction is ideal |
+
+Run checks:
 
 ```bash
-# Offline dry-run
 python -m eval.run_benchmark --dry-run --mode both
-
-# Live (MnemOS :8000 + API key)
-python -m eval.run_benchmark --mode both
+python -m eval.mnembench --dry-run --scenario contradiction_chain --judge-report
 ```
 
-Full tables and integration proof: [docs/REPORT.md](docs/REPORT.md), [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md).
+Read more:
 
----
+- [docs/REPORT.md](docs/REPORT.md)
+- [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md)
+- [docs/VERIFICATION.md](docs/VERIFICATION.md)
+
+## MnemBench status
+
+MnemBench is being split out as a separate public repository.
+
+For the hackathon submission, the benchmark runner remains in this repository so judges can reproduce the numbers without chasing another dependency. After the MnemOS submission is frozen, the same suite will move into its own `mnembench` repo as an installable benchmark for long-running memory agents.
+
+Current location:
+
+```text
+eval/mnembench/
+```
+
+Spin-out plan:
+
+```text
+docs/MNEMBENCH_SPINOUT.md
+```
+
+Planned standalone repo name:
+
+```text
+mnembench
+```
+
+The split is intentional:
+
+- this repository stays focused on the submitted MnemOS product;
+- the standalone `mnembench` repository becomes an installable benchmark package for any memory agent;
+- external benchmark comparisons belong in the MnemBench repo, not in the MnemOS submission README.
+
+## Demo video plan
+
+The video script is stored here:
+
+```text
+docs/SUBMISSION_VIDEO_PLAN.md
+```
+
+The current script is built around a 3-minute flow:
+
+1. Show the problem: ordinary agents forget or over-store.
+2. Show MnemOS visualizer with `demo-brain`.
+3. Teach three facts through OpenClaw using MCP tools.
+4. Start a new chat and recall those facts.
+5. Show the new nodes in the visualizer.
+6. Store a contradiction and show the new value replacing the stale one.
+7. Try a low-conviction memory and show it being rejected.
+8. Show benchmark evidence.
+9. Show Alibaba Cloud proof.
+
+See the step-by-step recording section below for the exact commands.
 
 ## Repository layout
 
-```
+```text
 MnemAgent/
-├── mcp-memory-server/   Python FastAPI memory engine (:8000)
-├── mcp-server/          Node MCP adapter — 7 tools (:8001)
-├── openclaw-harness/    Visualizer and API proxy (:3000)
-├── config/              Environment template, OpenClaw workspace, patches
-├── docker/              MnemOS memory service Dockerfile
-├── requirements/        Python dependency pins (prod + dev)
-├── scripts/             Setup, launch, onboarding, verification
-├── eval/                Benchmark harness (MnemOS vs baseline)
-├── tests/               pytest suite
-└── docs/                Architecture, setup, evaluation reports
+├── mcp-memory-server/     Python FastAPI memory engine (:8000)
+├── mcp-server/            Node MCP adapter for OpenClaw
+├── openclaw-harness/      Visualizer and API proxy (:3000)
+├── config/                Environment template, OpenClaw config, workspace files
+├── docker/                Dockerfile for the memory API
+├── requirements/          Python dependency pins
+├── scripts/               Launch, reset, onboarding, deployment, verification
+├── eval/                  Product benchmarks and MnemBench prototype
+├── tests/                 pytest suite
+└── docs/                  Architecture, setup, deployment, evaluation, video plan
 ```
-
----
 
 ## Configuration
 
-| Mode | LLM | Memory DB | Embeddings |
-|------|-----|-----------|------------|
-| Local dev | DashScope Qwen trial (default in `env.template`) | SQLite Docker volume | `all-MiniLM-L6-v2` |
-| Demo / eval | DashScope Qwen | Same | Same |
-| Cloud backup | — | OSS snapshot every 50 turns | — |
+Copy the template before running:
 
-Key environment variables: `QWEN_API_KEY`, `QWEN_MODEL`, `AWAIT_DREAMING`, `ENABLE_DREAMING_EXTRACTION`, `DB_PATH`.
+```bash
+cp config/env.template .env
+```
 
----
+Important variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `QWEN_API_KEY` | Qwen-compatible API key |
+| `QWEN_BASE_URL` | DashScope or workspace-compatible endpoint |
+| `QWEN_MODEL` | Default model for chat/extraction |
+| `DB_PATH` | SQLite memory database path |
+| `AWAIT_DREAMING` | Whether chat waits for memory consolidation |
+| `ENABLE_DREAMING_EXTRACTION` | Enables server-side fallback extraction |
+| `MNEMOS_URL` | API URL used by MCP/OpenClaw |
+
+Do not commit `.env`. The repo uses `config/env.template` for public configuration.
 
 ## Verification
 
+Run the full backend suite:
+
 ```bash
-pytest tests/ -v
-powershell -File scripts/integration-test.ps1
-powershell -File scripts/submission-test.ps1
+python -m pytest tests -q
+```
+
+Check the visualizer:
+
+```bash
 node openclaw-harness/scripts/check-visualizer.mjs
 ```
 
----
+Run integration proofs:
 
-## Documentation
+```powershell
+powershell -File scripts/integration-test.ps1
+powershell -File scripts/prove-memory.ps1
+powershell -File scripts/prove-openclaw.ps1
+```
 
-| Document | Contents |
-|----------|----------|
-| [docs/README.md](docs/README.md) | Documentation index |
-| [docs/SETUP.md](docs/SETUP.md) | Prerequisites, models, channels, troubleshooting |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Waking/dreaming detail, schema, design decisions |
-| [docs/CLOUD.md](docs/CLOUD.md) | Alibaba Cloud ECS + OSS deployment guide |
-| [docs/REPORT.md](docs/REPORT.md) | Benchmark results and design rationale |
-| [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md) | Live OpenClaw integration proof |
+## Deployment notes
 
----
+The final deployment target is Alibaba Cloud ECS running the MnemOS backend, MCP server, and visualizer containers. Qwen-compatible inference is configured through the `.env` Qwen/DashScope settings.
 
-## Known limitations
+For deployment, use:
 
-- Influence detection uses proximity regex, not embedding similarity.
-- `/chat` and REST APIs have no authentication; intended for demo and hackathon use.
-- OSS backup is periodic snapshot sync, not live multi-region replication.
-- Live single-turn recall depends partly on LLM compliance with structured output; server-side extraction mitigates but does not eliminate the gap.
-- OpenClaw CLI runs on the host for multi-channel messaging; Docker provides MnemOS services only.
+- [docs/CLOUD.md](docs/CLOUD.md)
+- [docs/JUDGE_DEPLOYMENT.md](docs/JUDGE_DEPLOYMENT.md)
 
----
+Before handing the URL to judges, reset the cloud memory namespace:
+
+```powershell
+pwsh ./scripts/reset-cloud-memory.ps1
+pwsh ./scripts/deploy-preflight.ps1
+```
+
+Use a clean judge `user_id` for the recorded proof. Keep `demo-brain` only for the rich visualizer shot.
+
+## Cloud proof strategy
+
+The submission needs two forms of proof:
+
+1. A short recording that shows the backend running on Alibaba Cloud.
+2. A link to code in this repository that demonstrates Alibaba Cloud service usage.
+
+The proof plan is:
+
+- deploy this repository to an Alibaba Cloud ECS instance;
+- run `docker compose up -d --build` on ECS;
+- configure `.env` with Qwen-compatible inference settings;
+- run `pwsh ./scripts/deploy-preflight.ps1`;
+- record the ECS public IP serving the visualizer and health endpoints;
+- show `docs/CLOUD.md`, `docs/JUDGE_DEPLOYMENT.md`, and the OSS sync code path used for cloud backup.
+
+Cloud backup support is implemented through Alibaba OSS snapshot sync. The backup path is intentionally periodic instead of a live database replica: MnemOS keeps the active memory graph in SQLite for simple deployment, then uploads snapshots for proof and recovery.
+
+## Recording the demo video
+
+Use this exact local rehearsal flow before spending cloud instance time.
+
+### 1. Start the stack
+
+```powershell
+cd C:\sem4\MnemAgent
+docker compose up -d --build
+openclaw gateway restart --force
+```
+
+### 2. Confirm health
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod http://127.0.0.1:8001/health
+openclaw mcp probe mnemos
+```
+
+### 3. Open the recording tabs
+
+Open:
+
+```text
+http://127.0.0.1:18789
+http://127.0.0.1:3000?user=demo-brain
+http://127.0.0.1:3000?user=judge-video-local
+```
+
+Use `demo-brain` for the beautiful graph shot. Use `judge-video-local` for the clean live proof.
+
+### 4. Teach facts in OpenClaw
+
+Start a new OpenClaw chat and send:
+
+```text
+Call tool mnemos__memory_store three times for user_id judge-video-local:
+1. {"user_id":"judge-video-local","entity":"project","relation":"codename","value":"CloudProof42","category":"preference","conviction":1.0}
+2. {"user_id":"judge-video-local","entity":"backend","relation":"framework","value":"FastAPI","category":"preference","conviction":1.0}
+3. {"user_id":"judge-video-local","entity":"database","relation":"type","value":"PostgreSQL","category":"preference","conviction":1.0}
+Then reply in one short sentence.
+```
+
+### 5. Prove cross-session recall
+
+Open a new OpenClaw chat/session and send:
+
+```text
+Use mnemos__memory_dump with user_id judge-video-local, then answer in one natural sentence:
+what is my project codename, backend framework, and database? Do not print JSON.
+```
+
+Expected answer:
+
+```text
+Your project codename is CloudProof42, the backend framework is FastAPI, and the database is PostgreSQL.
+```
+
+### 6. Show the graph
+
+Open:
+
+```text
+http://127.0.0.1:3000?user=judge-video-local
+```
+
+Refresh. Show the new belief nodes, hover a node, zoom once, and drag one node slightly.
+
+Then switch to:
+
+```text
+http://127.0.0.1:3000?user=demo-brain
+```
+
+Use that for the dense graph beauty shot.
+
+### 7. Show contradiction handling
+
+In OpenClaw:
+
+```text
+Call tool mnemos__memory_store with exactly these arguments:
+{"user_id":"judge-video-local","entity":"backend","relation":"framework","value":"Hono","category":"preference","conviction":1.0}
+Then call mnemos__memory_dump with user_id judge-video-local and summarize the current backend framework in one sentence.
+```
+
+Expected answer:
+
+```text
+The current backend framework is Hono.
+```
+
+### 8. Show salience rejection
+
+In OpenClaw:
+
+```text
+Call mnemos__memory_store with exactly these arguments:
+{"user_id":"judge-video-local","entity":"frontend_experiment","relation":"maybe_uses","value":"Svelte","category":"preference","conviction":0.2}
+Then tell me whether it was stored or rejected.
+```
+
+Expected answer:
+
+```text
+The memory store operation was rejected.
+```
+
+### 9. Show benchmark evidence
+
+Generate the judge report:
+
+```powershell
+python -m eval.mnembench --dry-run --scenario contradiction_chain --judge-report
+```
+
+Show the generated report or `docs/REPORT.md` in the video.
+
+### 10. Cloud proof
+
+On Alibaba Cloud, repeat the same flow with the ECS public IP:
+
+```text
+http://<ecs-ip>:18789
+http://<ecs-ip>:3000?user=<judge-id>
+```
+
+Run:
+
+```powershell
+pwsh ./scripts/deploy-preflight.ps1
+```
+
+Record the terminal output and the browser URL. That is the separate proof that the backend is running on Alibaba Cloud.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

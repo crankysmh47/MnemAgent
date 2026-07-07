@@ -832,11 +832,30 @@ function renderGraph(data) {
 
   const particleLayer = graphG.append('g').attr('class', 'particle-layer');
   const particles = links.slice(0, Math.min(links.length, 96)).flatMap((link, li) => {
-    const primary = { link, id: `${li}-a`, t: Math.random(), speed: 0.0035 + Math.random() * 0.0045 };
+    const kindSpeed = {
+      cluster: 0.000105,
+      concept: 0.000085,
+      bridge: 0.000095,
+      affinity: 0.000075,
+    };
+    const speed = kindSpeed[link.kind || 'cluster'] || 0.00009;
+    const primary = {
+      link,
+      id: `${li}-a`,
+      t: 0,
+      phase: (li * 0.173) % 1,
+      speed,
+    };
     if (li % 3 !== 0) return [primary];
     return [
       primary,
-      { link, id: `${li}-b`, t: Math.random(), speed: 0.0024 + Math.random() * 0.0032 },
+      {
+        link,
+        id: `${li}-b`,
+        t: 0,
+        phase: ((li * 0.173) + 0.5) % 1,
+        speed: speed * 0.74,
+      },
     ];
   });
   const particleSel = particleLayer.selectAll('circle')
@@ -888,14 +907,13 @@ function renderGraph(data) {
     drawFrame();
   }
 
-  function animateFlow() {
+  function animateFlow(timestamp = 0) {
     if (document.hidden) {
       particleLoopId = requestAnimationFrame(animateFlow);
       return;
     }
     particles.forEach(d => {
-      d.t += d.speed;
-      if (d.t > 1) d.t = 0;
+      d.t = (d.phase + timestamp * d.speed) % 1;
     });
     drawFrame();
     particleLoopId = requestAnimationFrame(animateFlow);
@@ -914,9 +932,12 @@ function renderGraph(data) {
       .force('x', d3.forceX(d => cx + d.hemisphere * bounds.rx * 0.09).strength(d => d.pinned ? 0 : (narrowFilter ? 0.012 : 0.025)))
       .force('y', d3.forceY(cy).strength(d => d.pinned ? 0 : (narrowFilter ? 0.01 : 0.02)))
       .force('contain', forceBrainContain(cx, cy, bounds.rx, bounds.ry, brainMargin))
-      .alpha(narrowFilter ? 0.45 : 0.8)
-      .alphaDecay(narrowFilter ? 0.075 : 0.042);
+      .alpha(narrowFilter ? 0.34 : 0.58)
+      .alphaDecay(narrowFilter ? 0.09 : 0.06);
     sim.on('tick', tick);
+    sim.tick(narrowFilter ? 90 : 140);
+    sim.alpha(0.001);
+    tick();
   } else {
     resolveOverlaps(nodes, bounds, brainMargin, 14);
     drawFrame();
@@ -972,7 +993,7 @@ function renderGraph(data) {
   nodeG.append('circle')
     .attr('class', 'neuron-ring')
     .attr('r', d => d.r + 3.5)
-    .attr('style', (_, i) => `animation-delay:${(i % 6) * -0.55}s`);
+    .attr('style', (_, i) => `animation-delay:${(i % 4) * -1.2}s`);
 
   nodeG.append('circle')
     .attr('class', 'neuron-body')
