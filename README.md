@@ -25,7 +25,6 @@ License: MIT
 - [Configuration](#configuration)
 - [Verification](#verification)
 - [Deployment notes](#deployment-notes)
-- [Cloud proof strategy](#cloud-proof-strategy)
 - [License](#license)
 
 ## Quick start
@@ -273,7 +272,6 @@ Headline local result from the current docs:
 | Suite | MnemOS | Baseline | Notes |
 |-------|--------|----------|-------|
 | Live agentic benchmark | 86.5% | 64.6% | Cross-session and project-continuity advantage |
-| Single-turn live benchmark | 43.7% | 45.0% | Useful for regression, less representative of persistent memory |
 | Dry-run architectural ceiling | 100% | 29% | Confirms deterministic memory logic when extraction is ideal |
 
 Run checks:
@@ -405,173 +403,13 @@ powershell -File scripts/prove-openclaw.ps1
 
 The final deployment target is Alibaba Cloud ECS running the MnemOS backend, MCP server, and visualizer containers. Qwen-compatible inference is configured through the `.env` Qwen/DashScope settings.
 
-For deployment, use:
+For deployment and judge reset instructions, use:
 
 - [docs/CLOUD.md](docs/CLOUD.md)
 - [docs/JUDGE_DEPLOYMENT.md](docs/JUDGE_DEPLOYMENT.md)
+- [docs/SUBMISSION_VIDEO_PLAN.md](docs/SUBMISSION_VIDEO_PLAN.md)
 
-Before handing the URL to judges, reset the cloud memory namespace:
-
-```powershell
-pwsh ./scripts/reset-cloud-memory.ps1
-pwsh ./scripts/deploy-preflight.ps1
-```
-
-Use a clean judge `user_id` for the recorded proof. Keep `demo-brain` only for the rich visualizer shot.
-
-## Cloud proof strategy
-
-The submission needs two forms of proof:
-
-1. A short recording that shows the backend running on Alibaba Cloud.
-2. A link to code in this repository that demonstrates Alibaba Cloud service usage.
-
-The proof plan is:
-
-- deploy this repository to an Alibaba Cloud ECS instance;
-- run `docker compose up -d --build` on ECS;
-- configure `.env` with Qwen-compatible inference settings;
-- run `pwsh ./scripts/deploy-preflight.ps1`;
-- record the ECS public IP serving the visualizer and health endpoints;
-- show `docs/CLOUD.md`, `docs/JUDGE_DEPLOYMENT.md`, and the OSS sync code path used for cloud backup.
-
-Cloud backup support is implemented through Alibaba OSS snapshot sync. The backup path is intentionally periodic instead of a live database replica: MnemOS keeps the active memory graph in SQLite for simple deployment, then uploads snapshots for proof and recovery.
-
-## Recording the demo video
-
-Use this exact local rehearsal flow before spending cloud instance time.
-
-### 1. Start the stack
-
-```powershell
-cd C:\sem4\MnemAgent
-docker compose up -d --build
-openclaw gateway restart --force
-```
-
-### 2. Confirm health
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
-Invoke-RestMethod http://127.0.0.1:8001/health
-openclaw mcp probe mnemos
-```
-
-### 3. Open the recording tabs
-
-Open:
-
-```text
-http://127.0.0.1:18789
-http://127.0.0.1:3000?user=demo-brain
-http://127.0.0.1:3000?user=judge-video-local
-```
-
-Use `demo-brain` for the beautiful graph shot. Use `judge-video-local` for the clean live proof.
-
-### 4. Teach facts in OpenClaw
-
-Start a new OpenClaw chat and send:
-
-```text
-Call tool mnemos__memory_store three times for user_id judge-video-local:
-1. {"user_id":"judge-video-local","entity":"project","relation":"codename","value":"CloudProof42","category":"preference","conviction":1.0}
-2. {"user_id":"judge-video-local","entity":"backend","relation":"framework","value":"FastAPI","category":"preference","conviction":1.0}
-3. {"user_id":"judge-video-local","entity":"database","relation":"type","value":"PostgreSQL","category":"preference","conviction":1.0}
-Then reply in one short sentence.
-```
-
-### 5. Prove cross-session recall
-
-Open a new OpenClaw chat/session and send:
-
-```text
-Use mnemos__memory_dump with user_id judge-video-local, then answer in one natural sentence:
-what is my project codename, backend framework, and database? Do not print JSON.
-```
-
-Expected answer:
-
-```text
-Your project codename is CloudProof42, the backend framework is FastAPI, and the database is PostgreSQL.
-```
-
-### 6. Show the graph
-
-Open:
-
-```text
-http://127.0.0.1:3000?user=judge-video-local
-```
-
-Refresh. Show the new belief nodes, hover a node, zoom once, and drag one node slightly.
-
-Then switch to:
-
-```text
-http://127.0.0.1:3000?user=demo-brain
-```
-
-Use that for the dense graph beauty shot.
-
-### 7. Show contradiction handling
-
-In OpenClaw:
-
-```text
-Call tool mnemos__memory_store with exactly these arguments:
-{"user_id":"judge-video-local","entity":"backend","relation":"framework","value":"Hono","category":"preference","conviction":1.0}
-Then call mnemos__memory_dump with user_id judge-video-local and summarize the current backend framework in one sentence.
-```
-
-Expected answer:
-
-```text
-The current backend framework is Hono.
-```
-
-### 8. Show salience rejection
-
-In OpenClaw:
-
-```text
-Call mnemos__memory_store with exactly these arguments:
-{"user_id":"judge-video-local","entity":"frontend_experiment","relation":"maybe_uses","value":"Svelte","category":"preference","conviction":0.2}
-Then tell me whether it was stored or rejected.
-```
-
-Expected answer:
-
-```text
-The memory store operation was rejected.
-```
-
-### 9. Show benchmark evidence
-
-Generate the judge report:
-
-```powershell
-python -m eval.mnembench --dry-run --scenario contradiction_chain --judge-report
-```
-
-Show the generated report or `docs/REPORT.md` in the video.
-
-### 10. Cloud proof
-
-On Alibaba Cloud, repeat the same flow with the ECS public IP:
-
-```text
-http://<ecs-ip>:18789
-http://<ecs-ip>:3000?user=<judge-id>
-```
-
-Run:
-
-```powershell
-pwsh ./scripts/deploy-preflight.ps1
-```
-
-Record the terminal output and the browser URL. That is the separate proof that the backend is running on Alibaba Cloud.
+Cloud proof is handled through the deployment guide, preflight script, and OSS backup code path. The public README intentionally keeps those details brief; the exact recording workflow lives in the submission video plan.
 
 ## License
 

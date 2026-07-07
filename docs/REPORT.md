@@ -68,9 +68,23 @@ This is the key result. The scenario spans 8 steps across 5 sessions, teaching a
 
 This demonstrates the core value proposition: **MnemOS preserves arbitrary context that a stateless LLM will always lose.**
 
-### 3.4 Dry-Run Benchmark (Architectural Best-Case)
+### 3.4 Legacy Single-Turn Benchmark
 
-When using hand-crafted fixture responses (representing the architecture working at full potential with a model that reliably follows structured output instructions):
+The older 25-scenario single-turn suite is retained as a regression harness, not
+as the headline product benchmark. It mixes extraction compliance, generic model
+guessing, and memory retrieval into one score, which makes it less suitable for
+judging a persistent memory agent.
+
+The live agentic suite above is the judge-facing result because it evaluates the
+actual Track 1 behaviors: cross-session recall, contradiction handling, salience
+rejection, and project continuity. The single-turn suite remains useful for
+catching regressions in individual routes, but it is not the main evidence for
+MnemOS.
+
+### 3.5 Dry-Run Benchmark (Architectural Best-Case)
+
+When using hand-crafted fixture responses that represent the architecture
+working with ideal structured-output compliance:
 
 | Category | MnemOS | Baseline | Advantage |
 |----------|--------|----------|-----------|
