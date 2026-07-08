@@ -41,7 +41,7 @@ function Ensure-MnemosUserId {
 Write-Host "=== OpenClaw + MnemOS Onboarding ===" -ForegroundColor Cyan
 Write-Host ""
 
-# ═══ Pre-flight warnings ═══
+# --------- Pre-flight warnings ---------
 Write-Host "Pre-flight checks:" -ForegroundColor DarkGray
 
 # Port 3000 clash: OpenClaw OAuth callback uses localhost:3000, but our
@@ -70,27 +70,40 @@ Write-Host "  Note: API keys go through 'openclaw' auth, not just .env" -Foregro
 Write-Host "        This script handles both for you." -ForegroundColor DarkGray
 Write-Host ""
 
-$apiKey = Get-DotEnvValue "QWEN_API_KEY"
-$baseUrl = Get-DotEnvValue "QWEN_BASE_URL"
-$modelId = Get-DotEnvValue "QWEN_MODEL"
-if (-not $apiKey) { throw "QWEN_API_KEY missing in .env" }
+$provider = Get-DotEnvValue "LLM_PROVIDER"
+$apiKey = Get-DotEnvValue "LLM_API_KEY"
+$baseUrl = Get-DotEnvValue "LLM_BASE_URL"
+$modelId = Get-DotEnvValue "LLM_MODEL"
+if (-not $apiKey) { $apiKey = Get-DotEnvValue "QWEN_API_KEY" }
+if (-not $baseUrl) { $baseUrl = Get-DotEnvValue "QWEN_BASE_URL" }
+if (-not $modelId) { $modelId = Get-DotEnvValue "QWEN_MODEL" }
+if ($provider -eq "anthropic") {
+    $anthropicKey = Get-DotEnvValue "ANTHROPIC_API_KEY"
+    if ($anthropicKey) { $apiKey = $anthropicKey }
+    if (-not $baseUrl) { $baseUrl = "https://api.anthropic.com" }
+}
+if (-not $apiKey) { throw "LLM_API_KEY missing in .env" }
 if (-not $baseUrl) { $baseUrl = "https://openrouter.ai/api/v1" }
 
 # Smart default: if the user has a DashScope key, use qwen-turbo directly
-# (free OpenRouter models stall for 2–6 minutes — unacceptable default experience).
+# (free OpenRouter models stall for 2---6 minutes --- unacceptable default experience).
 $isAlibabaKey = ($apiKey -match "^sk-ws-") -or ($apiKey -match "^sk-[a-f0-9]" -and $apiKey -notmatch "^sk-or-v1")
 $isOpenRouterKey = $apiKey -match "^sk-or-v1"
 $isPlaceholderKey = $apiKey -match "^sk-or-v1-xxxxxxxxxxxx" -or $apiKey -match "^sk-xxxxxxxxxxxx"
 
 if ($isPlaceholderKey) {
-    Write-Host "WARNING: QWEN_API_KEY is still the placeholder value." -ForegroundColor Yellow
-    Write-Host "  Edit .env and replace QWEN_API_KEY with your real API key, then re-run this script." -ForegroundColor Yellow
+    Write-Host "WARNING: LLM_API_KEY is still the placeholder value." -ForegroundColor Yellow
+    Write-Host "  Edit .env and replace LLM_API_KEY with your real API key, then re-run this script." -ForegroundColor Yellow
     Write-Host "  Get a free key at https://openrouter.ai/keys or https://dashscope.aliyuncs.com" -ForegroundColor Yellow
-    throw "Placeholder API key — add your real key to .env"
+    throw "Placeholder API key --- add your real key to .env"
 }
 
-if ($isAlibabaKey) {
-    # Use DashScope directly — fast, reliable, hackathon target
+if ($provider -eq "anthropic") {
+    $onboardModel = if ($modelId) { $modelId } else { "claude-sonnet-4-20250514" }
+    $providerId = "anthropic"
+    Write-Host "LLM: Anthropic $onboardModel via $baseUrl"
+} elseif ($isAlibabaKey) {
+    # Use DashScope directly --- fast, reliable, hackathon target
     if (-not $baseUrl) { $baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1" }
     if (-not $modelId -or $modelId -match ":free$") {
         $modelId = "qwen-turbo"
@@ -99,19 +112,19 @@ if ($isAlibabaKey) {
     $providerId = "dashscope"
     Write-Host "LLM: Alibaba Qwen $modelId via $baseUrl"
 } elseif ($isOpenRouterKey) {
-    # OpenRouter key — use the model from .env, fall back to free bundle with warning
+    # OpenRouter key --- use the model from .env, fall back to free bundle with warning
     $onboardModel = if ($modelId -and $modelId -notmatch ":free$") { $modelId } else { "openrouter/free" }
     $providerId = "openrouter"
     Write-Host "LLM: OpenRouter $onboardModel"
     if ($onboardModel -eq "openrouter/free") {
-        Write-Host "  WARNING: Free models may stall for 2–6 minutes per reply." -ForegroundColor Yellow
-        Write-Host "  For a usable experience, set QWEN_MODEL=qwen-turbo in .env and use a DashScope key." -ForegroundColor Yellow
+        Write-Host "  WARNING: Free models may stall for 2---6 minutes per reply." -ForegroundColor Yellow
+        Write-Host "  For a usable experience, set LLM_MODEL=qwen-flash and use a DashScope key." -ForegroundColor Yellow
     }
 } else {
-    # Unknown key format — try as custom provider
+    # Unknown key format --- try as custom provider
     $onboardModel = if ($modelId) { $modelId } else { "qwen-turbo" }
     $providerId = "custom"
-    Write-Host "LLM: Custom provider — $onboardModel"
+    Write-Host "LLM: Custom provider --- $onboardModel"
 }
 $freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
 
@@ -196,7 +209,7 @@ if ($isAlibabaKey) {
 
 # MnemOS MCP (stdio -> spawns mcp-server -> MnemOS :8000)
 # Try mcp set first (current OpenClaw CLI), fall back to mcp add (older versions).
-# If both fail the agent has NO memory tools — it will fall back to its broken
+# If both fail the agent has NO memory tools --- it will fall back to its broken
 # built-in index and leak workspace demo data as real user memory.  We must
 # surface a clear error here rather than let the user continue blind.
 Write-Host "Registering MnemOS MCP..."
@@ -205,7 +218,7 @@ openclaw mcp unset mnemos 2>$null | Out-Null
 $mcpSetJson = '{"command":"node","args":["' + $McpJs + '","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000","MNEMOS_DEFAULT_USER_ID":"' + $MnemosUserId + '"}}'
 openclaw mcp set mnemos $mcpSetJson 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  mcp set unavailable — trying mcp add (older OpenClaw)" -ForegroundColor DarkGray
+    Write-Host "  mcp set unavailable --- trying mcp add (older OpenClaw)" -ForegroundColor DarkGray
     openclaw mcp add mnemos `
       --command node `
       --arg $McpJs `
@@ -219,10 +232,10 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
     Write-Host "ERROR: Could not register MnemOS MCP tools." -ForegroundColor Red
-    Write-Host "Without these tools the agent CANNOT use memory — it will give WRONG answers." -ForegroundColor Red
+    Write-Host "Without these tools the agent CANNOT use memory --- it will give WRONG answers." -ForegroundColor Red
     Write-Host "Manual fix:  openclaw mcp set mnemos '$mcpSetJson'" -ForegroundColor Yellow
     Write-Host "Then verify:  openclaw mcp probe mnemos" -ForegroundColor Yellow
-    throw "MCP registration failed — memory tools are required"
+    throw "MCP registration failed --- memory tools are required"
 }
 
 $UserFile = Join-Path $ConfigDir "mnemos-user-id.txt"

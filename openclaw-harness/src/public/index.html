@@ -10,7 +10,7 @@
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/visualizer.css?v=20260705-cortex" />
+  <link rel="stylesheet" href="/visualizer.css?v=20260708-final" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
@@ -20,10 +20,7 @@
 <header>
   <div class="brand">
     <div class="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 3C8 3 5 6 4.5 9.5C3.5 9.2 2.5 10 2.5 11.5C2.5 13 3.5 14 4.5 14C4.2 15.5 5 17 6.5 17.5C7 19 8.5 20 10.5 20C11 21.5 12.5 22 14 21.5C16 21.5 18 20 19 18C21 17.5 22 15.5 21.5 13.5C22.5 12.5 22.5 10.5 21 9.5C20.5 6 17.5 3 14 3C13.3 3 12.6 3 12 3Z" fill="#EDD5C8" stroke="#C9956A" stroke-width="0.8"/>
-        <path d="M12 6C10 6 8.5 8 8.5 10M12 6C14 6 15.5 8 15.5 10M12 10V16M9 13H15" stroke="#D4A017" stroke-width="0.7" stroke-linecap="round"/>
-      </svg>
+      <img src="/mnemagent-logo-square.png" alt="" />
     </div>
     <div>
       <div>MnemOS</div>
@@ -33,7 +30,7 @@
 
   <div class="live-indicator" id="liveLabel">
     <span class="live-dot"></span> Synaptic stream
-    <span class="build-stamp" title="UI build stamp">· v2026-06-14</span>
+    <span class="build-stamp" title="UI build stamp">· v2026-07-08</span>
   </div>
 
   <label>User <input id="userId" placeholder="Loading…" /></label>
@@ -1221,7 +1218,7 @@ function prependEvents(events) {
 
 function setLiveStatus(mode, detail) {
   const label = document.getElementById('liveLabel');
-  const stamp = '<span class="build-stamp" title="UI build stamp">· v2026-07-05</span>';
+  const stamp = '<span class="build-stamp" title="UI build stamp">· v2026-07-08</span>';
   if (mode === 'ok') {
     label.innerHTML = `<span class="live-dot"></span> Synaptic stream ${stamp}`;
   } else if (mode === 'paused') {

@@ -1,4 +1,6 @@
-# MnemOS
+﻿# MnemOS
+
+![MnemAgent logo](docs/assets/mnemagent-logo-wide.png)
 
 Persistent memory for OpenClaw agents.
 
@@ -19,7 +21,7 @@ License: MIT
 - [Memory engine](#memory-engine)
 - [OpenClaw integration](#openclaw-integration)
 - [Evaluation](#evaluation)
-- [MnemBench status](#mnembench-status)
+- [MnemBench](#mnembench)
 - [Demo video plan](#demo-video-plan)
 - [Repository layout](#repository-layout)
 - [Configuration](#configuration)
@@ -265,7 +267,11 @@ The evaluation story has two layers.
 
 The product repo keeps the hackathon-facing proof: live agentic tests, OpenClaw MCP checks, visualizer checks, and deployment preflight.
 
-MnemBench is the companion benchmark suite for long-running memory behavior. It currently lives in this repository under `eval/mnembench/` and is planned as a separate public repository after the MnemOS submission is stable.
+MnemBench is the companion benchmark suite for long-running memory behavior. It now has its own public repository:
+
+```text
+https://github.com/crankysmh47/MnemBench
+```
 
 Headline local result from the current docs:
 
@@ -285,36 +291,27 @@ Read more:
 
 - [docs/REPORT.md](docs/REPORT.md)
 - [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md)
+- [docs/MNEMBENCH_RESULTS.md](docs/MNEMBENCH_RESULTS.md)
 - [docs/VERIFICATION.md](docs/VERIFICATION.md)
 
-## MnemBench status
+## MnemBench
 
-MnemBench is being split out as a separate public repository.
+MnemBench is the standalone benchmark repo for memory-agent evaluation:
 
-For the hackathon submission, the benchmark runner remains in this repository so judges can reproduce the numbers without chasing another dependency. After the MnemOS submission is frozen, the same suite will move into its own `mnembench` repo as an installable benchmark for long-running memory agents.
+```text
+https://github.com/crankysmh47/MnemBench
+```
 
-Current location:
+This product repo still keeps a copy of the runner under:
 
 ```text
 eval/mnembench/
 ```
 
-Spin-out plan:
-
-```text
-docs/MNEMBENCH_SPINOUT.md
-```
-
-Planned standalone repo name:
-
-```text
-mnembench
-```
-
 The split is intentional:
 
 - this repository stays focused on the submitted MnemOS product;
-- the standalone `mnembench` repository becomes an installable benchmark package for any memory agent;
+- the standalone MnemBench repository can target any memory agent, not only MnemOS;
 - external benchmark comparisons belong in the MnemBench repo, not in the MnemOS submission README.
 
 ## Demo video plan
@@ -350,11 +347,10 @@ MnemAgent/
 ├── docker/                Dockerfile for the memory API
 ├── requirements/          Python dependency pins
 ├── scripts/               Launch, reset, onboarding, deployment, verification
-├── eval/                  Product benchmarks and MnemBench prototype
+├── eval/                  Product benchmarks and bundled MnemBench runner
 ├── tests/                 pytest suite
-└── docs/                  Architecture, setup, deployment, evaluation, video plan
+└── docs/                  Architecture, deployment, evaluation, video plan
 ```
-
 ## Configuration
 
 Copy the template before running:
@@ -367,13 +363,32 @@ Important variables:
 
 | Variable | Purpose |
 |----------|---------|
-| `QWEN_API_KEY` | Qwen-compatible API key |
-| `QWEN_BASE_URL` | DashScope or workspace-compatible endpoint |
-| `QWEN_MODEL` | Default model for chat/extraction |
+| `LLM_PROVIDER` | `openai_compatible` or `anthropic` |
+| `LLM_API_KEY` | API key for OpenAI-compatible providers |
+| `LLM_BASE_URL` | Base URL for `/chat/completions` providers |
+| `LLM_MODEL` | Default model for chat/extraction |
+| `ANTHROPIC_API_KEY` | Anthropic key when `LLM_PROVIDER=anthropic` |
 | `DB_PATH` | SQLite memory database path |
 | `AWAIT_DREAMING` | Whether chat waits for memory consolidation |
 | `ENABLE_DREAMING_EXTRACTION` | Enables server-side fallback extraction |
 | `MNEMOS_URL` | API URL used by MCP/OpenClaw |
+
+OpenRouter, DeepSeek, DashScope compatible mode, and most OpenAI-style gateways use:
+
+```env
+LLM_PROVIDER=openai_compatible
+LLM_API_KEY=...
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+```
+
+Anthropic uses:
+
+```env
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=...
+LLM_MODEL=claude-sonnet-4-20250514
+```
 
 Do not commit `.env`. The repo uses `config/env.template` for public configuration.
 
@@ -401,15 +416,19 @@ powershell -File scripts/prove-openclaw.ps1
 
 ## Deployment notes
 
-The final deployment target is Alibaba Cloud ECS running the MnemOS backend, MCP server, and visualizer containers. Qwen-compatible inference is configured through the `.env` Qwen/DashScope settings.
+The final deployment target is Alibaba Cloud ECS running the MnemOS backend, MCP server, and visualizer containers. Qwen-compatible inference is configured through the provider-neutral `LLM_*` settings in `.env`.
 
 For deployment and judge reset instructions, use:
 
 - [docs/CLOUD.md](docs/CLOUD.md)
+- [docs/CLOUD_PROOF.md](docs/CLOUD_PROOF.md)
 - [docs/JUDGE_DEPLOYMENT.md](docs/JUDGE_DEPLOYMENT.md)
 - [docs/SUBMISSION_VIDEO_PLAN.md](docs/SUBMISSION_VIDEO_PLAN.md)
 
-Cloud proof is handled through the deployment guide, preflight script, and OSS backup code path. The public README intentionally keeps those details brief; the exact recording workflow lives in the submission video plan.
+Cloud proof is handled through ECS deployment evidence, the deployment preflight
+script, and the optional OSS backup code path. The public README intentionally
+keeps those details brief; the exact recording workflow lives in
+`docs/CLOUD_PROOF.md` and `docs/SUBMISSION_VIDEO_PLAN.md`.
 
 ## License
 

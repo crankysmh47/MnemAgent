@@ -41,9 +41,75 @@ class QwenAPIError(Exception):
     """Raised when the Qwen API returns a non-recoverable error."""
 
 
+def _join_url(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _chat_model(payload: dict) -> str:
+    return str(payload.get("model") or settings.LLM_MODEL or settings.QWEN_MODEL)
+
+
+def _openai_base_url() -> str:
+    return settings.LLM_BASE_URL or settings.QWEN_BASE_URL
+
+
+def _openai_api_key() -> str:
+    return settings.LLM_API_KEY or settings.QWEN_API_KEY
+
+
+def _anthropic_api_key() -> str:
+    return settings.ANTHROPIC_API_KEY or settings.LLM_API_KEY
+
+
+def _anthropic_payload(payload: dict) -> dict:
+    messages = payload.get("messages") or []
+    system_parts: list[str] = []
+    anthropic_messages: list[dict[str, str]] = []
+
+    for msg in messages:
+        role = msg.get("role")
+        content = msg.get("content", "")
+        if role == "system":
+            system_parts.append(str(content))
+        elif role in ("user", "assistant"):
+            anthropic_messages.append({"role": role, "content": str(content)})
+
+    body: dict = {
+        "model": _chat_model(payload),
+        "messages": anthropic_messages,
+        "max_tokens": int(payload.get("max_tokens") or settings.CHAT_MAX_TOKENS),
+    }
+    if system_parts:
+        body["system"] = "\n\n".join(system_parts)
+    if "temperature" in payload:
+        body["temperature"] = payload["temperature"]
+    return body
+
+
+def _parse_openai_response(data: dict) -> str:
+    return data["choices"][0]["message"]["content"]
+
+
+def _parse_anthropic_response(data: dict) -> str:
+    content = data.get("content", [])
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        text_parts = []
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                text_parts.append(str(block.get("text", "")))
+        return "\n".join(part for part in text_parts if part)
+    raise KeyError("content")
+
+
 async def call_qwen_api(payload: dict) -> str:
     """
-    Call the Qwen chat completions API with retry on rate limits.
+    Call the configured LLM chat API with retry on rate limits.
+
+    Supported providers:
+    - ``openai_compatible`` / ``qwen``: POST ``/chat/completions``.
+    - ``anthropic``: POST ``/v1/messages``.
 
     Args:
         payload: Request body including model and messages.
@@ -51,39 +117,52 @@ async def call_qwen_api(payload: dict) -> str:
     Returns:
         Raw assistant message content, or a safe fallback string on failure.
     """
-    url = f"{settings.QWEN_BASE_URL}/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {settings.QWEN_API_KEY}",
-        "Content-Type": "application/json",
-    }
+    provider = settings.LLM_PROVIDER.strip().lower()
+    if provider in ("anthropic", "claude"):
+        url = _join_url(settings.ANTHROPIC_BASE_URL, "/v1/messages")
+        request_payload = _anthropic_payload(payload)
+        headers = {
+            "x-api-key": _anthropic_api_key(),
+            "anthropic-version": settings.ANTHROPIC_VERSION,
+            "Content-Type": "application/json",
+        }
+        parse_response = _parse_anthropic_response
+    else:
+        url = _join_url(_openai_base_url(), "/chat/completions")
+        request_payload = {**payload, "model": _chat_model(payload)}
+        headers = {
+            "Authorization": f"Bearer {_openai_api_key()}",
+            "Content-Type": "application/json",
+        }
+        parse_response = _parse_openai_response
 
     for attempt in range(_MAX_RETRIES):
         try:
             async with aiohttp.ClientSession(timeout=_TIMEOUT) as session:
-                async with session.post(url, json=payload, headers=headers) as resp:
+                async with session.post(url, json=request_payload, headers=headers) as resp:
                     if resp.status == 429:
-                        logger.warning("Qwen rate limit (429), attempt %s", attempt + 1)
+                        logger.warning("LLM rate limit (429), attempt %s", attempt + 1)
                         await asyncio.sleep(2**attempt)
                         continue
                     if resp.status != 200:
                         body = await resp.text()
-                        logger.error("Qwen API error %s: %s", resp.status, body[:500])
+                        logger.error("LLM API error %s: %s", resp.status, body[:500])
                         raise QwenAPIError(f"HTTP {resp.status}")
                     data = await resp.json()
-                    return data["choices"][0]["message"]["content"]
+                    return parse_response(data)
         except asyncio.TimeoutError:
-            logger.error("Qwen API timeout")
+            logger.error("LLM API timeout")
             return QWEN_FALLBACK_RESPONSE
         except aiohttp.ClientError as exc:
-            logger.error("Qwen API client error: %s", exc)
+            logger.error("LLM API client error: %s", exc)
             return QWEN_FALLBACK_RESPONSE
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
-            logger.error("Unexpected Qwen response shape: %s", exc)
+            logger.error("Unexpected LLM response shape: %s", exc)
             return QWEN_FALLBACK_RESPONSE
         except QwenAPIError:
             return QWEN_FALLBACK_RESPONSE
 
-    logger.error("Qwen API rate limit retries exhausted")
+    logger.error("LLM API rate limit retries exhausted")
     return QWEN_FALLBACK_RESPONSE
 
 
@@ -230,7 +309,7 @@ Example output:
 [{{"entity":"editor","relation":"uses","value":"vs code",
   "category":"preference","conviction":0.9}}]"""
     payload = {
-        "model": settings.EXTRACTION_MODEL or settings.QWEN_MODEL,
+        "model": settings.EXTRACTION_MODEL or settings.LLM_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
         "max_tokens": 300,
@@ -255,7 +334,7 @@ async def extract_facts_from_conversation(
 
     Uses a focused extraction prompt (typically qwen-turbo or EXTRACTION_MODEL).
     """
-    model = settings.EXTRACTION_MODEL or settings.QWEN_MODEL
+    model = settings.EXTRACTION_MODEL or settings.LLM_MODEL
     prompt = f"""User said: "{user_message}"
 Agent said: "{agent_response}"
 

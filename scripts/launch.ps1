@@ -3,13 +3,13 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $ConfigDir = Join-Path $env:USERPROFILE ".openclaw"
 
-# ── Color helpers ──────────────────────────────────────────────────────────
+# ------ Color helpers ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function Write-Green  { Write-Host "$args" -ForegroundColor Green }
 function Write-Yellow { Write-Host "$args" -ForegroundColor Yellow }
 function Write-Red    { Write-Host "$args" -ForegroundColor Red }
 function Write-Cyan   { Write-Host "$args" -ForegroundColor Cyan }
 
-# ── Step helper ────────────────────────────────────────────────────────────
+# ------ Step helper ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 $Global:StepOk = $true
 function Step($Name, $ScriptBlock) {
     Write-Host "  >> $Name ... " -NoNewline
@@ -22,7 +22,7 @@ function Step($Name, $ScriptBlock) {
     }
 }
 
-# ── Prerequisite helpers ───────────────────────────────────────────────────
+# ------ Prerequisite helpers ---------------------------------------------------------------------------------------------------------------------------------------------------------
 function Test-DockerRunning {
     $info = docker info 2>&1 | Out-String
     return $info -match "Server Version|Containers:\s+\d"
@@ -93,14 +93,29 @@ function Ensure-MnemosUserId {
     }
 }
 
-# ═══════════════════════════════════════════════════════════════════════════
-Write-Cyan "╔══════════════════════════════════════════════════════════════╗"
-Write-Cyan "║         MnemAgent Unified Launcher                         ║"
-Write-Cyan "║   MnemOS Memory Layer + OpenClaw Integration               ║"
-Write-Cyan "╚══════════════════════════════════════════════════════════════╝"
+function Resolve-LlmEnv {
+    $provider = Get-DotEnvValue "LLM_PROVIDER"
+    if (-not $provider) { $provider = "openai_compatible" }
+    $apiKey = Get-DotEnvValue "LLM_API_KEY"
+    if (-not $apiKey) { $apiKey = Get-DotEnvValue "QWEN_API_KEY" }
+    if ($provider -eq "anthropic") {
+        $anthropicKey = Get-DotEnvValue "ANTHROPIC_API_KEY"
+        if ($anthropicKey) { $apiKey = $anthropicKey }
+    }
+    return @{
+        Provider = $provider
+        ApiKey = $apiKey
+    }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Write-Cyan "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+Write-Cyan "---         MnemAgent Unified Launcher                         ---"
+Write-Cyan "---   MnemOS Memory Layer + OpenClaw Integration               ---"
+Write-Cyan "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 Write-Host ""
 
-# ── 1. PREREQUISITES ──────────────────────────────────────────────────────
+# ------ 1. PREREQUISITES ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Write-Cyan "[1/6] Checking prerequisites..."
 
 Step "Docker Desktop running" {
@@ -127,14 +142,14 @@ Step "Python virtual environment" {
     }
 }
 
-# ── 2. DOCKER SERVICES ────────────────────────────────────────────────────
+# ------ 2. DOCKER SERVICES ------------------------------------------------------------------------------------------------------------------------------------------------------------
 Write-Cyan "[2/6] Starting Docker services..."
 Push-Location $Root
 docker compose up -d --build 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
 if ($LASTEXITCODE -ne 0) { Write-Red "docker compose failed"; $Global:StepOk = $false }
 Pop-Location
 
-# ── 3. WAIT FOR MNEMOS ────────────────────────────────────────────────────
+# ------ 3. WAIT FOR MNEMOS ------------------------------------------------------------------------------------------------------------------------------------------------------------
 Write-Cyan "[3/6] Waiting for MnemOS services..."
 $memOk = Wait-ForHealth -Url "http://127.0.0.1:8000/health" -Label "MnemOS memory (:8000)"
 if (-not $memOk) { Write-Red "MnemOS memory service did not start"; $Global:StepOk = $false }
@@ -148,7 +163,7 @@ try {
     if ($h.status -eq "ok") { Write-Green "  Harness (:3000) ready" }
 } catch { Write-Yellow "  Harness (:3000) not responding yet (deployed but may need more time)" }
 
-# ── 4. OPENCLAW INTEGRATION ───────────────────────────────────────────────
+# ------ 4. OPENCLAW INTEGRATION ---------------------------------------------------------------------------------------------------------------------------------------------
 Write-Cyan "[4/6] OpenClaw integration..."
 if (Test-OpenClawInstalled) {
     Write-Host "  OpenClaw: $(openclaw --version 2>$null)" -ForegroundColor Gray
@@ -181,26 +196,27 @@ if (Test-OpenClawInstalled) {
                 --connect-timeout 30 2>&1 | Out-Null
         }
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "  ERROR: MCP registration failed — memory tools are required" -ForegroundColor Red
+            Write-Host "  ERROR: MCP registration failed --- memory tools are required" -ForegroundColor Red
             Write-Host "  Manual fix: openclaw mcp set mnemos '$mcpSetJson'" -ForegroundColor Yellow
             throw "MCP registration failed"
         }
     }
 
-    # Free model bundle (fallback only — warn about stalls)
+    # Free model bundle (fallback only --- warn about stalls)
     $freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
-    $apiKey = Get-DotEnvValue "QWEN_API_KEY"
+    $llmEnv = Resolve-LlmEnv
+    $apiKey = $llmEnv.ApiKey
     $isAlibabaKey = $apiKey -and (($apiKey -match "^sk-ws-") -or ($apiKey -match "^sk-[a-f0-9]" -and $apiKey -notmatch "^sk-or-v1"))
     if (Test-Path $freePatch) {
         if ($isAlibabaKey) {
-            Write-Host "  DashScope key detected — skipping free model bundle (not needed)" -ForegroundColor DarkGray
+            Write-Host "  DashScope key detected --- skipping free model bundle (not needed)" -ForegroundColor DarkGray
         } else {
-            Step "Apply free model bundle (WARNING: may stall 2–6 min/reply)" {
+            Step "Apply free model bundle (WARNING: may stall 2---6 min/reply)" {
                 Get-Content $freePatch -Raw | openclaw config patch --stdin 2>&1 | Out-Null
                 openclaw config set gateway.auth.mode none 2>$null | Out-Null
             }
-            Write-Host "  WARNING: Free OpenRouter models may stall for 2–6 minutes per reply." -ForegroundColor Yellow
-            Write-Host "  For a usable experience, get a DashScope key and set it in .env" -ForegroundColor Yellow
+            Write-Host "  WARNING: Free OpenRouter models may stall for 2---6 minutes per reply." -ForegroundColor Yellow
+            Write-Host "  For a usable experience, set LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL in .env" -ForegroundColor Yellow
         }
     }
 
@@ -239,7 +255,7 @@ if (Test-OpenClawInstalled) {
     Write-Yellow "  OpenClaw not installed. Agent usage requires: npm install -g openclaw@latest"
 }
 
-# ── 5. SERVICE SUMMARY ────────────────────────────────────────────────────
+# ------ 5. SERVICE SUMMARY ------------------------------------------------------------------------------------------------------------------------------------------------------------
 Write-Cyan "[5/6] Service summary..."
 Write-Host ""
 Write-Host "  +------------------+--------+-------------------------------+"
@@ -271,7 +287,7 @@ if (Test-OpenClawInstalled) {
     Write-Host "  +------------------+--------+-------------------------------+"
 }
 
-# ── 6. QUICK-START ────────────────────────────────────────────────────────
+# ------ 6. QUICK-START ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Write-Cyan "[6/6] Quick-start commands"
 Write-Host ""
 Write-Host "  MnemOS Services Running:" -ForegroundColor White
@@ -298,15 +314,15 @@ Write-Host "    o Proof test:  .\scripts\prove-openclaw.ps1" -ForegroundColor Gr
 Write-Host "    o Verify all:  .\scripts\submission-test.ps1" -ForegroundColor Gray
 Write-Host ""
 
-# ── FINAL ─────────────────────────────────────────────────────────────────
+# ------ FINAL ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 if ($Global:StepOk) {
-    Write-Green "╔════════════════════════════════════════════════════════╗"
-    Write-Green "║     MNEMAGENT LAUNCH COMPLETE                         ║"
-    Write-Green "╚════════════════════════════════════════════════════════╝"
+    Write-Green "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+    Write-Green "---     MNEMAGENT LAUNCH COMPLETE                         ---"
+    Write-Green "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 } else {
-    Write-Yellow "╔════════════════════════════════════════════════════════╗"
-    Write-Yellow "║  Launch completed with warnings.                     ║"
-    Write-Yellow "║  Review messages above and fix issues.               ║"
-    Write-Yellow "╚════════════════════════════════════════════════════════╝"
+    Write-Yellow "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
+    Write-Yellow "---  Launch completed with warnings.                     ---"
+    Write-Yellow "---  Review messages above and fix issues.               ---"
+    Write-Yellow "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
     exit 1
 }

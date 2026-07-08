@@ -101,7 +101,7 @@ If the one-command script fails or you prefer manual control, follow these steps
 
 ```bash
 cp config/env.template .env
-# Edit .env — set QWEN_API_KEY to your DashScope API key
+# Edit .env - set LLM_PROVIDER, LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL
 # Get a key at: https://dashscope.aliyuncs.com
 ```
 
@@ -143,9 +143,9 @@ openclaw onboard \
   --accept-risk \
   --flow quickstart \
   --auth-choice custom-api-key \
-  --custom-api-key "$QWEN_API_KEY" \
-  --custom-base-url "$QWEN_BASE_URL" \
-  --custom-model-id "$QWEN_MODEL" \
+  --custom-api-key "$LLM_API_KEY" \
+  --custom-base-url "$LLM_BASE_URL" \
+  --custom-model-id "$LLM_MODEL" \
   --custom-compatibility openai \
   --custom-provider-id dashscope \
   --skip-channels \
@@ -301,23 +301,23 @@ openclaw config set agents.defaults.model.primary "dashscope/qwen-max"
 
 ### Via .env file
 
-Edit `.env` and change `QWEN_MODEL`:
+Edit `.env` and change `LLM_MODEL`:
 
 ```
 # Cheapest, daily use
-QWEN_MODEL=qwen-flash
+LLM_MODEL=qwen-flash
 
 # Balanced
-QWEN_MODEL=qwen-plus
+LLM_MODEL=qwen-plus
 
 # Best quality (demos, eval)
-QWEN_MODEL=qwen-max
+LLM_MODEL=qwen-max
 ```
 
 Then re-onboard if needed, or just update the gateway config:
 
 ```bash
-openclaw config set agents.defaults.model.primary "dashscope/$QWEN_MODEL"
+openclaw config set agents.defaults.model.primary "dashscope/$LLM_MODEL"
 openclaw gateway restart --force
 ```
 
@@ -340,7 +340,7 @@ openclaw gateway restart --force
 | Symptom | Fix |
 |---------|-----|
 | `openclaw: command not found` | Run `npm install -g openclaw@latest` and restart terminal |
-| `openclaw onboard` fails | Check your `QWEN_API_KEY` in `.env` is valid |
+| `openclaw onboard` fails | Check your `LLM_API_KEY` in `.env` is valid |
 | Gateway won't start | `openclaw gateway restart --force` |
 | Gateway "auth required" | `openclaw config set gateway.auth.mode none` |
 | `openclaw mcp probe mnemos` fails | Is the gateway running? Check `openclaw gateway health` |
@@ -368,7 +368,7 @@ openclaw gateway restart --force
 
 | Symptom | Fix |
 |---------|-----|
-| "QWEN_API_KEY missing" | Edit `.env` and add your key |
+| "LLM_API_KEY missing" | Edit `.env` and add your key |
 | `.env` not being read | Make sure `.env` is in the repo root (same level as `docker-compose.yml`) |
 
 ### Port conflicts

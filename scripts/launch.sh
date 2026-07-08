@@ -58,6 +58,20 @@ get_env() {
     grep -s "^${key}=" "$env_file" | cut -d= -f2- || true
 }
 
+resolve_llm_env() {
+    LLM_PROVIDER_VALUE="$(get_env LLM_PROVIDER || true)"
+    [ -z "$LLM_PROVIDER_VALUE" ] && LLM_PROVIDER_VALUE="openai_compatible"
+    LLM_API_KEY_VALUE="$(get_env LLM_API_KEY || echo "")"
+    if [ -z "$LLM_API_KEY_VALUE" ]; then
+        LLM_API_KEY_VALUE="$(get_env QWEN_API_KEY || echo "")"
+    fi
+    if [ "$LLM_PROVIDER_VALUE" = "anthropic" ]; then
+        local anthropic_key
+        anthropic_key="$(get_env ANTHROPIC_API_KEY || echo "")"
+        [ -n "$anthropic_key" ] && LLM_API_KEY_VALUE="$anthropic_key"
+    fi
+}
+
 ensure_mnemos_user_id() {
     local user_file="$CONFIG_DIR/mnemos-user-id.txt"
     if [ -f "$user_file" ]; then
@@ -155,6 +169,7 @@ fi
 
 # ── 4. OPENCLAW INTEGRATION ───────────────────────────────────────────────
 log_cyan "[4/6] OpenClaw integration..."
+resolve_llm_env
 
 if check_openclaw; then
     log_gray "  OpenClaw: $(openclaw --version 2>/dev/null)"
@@ -189,8 +204,8 @@ if check_openclaw; then
     FREE_PATCH="$ROOT/config/openclaw/free-models.patch.json"
     if [ -f "$FREE_PATCH" ]; then
         # Only apply free bundle if user doesn't have a DashScope key
-        if grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null && \
-           ! grep -q '^QWEN_API_KEY=sk-or-v1' "$ROOT/.env" 2>/dev/null; then
+        if { echo "$LLM_API_KEY_VALUE" | grep -q '^sk-ws-' || echo "$LLM_API_KEY_VALUE" | grep -qE '^sk-[a-f0-9]'; } && \
+           ! echo "$LLM_API_KEY_VALUE" | grep -q '^sk-or-v1'; then
             log_gray "  DashScope key detected — skipping free model bundle (not needed)"
         else
             step "Apply free model bundle (WARNING: may stall 2–6 min/reply)" bash -c "
@@ -198,11 +213,11 @@ if check_openclaw; then
                 openclaw config set gateway.auth.mode none >/dev/null 2>&1
             "
             log_yellow "  WARNING: Free OpenRouter models may stall for 2–6 minutes per reply."
-            log_yellow "  For a usable experience, get a DashScope key and set QWEN_API_KEY in .env"
+            log_yellow "  For a usable experience, set LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL in .env"
         fi
     fi
-    if grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null && \
-       ! grep -q '^QWEN_API_KEY=sk-or-v1' "$ROOT/.env" 2>/dev/null; then
+    if { echo "$LLM_API_KEY_VALUE" | grep -q '^sk-ws-' || echo "$LLM_API_KEY_VALUE" | grep -qE '^sk-[a-f0-9]'; } && \
+       ! echo "$LLM_API_KEY_VALUE" | grep -q '^sk-or-v1'; then
         openclaw config set agents.defaults.model.primary "dashscope/qwen-flash" >/dev/null 2>&1 || true
     fi
     openclaw config set gateway.auth.mode none >/dev/null 2>&1 || true

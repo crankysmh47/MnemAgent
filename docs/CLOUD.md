@@ -79,7 +79,7 @@ cd MnemAgent
 
 # Set up environment
 cp config/env.template .env
-# Edit .env — add your DashScope API key
+# Edit .env - set LLM_PROVIDER, LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL
 nano .env
 
 # Start services
@@ -209,9 +209,11 @@ All variables are read from `.env` at container start. Required variables are **
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| **`QWEN_API_KEY`** | (required) | DashScope API key |
-| `QWEN_MODEL` | `qwen-flash` | Model ID for chat/completions |
-| `QWEN_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | API base URL |
+| **`LLM_API_KEY`** | (required) | API key for the selected LLM provider |
+| `LLM_PROVIDER` | `openai_compatible` | `openai_compatible` or `anthropic` |
+| `LLM_MODEL` | `qwen-flash` | Model ID for chat/completions |
+| `LLM_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | API base URL for OpenAI-compatible providers |
+| `ANTHROPIC_API_KEY` | empty | Anthropic key when `LLM_PROVIDER=anthropic` |
 | `HOST` | `0.0.0.0` | uvicorn bind address |
 | `PORT` | `8000` | MnemOS API port |
 | `LOG_LEVEL` | `INFO` | Python log level |
@@ -312,7 +314,7 @@ For multi-instance deployments:
 
 | Symptom | Check |
 |---------|-------|
-| Container exits on start | `docker compose logs mnemos-memory` — likely missing `.env` or invalid `QWEN_API_KEY` |
+| Container exits on start | `docker compose logs mnemos-memory` - likely missing `.env` or invalid `LLM_API_KEY` |
 | Health check fails (180s timeout) | Embedding model download on first start (~90 MB). Wait longer, or check network. |
 | "Out of memory" | Increase ECS memory to 4 GiB+. Sentence-transformers loads ~500 MB. |
 | OSS sync not running | Verify `ALIBABA_CLOUD_ACCESS_KEY_ID` is not the placeholder (`xxxxxxxxxxxx`). |

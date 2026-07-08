@@ -1,12 +1,19 @@
-# Documentation
+﻿# MnemOS documentation
 
-| Document | Description |
-|----------|-------------|
-| [SETUP.md](SETUP.md) | Installation, configuration, channels, troubleshooting |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Waking/dreaming phases, schema, design decisions |
-| [CLOUD.md](CLOUD.md) | Cloud deployment — ECS, OSS backup, container registry |
-| [REPORT.md](REPORT.md) | Hackathon evaluation report and benchmark analysis |
-| [LIVE_EVAL_RESULTS.md](LIVE_EVAL_RESULTS.md) | Live OpenClaw integration proof and scores |
-| [USER_REVIEW.md](USER_REVIEW.md) | Manual testing and reviewer walkthrough |
-| [SUBMISSION_VIDEO_PLAN.md](SUBMISSION_VIDEO_PLAN.md) | Shot-by-shot demo video plan with verified prompts |
-| [MNEMBENCH_SPINOUT.md](MNEMBENCH_SPINOUT.md) | Plan for splitting MnemBench into a separate repository |
+Start with these files for the hackathon submission:
+
+| File | Purpose |
+| --- | --- |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Memory architecture, data flow, and core algorithms |
+| [REPORT.md](REPORT.md) | Main evaluation report and submission narrative |
+| [LIVE_EVAL_RESULTS.md](LIVE_EVAL_RESULTS.md) | Live agentic benchmark results |
+| [MNEMBENCH_RESULTS.md](MNEMBENCH_RESULTS.md) | Best MnemBench results and latest live scenario wins |
+| [CLOUD.md](CLOUD.md) | Alibaba Cloud ECS deployment guide |
+| [CLOUD_PROOF.md](CLOUD_PROOF.md) | What to record for Alibaba Cloud proof |
+| [JUDGE_DEPLOYMENT.md](JUDGE_DEPLOYMENT.md) | Judge-safe deployment and clean namespace notes |
+| [SUBMISSION_VIDEO_PLAN.md](SUBMISSION_VIDEO_PLAN.md) | Three-minute product demo script and shot list |
+| [SETUP.md](SETUP.md) | Local setup and onboarding guide |
+| [VERIFICATION.md](VERIFICATION.md) | Verification commands and expected outputs |
+
+Assets live in [assets/](assets/). Internal review notes live in
+[archive/](archive/).

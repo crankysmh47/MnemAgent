@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
+import llm.qwen_client as qwen_client
 from llm.qwen_client import (
     call_qwen_api,
     extract_facts_deterministically,
@@ -220,6 +221,71 @@ async def test_call_qwen_api_success() -> None:
     with patch("llm.qwen_client.aiohttp.ClientSession", return_value=mock_session):
         result = await call_qwen_api({"model": "qwen-plus", "messages": []})
     assert result == "hello world"
+
+
+@pytest.mark.asyncio
+async def test_call_qwen_api_openai_compatible_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(qwen_client.settings, "LLM_PROVIDER", "openai_compatible")
+    monkeypatch.setattr(qwen_client.settings, "LLM_API_KEY", "sk-test")
+    monkeypatch.setattr(qwen_client.settings, "LLM_BASE_URL", "https://openrouter.ai/api/v1/")
+    monkeypatch.setattr(qwen_client.settings, "LLM_MODEL", "deepseek/deepseek-chat-v3.1:free")
+
+    mock_resp = AsyncMock()
+    mock_resp.status = 200
+    mock_resp.json = AsyncMock(return_value={"choices": [{"message": {"content": "openai ok"}}]})
+    mock_session = MagicMock()
+    mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("llm.qwen_client.aiohttp.ClientSession", return_value=mock_session):
+        result = await call_qwen_api({"messages": [{"role": "user", "content": "hi"}]})
+
+    assert result == "openai ok"
+    _, kwargs = mock_session.post.call_args
+    assert kwargs["json"]["model"] == "deepseek/deepseek-chat-v3.1:free"
+    assert kwargs["headers"]["Authorization"] == "Bearer sk-test"
+    assert str(mock_session.post.call_args.args[0]) == "https://openrouter.ai/api/v1/chat/completions"
+
+
+@pytest.mark.asyncio
+async def test_call_qwen_api_anthropic_messages(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(qwen_client.settings, "LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(qwen_client.settings, "ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(qwen_client.settings, "ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+    monkeypatch.setattr(qwen_client.settings, "ANTHROPIC_VERSION", "2023-06-01")
+    monkeypatch.setattr(qwen_client.settings, "LLM_MODEL", "claude-sonnet-4-20250514")
+    monkeypatch.setattr(qwen_client.settings, "CHAT_MAX_TOKENS", 1234)
+
+    mock_resp = AsyncMock()
+    mock_resp.status = 200
+    mock_resp.json = AsyncMock(return_value={"content": [{"type": "text", "text": "anthropic ok"}]})
+    mock_session = MagicMock()
+    mock_session.post.return_value.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_session.post.return_value.__aexit__ = AsyncMock(return_value=None)
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    payload = {
+        "messages": [
+            {"role": "system", "content": "System rules"},
+            {"role": "user", "content": "hello"},
+        ],
+        "temperature": 0.2,
+    }
+    with patch("llm.qwen_client.aiohttp.ClientSession", return_value=mock_session):
+        result = await call_qwen_api(payload)
+
+    assert result == "anthropic ok"
+    _, kwargs = mock_session.post.call_args
+    assert str(mock_session.post.call_args.args[0]) == "https://api.anthropic.com/v1/messages"
+    assert kwargs["headers"]["x-api-key"] == "sk-ant-test"
+    assert kwargs["headers"]["anthropic-version"] == "2023-06-01"
+    assert kwargs["json"]["model"] == "claude-sonnet-4-20250514"
+    assert kwargs["json"]["system"] == "System rules"
+    assert kwargs["json"]["messages"] == [{"role": "user", "content": "hello"}]
+    assert kwargs["json"]["max_tokens"] == 1234
 
 
 @pytest.mark.asyncio

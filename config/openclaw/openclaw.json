@@ -3,7 +3,7 @@
     "apiProvider": "openai-compatible",
     "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     "model": "qwen3-coder-flash",
-    "apiKey": "${QWEN_API_KEY}",
+    "apiKey": "${LLM_API_KEY}",
     "reasoning": false,
     "maxTokens": 4096
   },

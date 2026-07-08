@@ -9,7 +9,7 @@ The local review environment uses Alibaba/Qwen workspace-compatible API routing
 with:
 
 ```text
-QWEN_MODEL=qwen3.5-flash
+LLM_MODEL=qwen3.5-flash
 ```
 
 This model is the default for development and review because it preserves the

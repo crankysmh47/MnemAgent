@@ -1,0 +1,67 @@
+# MnemBench results
+
+MnemBench is the companion benchmark suite for long-running memory-agent
+behavior. The standalone repository is:
+
+```text
+https://github.com/crankysmh47/MnemBench
+```
+
+This product repository keeps a runnable copy under `eval/mnembench/` so judges
+can reproduce the submission without cloning another project.
+
+## Best full-suite result
+
+The strongest full-suite MnemBench run remains the June 14 comparison:
+
+| Metric | MnemOS | Baseline | Delta |
+| --- | ---: | ---: | ---: |
+| Average probe score | 99.0% | 45.8% | +53.1% |
+| Average composite | 0.793 | 0.511 | +0.282 |
+| Pass rate | 100.0% | 50.0% | +50.0% |
+| Scenarios improved | 8 / 10 | - | - |
+
+The raw `eval/results` directory is ignored because live benchmark outputs can
+be large and machine-specific. This page is the stable, submission-facing record
+for the best result.
+
+
+## Latest DeepSeek live scenario wins
+
+On July 7, we tested the new OpenAI-compatible provider path with DeepSeek's
+direct API. The requested `deepseek-v4-flash` model returned empty content
+through the direct endpoint, so the live run used `deepseek-chat`, the fast
+DeepSeek model that returned valid completions.
+
+The full DeepSeek suite was not better overall, so it is not used as the
+headline result. We kept only the scenario reports where MnemOS improved over
+the baseline:
+
+| Scenario | MnemOS | Baseline | Delta |
+| --- | ---: | ---: | ---: |
+| `salience_gate` | 100.0% | 33.3% | +66.7% |
+| `contradiction_chain` | 57.3% | 39.6% | +17.7% |
+| `interference_gauntlet` | 66.7% | 50.0% | +16.7% |
+| `temporal_decay` | 58.3% | 41.7% | +16.6% |
+
+These are supporting artifacts, not the main benchmark claim. They are useful
+because they show the production provider adapter working against a live
+OpenAI-compatible model.
+
+## How to run
+
+Dry-run sanity check:
+
+```bash
+python -m eval.mnembench --dry-run --scenario contradiction_chain --judge-report
+```
+
+Live run with a local MnemOS server and baseline:
+
+```bash
+python -m eval.mnembench \
+  --server http://localhost:8000 \
+  --baseline http://localhost:8002 \
+  --scenario all \
+  --judge-report
+```

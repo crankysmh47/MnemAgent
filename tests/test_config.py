@@ -29,3 +29,19 @@ def test_settings_validates_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     cfg = Settings()
     with pytest.raises(ValueError):
         cfg.validate_qwen_api_key()
+
+
+def test_settings_prefers_provider_neutral_llm_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("QWEN_API_KEY", "sk-old")
+    monkeypatch.setenv("QWEN_MODEL", "qwen-old")
+    monkeypatch.setenv("QWEN_BASE_URL", "https://old.example/v1")
+    monkeypatch.setenv("LLM_API_KEY", "sk-new")
+    monkeypatch.setenv("LLM_MODEL", "deepseek-chat")
+    monkeypatch.setenv("LLM_BASE_URL", "https://api.deepseek.com")
+
+    cfg = Settings()
+
+    assert cfg.LLM_API_KEY == "sk-new"
+    assert cfg.LLM_MODEL == "deepseek-chat"
+    assert cfg.LLM_BASE_URL == "https://api.deepseek.com"
+    assert cfg.QWEN_API_KEY == "sk-old"

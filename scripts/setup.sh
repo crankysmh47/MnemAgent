@@ -163,7 +163,7 @@ if [ ! -f "$ROOT/.env" ]; then
     log_yellow "  │  FIRST-TIME SETUP                                         │"
     log_yellow "  │                                                            │"
     log_yellow "  │  1. Get a free API key:  https://openrouter.ai/keys       │"
-    log_yellow "  │  2. Edit .env and set your QWEN_API_KEY                   │"
+    log_yellow "  │  2. Edit .env and set LLM_API_KEY / LLM_MODEL             │"
     log_yellow "  │  3. Run setup again:     bash scripts/setup.sh            │"
     log_yellow "  │                                                            │"
     log_yellow "  │  OR continue now (OpenClaw will use the placeholder and   │"
@@ -175,9 +175,18 @@ else
 fi
 
 # Warn if API key is still a placeholder
-API_KEY=$(get_env "QWEN_API_KEY" || echo "")
+PROVIDER=$(get_env "LLM_PROVIDER" || true)
+[ -z "$PROVIDER" ] && PROVIDER="openai_compatible"
+API_KEY=$(get_env "LLM_API_KEY" || echo "")
+if [ -z "$API_KEY" ]; then
+    API_KEY=$(get_env "QWEN_API_KEY" || echo "")
+fi
+if [ "$PROVIDER" = "anthropic" ]; then
+    ANTHROPIC_KEY=$(get_env "ANTHROPIC_API_KEY" || echo "")
+    [ -n "$ANTHROPIC_KEY" ] && API_KEY="$ANTHROPIC_KEY"
+fi
 if echo "$API_KEY" | grep -qiE "xxxx|sk-or-v1-xxxxxxxx"; then
-    log_yellow "  WARNING: QWEN_API_KEY is still a placeholder — edit .env to use agents"
+    log_yellow "  WARNING: LLM_API_KEY is still a placeholder — edit .env to use agents"
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -252,19 +261,37 @@ fi
 log_cyan "[5/7] OpenClaw onboarding ..."
 
 OPENCLAW_CONFIG_FILE="$CONFIG_DIR/openclaw.json"
-BASE_URL="${QWEN_BASE_URL:-$(get_env QWEN_BASE_URL || echo 'https://openrouter.ai/api/v1')}"
-MODEL_ID="${QWEN_MODEL:-$(get_env QWEN_MODEL || echo 'openrouter/free')}"
+BASE_URL="${LLM_BASE_URL:-$(get_env LLM_BASE_URL || echo '')}"
+MODEL_ID="${LLM_MODEL:-$(get_env LLM_MODEL || echo '')}"
+if [ -z "$BASE_URL" ]; then
+    BASE_URL="${QWEN_BASE_URL:-$(get_env QWEN_BASE_URL || echo '')}"
+fi
+if [ -z "$MODEL_ID" ]; then
+    MODEL_ID="${QWEN_MODEL:-$(get_env QWEN_MODEL || echo '')}"
+fi
+if [ "$PROVIDER" = "anthropic" ]; then
+    if [ -z "$BASE_URL" ]; then
+        BASE_URL="$(get_env ANTHROPIC_BASE_URL || true)"
+    fi
+    [ -z "$BASE_URL" ] && BASE_URL="https://api.anthropic.com"
+    [ -z "$MODEL_ID" ] && MODEL_ID="claude-sonnet-4-20250514"
+else
+    [ -z "$BASE_URL" ] && BASE_URL="https://openrouter.ai/api/v1"
+    [ -z "$MODEL_ID" ] && MODEL_ID="openrouter/free"
+fi
 
 # Use API key from env var or .env
 if [ -z "$API_KEY" ] || echo "$API_KEY" | grep -qiE "xxxx|sk-or-v1-xxxxxxxx"; then
-    ONBOARD_KEY="${QWEN_API_KEY:-}"
+    ONBOARD_KEY="${LLM_API_KEY:-${QWEN_API_KEY:-}}"
     [ -z "$ONBOARD_KEY" ] && ONBOARD_KEY="sk-or-v1-placeholder"
 else
     ONBOARD_KEY="$API_KEY"
 fi
 
 PROVIDER_ID="openrouter"
-if echo "$ONBOARD_KEY" | grep -qE '^sk-ws-|^sk-[a-f0-9]'; then
+if [ "$PROVIDER" = "anthropic" ]; then
+    PROVIDER_ID="anthropic"
+elif echo "$ONBOARD_KEY" | grep -qE '^sk-ws-|^sk-[a-f0-9]'; then
     if ! echo "$ONBOARD_KEY" | grep -q '^sk-or-v1'; then
         PROVIDER_ID="dashscope"
         [ "$MODEL_ID" = "openrouter/free" ] && MODEL_ID="qwen-flash"
@@ -349,19 +376,17 @@ apply_free_patch() {
 }
 if [ -f "$FREE_PATCH" ]; then
     # Only apply free bundle if user doesn't have an Alibaba Qwen key
-    if { grep -q '^QWEN_API_KEY=sk-ws-' "$ROOT/.env" 2>/dev/null || \
-       grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null; } && \
-       ! grep -q '^QWEN_API_KEY=sk-or-v1' "$ROOT/.env" 2>/dev/null; then
+    if { echo "$API_KEY" | grep -q '^sk-ws-' || echo "$API_KEY" | grep -qE '^sk-[a-f0-9]'; } && \
+       ! echo "$API_KEY" | grep -q '^sk-or-v1'; then
         log_gray "  Alibaba Qwen key detected — skipping free model bundle (not needed)"
     else
         step "Apply free model bundle (WARNING: may stall 2–6 min/reply)" apply_free_patch
         log_yellow "  WARNING: Free OpenRouter models may stall for 2–6 minutes per reply."
-        log_yellow "  For a usable experience, get a DashScope key and set QWEN_API_KEY in .env"
+        log_yellow "  For a usable experience, set LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL in .env"
     fi
 fi
-if { grep -q '^QWEN_API_KEY=sk-ws-' "$ROOT/.env" 2>/dev/null || \
-   grep -q '^QWEN_API_KEY=sk-[a-f0-9]' "$ROOT/.env" 2>/dev/null; } && \
-   ! grep -q '^QWEN_API_KEY=sk-or-v1' "$ROOT/.env" 2>/dev/null; then
+if { echo "$API_KEY" | grep -q '^sk-ws-' || echo "$API_KEY" | grep -qE '^sk-[a-f0-9]'; } && \
+   ! echo "$API_KEY" | grep -q '^sk-or-v1'; then
     openclaw config set agents.defaults.model.primary "dashscope/qwen-flash" >/dev/null 2>&1 || true
 fi
 openclaw config set gateway.auth.mode none >/dev/null 2>&1 || true

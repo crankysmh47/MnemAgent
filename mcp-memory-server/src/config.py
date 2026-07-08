@@ -42,12 +42,32 @@ def _env_int(key: str, default: int) -> int:
 class Settings:
     """Application settings loaded from environment variables."""
 
-    QWEN_API_KEY: str = field(default_factory=lambda: _env_str("QWEN_API_KEY", _PLACEHOLDER_API_KEY))
-    QWEN_MODEL: str = field(default_factory=lambda: _env_str("QWEN_MODEL", "qwen-plus"))
+    LLM_PROVIDER: str = field(default_factory=lambda: _env_str("LLM_PROVIDER", "openai_compatible"))
+    LLM_API_KEY: str = field(
+        default_factory=lambda: _env_str("LLM_API_KEY", _env_str("QWEN_API_KEY", _PLACEHOLDER_API_KEY))
+    )
+    LLM_MODEL: str = field(default_factory=lambda: _env_str("LLM_MODEL", _env_str("QWEN_MODEL", "qwen-plus")))
+    LLM_BASE_URL: str = field(
+        default_factory=lambda: _env_str(
+            "LLM_BASE_URL",
+            _env_str("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        )
+    )
+    ANTHROPIC_API_KEY: str = field(
+        default_factory=lambda: _env_str("ANTHROPIC_API_KEY", _env_str("LLM_API_KEY", _PLACEHOLDER_API_KEY))
+    )
+    ANTHROPIC_BASE_URL: str = field(
+        default_factory=lambda: _env_str("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+    )
+    ANTHROPIC_VERSION: str = field(default_factory=lambda: _env_str("ANTHROPIC_VERSION", "2023-06-01"))
+
+    # Backward-compatible aliases used by older scripts and embedding code.
+    QWEN_API_KEY: str = field(default_factory=lambda: _env_str("QWEN_API_KEY", _env_str("LLM_API_KEY", _PLACEHOLDER_API_KEY)))
+    QWEN_MODEL: str = field(default_factory=lambda: _env_str("QWEN_MODEL", _env_str("LLM_MODEL", "qwen-plus")))
     QWEN_BASE_URL: str = field(
         default_factory=lambda: _env_str(
             "QWEN_BASE_URL",
-            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            _env_str("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
         )
     )
     ALIBABA_CLOUD_ACCESS_KEY_ID: str = field(
@@ -79,9 +99,7 @@ class Settings:
         default_factory=lambda: _env_float("SEMANTIC_SIMILARITY_FLOOR", 0.3)
     )
     CHAT_MAX_TOKENS: int = field(default_factory=lambda: _env_int("CHAT_MAX_TOKENS", 2000))
-    EXTRACTION_MODEL: str = field(
-        default_factory=lambda: _env_str("EXTRACTION_MODEL", "qwen-turbo")
-    )
+    EXTRACTION_MODEL: str = field(default_factory=lambda: _env_str("EXTRACTION_MODEL", ""))
     ENABLE_DREAMING_EXTRACTION: bool = field(
         default_factory=lambda: _env_str("ENABLE_DREAMING_EXTRACTION", "true").lower()
         in ("1", "true", "yes")
@@ -104,23 +122,25 @@ class Settings:
 
     def validate_qwen_api_key(self) -> None:
         """
-        Ensure Qwen API key is configured for live API usage.
+        Ensure the configured LLM API key is available for live usage.
 
         Raises:
             ValueError: If the API key is missing or still a placeholder.
         """
-        if not self.QWEN_API_KEY or self.QWEN_API_KEY == _PLACEHOLDER_API_KEY:
+        api_key = self.ANTHROPIC_API_KEY if self.LLM_PROVIDER.lower() == "anthropic" else self.LLM_API_KEY
+        if not api_key or api_key == _PLACEHOLDER_API_KEY:
             raise ValueError(
-                "QWEN_API_KEY is not configured. Copy config/env.template to .env and set a real key."
+                "LLM_API_KEY/ANTHROPIC_API_KEY is not configured. Copy config/env.template to .env and set a real key."
             )
 
     def __repr__(self) -> str:
         return (
-            f"Settings(QWEN_MODEL={self.QWEN_MODEL!r}, "
+            f"Settings(LLM_PROVIDER={self.LLM_PROVIDER!r}, "
+            f"LLM_MODEL={self.LLM_MODEL!r}, "
             f"EMBEDDING_MODEL={self.EMBEDDING_MODEL!r}, "
             f"EMBEDDING_DIM={self.EMBEDDING_DIM}, "
             f"DB_PATH={self.DB_PATH!r}, "
-            f"QWEN_API_KEY=***masked***)"
+            f"LLM_API_KEY=***masked***)"
         )
 
 

@@ -26,6 +26,15 @@ pwsh ./scripts/reset-cloud-memory.ps1
 pwsh ./scripts/deploy-preflight.ps1
 ```
 
+Record two separate videos if the submission form allows it:
+
+- **Main demo, about 3 minutes:** product value, memory behavior, visualizer,
+  and benchmark evidence.
+- **Cloud proof, 30-60 seconds:** Alibaba Cloud ECS console, SSH terminal,
+  Docker service health, and public ECS URL.
+
+The exact cloud-proof checklist lives in `docs/CLOUD_PROOF.md`.
+
 Open these tabs:
 
 - OpenClaw chat: `http://<ecs-ip>:18789`
@@ -228,6 +237,9 @@ Show:
 ```powershell
 pwsh ./scripts/deploy-preflight.ps1
 ```
+
+If the cloud-proof video is separate, keep this shot short. Show only the final
+passing preflight output and the ECS public visualizer URL.
 
 Voiceover:
 

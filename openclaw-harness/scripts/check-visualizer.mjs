@@ -24,7 +24,7 @@ const report = await page.evaluate(() => {
   const beliefs = document.getElementById("mBeliefs")?.textContent || "";
   return {
     title: document.title,
-    hasStamp: document.body.innerHTML.includes("v2026-06-14"),
+    hasStamp: document.body.innerHTML.includes("v2026-07-08"),
     d3Loaded: typeof window.d3 !== "undefined",
     svgWidth: svg?.getAttribute("width"),
     svgHeight: svg?.getAttribute("height"),

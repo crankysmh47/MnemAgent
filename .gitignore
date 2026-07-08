@@ -48,6 +48,13 @@ MASTERPLAN.md
 Plan2.txt
 Plan.pdf
 Plan.txt
+plans/
+planning/
+scratch/
+notes/
+docs/superpowers/
+docs/**/*.tmp
+docs/**/*.bak
 *.docx
 MnemOS_Hackathon_Report.docx
 DEPENDENCY_NOTES.md

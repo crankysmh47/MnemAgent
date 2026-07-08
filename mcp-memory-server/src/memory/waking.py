@@ -671,7 +671,7 @@ async def build_optimized_qwen_payload(
 
         return {
             "payload": {
-                "model": settings.QWEN_MODEL,
+                "model": settings.LLM_MODEL,
                 "messages": messages,
                 "temperature": 0.2,
                 "max_tokens": settings.CHAT_MAX_TOKENS,
@@ -685,7 +685,7 @@ async def build_optimized_qwen_payload(
         logger.error("Failed to build Qwen payload: %s", exc)
         return {
             "payload": {
-                "model": settings.QWEN_MODEL,
+                "model": settings.LLM_MODEL,
                 "messages": [{"role": "user", "content": user_input}],
                 "temperature": 0.2,
                 "max_tokens": settings.CHAT_MAX_TOKENS,
