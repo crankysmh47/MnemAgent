@@ -87,7 +87,7 @@ The system is built around four behaviors:
 | Behavior | Mechanism |
 |----------|-----------|
 | Selective storage | Salience auction: store only conviction >= 0.4, except `system_state` facts |
-| Bounded recall | sqlite-vec/pgvector candidate search, UCB ranking, max 6 injected facts |
+| Bounded recall | Postgres/pgvector candidate search, UCB ranking, max 6 injected facts |
 | Contradiction handling | Unique belief key: `(user_id, entity_source, relation)` |
 | Forgetting | Inactive nodes decay and are pruned below `node_weight < 0.1` |
 | Prospective memory | Cue-triggered reminders fire only when the user's prompt matches the cue |
@@ -106,7 +106,7 @@ flowchart TB
   MCP["MnemAgent MCP server :8001 / stdio"]
   API["MnemAgent Memory API :8000"]
   QWEN["Qwen-compatible LLM API"]
-  DB[("SQLite local / Postgres+pgvector cloud")]
+  DB[("Postgres + pgvector")]
   VEC[("vector embeddings")]
   OSS[("Alibaba OSS backup")]
 
@@ -153,7 +153,7 @@ sequenceDiagram
 
 Retrieval uses:
 
-- embeddings when sqlite-vec is available;
+- embeddings through pgvector KNN search;
 - keyword fallback using a global and per-user entity dictionary;
 - UCB ranking: `Score_i = Q_i + c * sqrt(ln(T) / (N_i + 1))`;
 - associative hops for larger graphs;
@@ -280,6 +280,7 @@ Headline local result from the current docs:
 | Suite | MnemAgent | Baseline | Notes |
 |-------|--------|----------|-------|
 | Live agentic benchmark | 86.5% | 64.6% | Cross-session and project-continuity advantage |
+| MnemBench v2 smoke, Postgres runtime | 66.7% | 23.7% | +43.0 points across 13 long-running memory scenarios |
 | Dry-run architectural ceiling | 100% | 29% | Confirms deterministic memory logic when extraction is ideal |
 
 Run checks:
@@ -370,9 +371,8 @@ Important variables:
 | `LLM_BASE_URL` | Base URL for `/chat/completions` providers |
 | `LLM_MODEL` | Default model for chat/extraction |
 | `ANTHROPIC_API_KEY` | Anthropic key when `LLM_PROVIDER=anthropic` |
-| `DB_PATH` | SQLite memory database path |
-| `STORAGE_BACKEND` | `sqlite` locally; `postgres` for RDS/pgvector cloud deployments |
-| `DATABASE_URL` | PostgreSQL/RDS connection string when using the Postgres path |
+| `STORAGE_BACKEND` | `postgres` for the product runtime |
+| `DATABASE_URL` | PostgreSQL/RDS connection string |
 | `MNEMAGENT_API_TOKEN` | Optional bearer token for cloud API protection |
 | `AWAIT_DREAMING` | Whether chat waits for memory consolidation |
 | `ENABLE_DREAMING_EXTRACTION` | Enables server-side fallback extraction |

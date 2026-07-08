@@ -18,6 +18,13 @@ from storage.db_manager import get_db_connection
 logger = logging.getLogger(__name__)
 
 _WHEN_ENTITY = re.compile(r"^when_(?:asked_)?about_(?P<cue>.+)$", re.I)
+_CUE_SUFFIXES = (
+    "_verification",
+    "_reminder",
+    "_reminder_action",
+    "_notification",
+    "_check",
+)
 
 
 def _clean_phrase(value: object) -> str:
@@ -26,19 +33,34 @@ def _clean_phrase(value: object) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _cue_from_entity(entity: str) -> str:
+    lowered = entity.strip().lower()
+    for suffix in _CUE_SUFFIXES:
+        if lowered.endswith(suffix):
+            lowered = lowered[: -len(suffix)]
+            break
+    return _clean_phrase(lowered)
+
+
 def prospective_from_belief(memory_dict: dict) -> tuple[str, str] | None:
     """Return (cue, action) when a memory dict encodes a prospective reminder."""
 
     relation = str(memory_dict.get("relation") or "").strip().lower()
-    if relation not in {"remind", "reminds", "remind_me"}:
+    entity = str(memory_dict.get("entity") or "").strip()
+    is_reminder_entity = "reminder" in entity.lower()
+    if relation not in {"remind", "reminds", "remind_me", "reminder", "reminder_action"} and not (
+        relation == "action" and is_reminder_entity
+    ):
         return None
 
-    entity = str(memory_dict.get("entity") or "").strip()
     value = _clean_phrase(memory_dict.get("value"))
     match = _WHEN_ENTITY.match(entity)
-    if not match or not value:
+    if match:
+        cue = _clean_phrase(match.group("cue"))
+    elif relation in {"reminder", "reminder_action"} or is_reminder_entity:
+        cue = _cue_from_entity(entity)
+    else:
         return None
-    cue = _clean_phrase(match.group("cue"))
     if len(cue) < 2:
         return None
     return cue, value

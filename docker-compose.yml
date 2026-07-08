@@ -7,16 +7,16 @@ services:
         PROMPT_VERSION: v4-dual-path-write
     ports:
       - "8000:8000"
-    volumes:
-      - mnemos-data:/app/data
     env_file:
       - .env
     environment:
-      - DB_PATH=/app/data/memory_state.db
       - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
-      - STORAGE_BACKEND=${STORAGE_BACKEND:-sqlite}
-      - DATABASE_URL=${DATABASE_URL:-}
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-postgres}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://mnemagent:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-mnemagent}}
       - MNEMAGENT_API_TOKEN=${MNEMAGENT_API_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -92,8 +92,6 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg16
-    profiles:
-      - postgres
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-mnemagent}
       - POSTGRES_USER=${POSTGRES_USER:-mnemagent}
@@ -111,5 +109,4 @@ services:
       retries: 10
 
 volumes:
-  mnemos-data:
   mnemos-postgres:

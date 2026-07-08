@@ -10,7 +10,22 @@ https://github.com/crankysmh47/MnemBench
 This product repository keeps a runnable copy under `eval/mnembench/` so judges
 can reproduce the submission without cloning another project.
 
-## Best full-suite result
+## Latest live Postgres-backed v2 smoke run
+
+This run was executed live against the Postgres/pgvector MnemAgent runtime and
+a no-memory baseline server on July 8, 2026.
+
+| Metric | MnemAgent | Baseline | Delta |
+| --- | ---: | ---: | ---: |
+| Average probe score | 66.7% | 23.7% | +43.0% |
+| Average composite | 0.622 | 0.399 | +0.223 |
+| Pass rate | 76.9% | 38.5% | +38.4% |
+| Scenarios improved | 8 / 13 | - | - |
+
+The strongest wins were cross-session recall, overload resistance, dormant
+retrieval, user continuity, poison resistance, learning, and prospective memory.
+
+## Best historical full-suite result
 
 The strongest full-suite MnemBench run remains the June 14 comparison:
 

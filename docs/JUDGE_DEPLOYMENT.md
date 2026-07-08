@@ -30,9 +30,8 @@ What it does:
 - Disables OpenClaw's built-in `memory-core` plugin.
 - Restarts Docker services unless `-NoDockerRestart` is passed.
 
-By default the script resets the SQLite DB inside the running
-`mnemos-memory` Docker container. Pass `-DbPath <path>` only when preparing an
-offline database file.
+By default the script resets the Postgres database in the running Docker stack.
+The SQLite reset path exists only for legacy offline database files.
 
 ## Preflight
 

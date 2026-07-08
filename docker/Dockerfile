@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 LABEL org.opencontainers.image.title="MnemAgent Memory Server"
-LABEL org.opencontainers.image.description="Persistent biologically-inspired memory layer — FastAPI + sqlite-vec + UCB retrieval"
+LABEL org.opencontainers.image.description="Persistent biologically-inspired memory layer - FastAPI + Postgres/pgvector + UCB retrieval"
 LABEL org.opencontainers.image.authors="crankysmh47"
 LABEL org.opencontainers.image.source="https://github.com/crankysmh47/MnemAgent"
 
@@ -9,6 +9,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     libsqlite3-dev \
+    postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

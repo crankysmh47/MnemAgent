@@ -103,7 +103,7 @@ The asymmetry (+0.05 reward vs -0.01 penalty) prevents the system from penalizin
 | 1 | Working Memory | In-process, last 3 turns | Short-term conversational context |
 | 2 | Episodic Memory | episodic_logs table, session-scoped | Source material for consolidation, UCB T calculation |
 | 3 | Semantic Memory | semantic_graph table, global per user | Long-term beliefs — what gets injected into prompts |
-| 4 | Vector Index | vec_memory virtual table (sqlite-vec) | SIMD-accelerated KNN semantic search |
+| 4 | Vector Index | `vec_memory` pgvector table | KNN semantic search over stored belief embeddings |
 | 5 | Event Log | memory_events table | Lifecycle events for the visualizer |
 
 ## The Forgetting System
@@ -143,7 +143,7 @@ User sends message
 
 ## Key Design Decisions
 
-- **SQLite, not a vector database** — zero infrastructure, single-file state, WAL mode for concurrent reads
+- **Postgres + pgvector runtime** - multi-user cloud deployment, transactional belief updates, vector search in the same database, and a direct path to Alibaba RDS.
 - **T is per-user, not global** — prevents new users from inheriting inflated UCB exploration from power users
 - **Asymmetric feedback** — rewards (+0.05) > penalties (-0.01) so exploration isn't punished
 - **Proximity regex, not substring** — "Python" in snake context doesn't credit programming preference
@@ -204,7 +204,7 @@ This avoids timed reminders. OpenClaw does not need to track wall-clock time, th
 
 ## Cloud Multi-User Posture
 
-Local development keeps SQLite because it is cheap and deterministic. Alibaba Cloud deployments can use the bundled Postgres/pgvector schema through the `postgres` compose profile or Alibaba RDS.
+MnemAgent now uses Postgres/pgvector as the product runtime backend. The SQLite adapter remains only as a legacy/test fallback for isolated unit tests that need disposable file-backed databases.
 
 Security controls for cloud mode:
 

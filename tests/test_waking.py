@@ -244,7 +244,7 @@ async def test_build_payload_updates_last_accessed(populated_db: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_build_payload_vec_unavailable_falls_back_to_keyword(populated_db: Path) -> None:
-    with patch("memory.waking.VEC_AVAILABLE", False):
+    with patch("storage.db_manager.VEC_AVAILABLE", False):
         with patch("memory.waking.get_embedding", new=AsyncMock(return_value=[0.1] * 384)):
             result = await build_optimized_qwen_payload(
                 "user1", "s1", "python backend", 10, populated_db
