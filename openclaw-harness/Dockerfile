@@ -1,6 +1,6 @@
 FROM node:20-alpine
-LABEL org.opencontainers.image.title="MnemOS Visualizer Harness"
-LABEL org.opencontainers.image.description="Memory graph visualizer and API proxy for MnemOS memory layer"
+LABEL org.opencontainers.image.title="MnemAgent Visualizer Harness"
+LABEL org.opencontainers.image.description="Memory graph visualizer and API proxy for MnemAgent memory layer"
 LABEL org.opencontainers.image.authors="crankysmh47"
 LABEL org.opencontainers.image.source="https://github.com/crankysmh47/MnemAgent"
 

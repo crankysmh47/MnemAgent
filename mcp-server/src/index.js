@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * MnemOS MCP server — exposes memory tools to OpenClaw via stdio or HTTP.
+ * MnemAgent MCP server — exposes memory tools to OpenClaw via stdio or HTTP.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -115,9 +115,9 @@ function createMcpServer() {
 
   server.tool(
     "memory_store",
-    "Store a new fact in persistent MnemOS memory (salience-gated)",
+    "Store a new fact in persistent MnemAgent memory (salience-gated)",
     {
-      user_id: z.string().describe("Canonical MnemOS user id"),
+      user_id: z.string().describe("Canonical MnemAgent user id"),
       entity: z.string(),
       relation: z.string(),
       value: z.string(),
@@ -199,7 +199,7 @@ function createMcpServer() {
 
   server.tool(
     "memory_chat",
-    "Send a message through MnemOS memory-augmented chat",
+    "Send a message through MnemAgent memory-augmented chat",
     {
       user_id: z.string(),
       session_id: z.string(),
@@ -214,7 +214,7 @@ function createMcpServer() {
 
   server.tool(
     "memory_bind_user",
-    "Bind a channel sender id to a canonical MnemOS user_id",
+    "Bind a channel sender id to a canonical MnemAgent user_id",
     {
       channel: z.string().describe("telegram, discord, whatsapp, slack, webchat"),
       sender_id: z.string(),
@@ -286,7 +286,7 @@ async function startHttp(port) {
   });
 
   app.listen(port, "0.0.0.0", () => {
-    console.log(`MnemOS MCP server (http) on :${port} -> ${MNEMOS_URL}`);
+    console.log(`MnemAgent MCP server (http) on :${port} -> ${MNEMOS_URL}`);
   });
 }
 

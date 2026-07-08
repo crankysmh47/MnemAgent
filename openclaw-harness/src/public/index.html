@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>MnemOS — Living Memory Atlas</title>
+  <title>MnemAgent — Living Memory Atlas</title>
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -23,7 +23,7 @@
       <img src="/mnemagent-logo-square.png" alt="" />
     </div>
     <div>
-      <div>MnemOS</div>
+      <div>MnemAgent</div>
       <div class="brand-sub">Memory Atlas</div>
     </div>
   </div>
@@ -70,7 +70,7 @@
           </div>
         </div>
         <div class="rail-card rail-about">
-          <h3 class="rail-title">About MnemOS</h3>
+          <h3 class="rail-title">About MnemAgent</h3>
           <p class="rail-about-lead">Persistent memory for AI agents — beliefs earn their place through conviction, recall utility, and decay.</p>
           <ul class="rail-about-list">
             <li><strong>Nodes</strong> are stored memories: facts, preferences, and persona traits.</li>
@@ -1360,7 +1360,7 @@ function initUserId() {
 }
 
 async function resolveDefaultUserId() {
-  // Try the whoami endpoint first (canonical ID from MnemOS API,
+  // Try the whoami endpoint first (canonical ID from MnemAgent API,
   // same ID the agent uses — eliminates visualizer / agent mismatch).
   try {
     const whoamiResp = await fetch('/api/user/whoami');
@@ -1373,7 +1373,7 @@ async function resolveDefaultUserId() {
       }
     }
   } catch {
-    /* whoami not available — MnemOS may be starting up */
+    /* whoami not available — MnemAgent may be starting up */
   }
   // Fall back to setup-generated file or env override
   try {

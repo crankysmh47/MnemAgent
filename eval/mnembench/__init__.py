@@ -2,7 +2,7 @@
 
 A standalone, open-source benchmark suite for evaluating memory-augmented
 language model agents. Supports any OpenAI-compatible API and any memory
-system (MnemOS, LoCoMo, MemGPT, etc.).
+system (MnemAgent, LoCoMo, MemGPT, etc.).
 
 Provides 10 scenarios spanning:
   - Cross-session recall at scale

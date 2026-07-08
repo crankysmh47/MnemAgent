@@ -1,5 +1,5 @@
 {
-  "name": "MnemOS Memory Backend",
+  "name": "MnemAgent Memory Backend",
   "version": "1.0.0",
   "description": "Persistent biologically-inspired memory for OpenClaw",
   "mcp_server": {

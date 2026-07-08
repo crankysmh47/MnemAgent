@@ -1,1 +1,1 @@
-# MnemOS package root.
+# MnemAgent package root.

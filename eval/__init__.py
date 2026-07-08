@@ -1,1 +1,1 @@
-"""MnemOS evaluation benchmark package."""
+"""MnemAgent evaluation benchmark package."""

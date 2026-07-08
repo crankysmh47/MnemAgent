@@ -1,13 +1,13 @@
-# MnemOS Live Evaluation Results
+# MnemAgent Live Evaluation Results
 
 **Date:** 2026-06-13  
 **Model:** qwen-plus (Alibaba Cloud DashScope Workspace, Singapore region)  
-**Infrastructure:** Docker (3 services) + OpenClaw Gateway + MnemOS MCP (7 tools)  
+**Infrastructure:** Docker (3 services) + OpenClaw Gateway + MnemAgent MCP (7 tools)
 **Mode:** LIVE — no dry-run fixtures, real API calls to Qwen
 
 ---
 
-## 1. OpenClaw + MnemOS Integration Proof
+## 1. OpenClaw + MnemAgent Integration Proof
 
 All tests conducted with `openclaw agent` using the `mnemos` MCP (7 tools registered).
 
@@ -43,7 +43,7 @@ Result: ✅ Complete brain state returned with confidence labels
 
 Each scenario tests a different memory capability with multi-step probing.
 
-| Scenario | Memory Capability | MnemOS | Baseline | Advantage |
+| Scenario | Memory Capability | MnemAgent | Baseline | Advantage |
 |----------|-------------------|--------|----------|-----------|
 | compound_stack | Accumulating project preferences | **100.0%** | 100.0% | **0% (fixed)** |
 | contradiction_arc | Updating facts, removing stale | 58.3%→**75%** final probes | 75.0% | improved (was −16.7%) |
@@ -57,10 +57,10 @@ Each scenario tests a different memory capability with multi-step probing.
 
 The `project_continuity` scenario spans 8 steps across multiple sessions, teaching arbitrary project-specific facts (an e-commerce platform called "ShopFast" using Next.js with a specific PostgreSQL schema, Stripe payments, and Redis caching). After sessions accumulate context:
 
-- **MnemOS (91.7%):** Correctly recalls project-specific details across sessions using the memory layer
+- **MnemAgent (91.7%):** Correctly recalls project-specific details across sessions using the memory layer
 - **Baseline (8.3%):** The stateless LLM has no access to prior sessions — fails to recall project context
 
-This demonstrates the **core value proposition**: MnemOS preserves context that a stateless LLM will always lose.
+This demonstrates the **core value proposition**: MnemAgent preserves context that a stateless LLM will always lose.
 
 ### Analysis: Lagging Scenarios — Fixes Applied
 
@@ -73,23 +73,23 @@ Previously `compound_stack` and `contradiction_arc` lagged because probe scoring
 3. **Contradiction suppression**: Reads `memory_events` contradiction rows → injects FORBIDDEN list + strips `old_value` from replies.
 4. **Hedged-teach rejection** (`record_hedged_teach_rejections`): Parses "maybe/could try" teach steps → logs `salience_rejected` for tech entities even when LLM emits skip.
 
-These scenarios test **recall** which a smart LLM can simulate from context. The `project_continuity` scenario tests **persistence** — information the LLM CANNOT infer — and there MnemOS dominates.
+These scenarios test **recall** which a smart LLM can simulate from context. The `project_continuity` scenario tests **persistence** — information the LLM CANNOT infer — and there MnemAgent dominates.
 
 ---
 
 ## 3. Single-Turn Benchmark Results (25 Scenarios)
 
-Overall: MnemOS 43.7% vs Baseline 45.0% (essentially tied)
+Overall: MnemAgent 43.7% vs Baseline 45.0% (essentially tied)
 
-| Category | MnemOS | Baseline | Leader |
+| Category | MnemAgent | Baseline | Leader |
 |----------|--------|----------|--------|
 | Recall | 33.3% | 46.7% | Baseline |
-| Contradiction | 25.0% | 10.0% | **MnemOS +15%** |
+| Contradiction | 25.0% | 10.0% | **MnemAgent +15%** |
 | Interference | 60.0% | 65.0% | Baseline |
-| Forgetting | 56.7% | 50.0% | **MnemOS +6.7%** |
+| Forgetting | 56.7% | 50.0% | **MnemAgent +6.7%** |
 | Context | 43.3% | 53.3% | Baseline |
 
-MnemOS wins on **contradiction handling** (+15%) and **forgetting accuracy** (+6.7%) — the two pillars that differentiate it architecturally. The other categories are essentially ties.
+MnemAgent wins on **contradiction handling** (+15%) and **forgetting accuracy** (+6.7%) — the two pillars that differentiate it architecturally. The other categories are essentially ties.
 
 ---
 
@@ -97,7 +97,7 @@ MnemOS wins on **contradiction handling** (+15%) and **forgetting accuracy** (+6
 
 When using hand-crafted fixture responses (representing the architecture working as designed with a model that reliably follows `<memory_update>` instructions):
 
-| Category | MnemOS | Baseline | Advantage |
+| Category | MnemAgent | Baseline | Advantage |
 |----------|--------|----------|-----------|
 | Recall | 100% | 70% | +30% |
 | Contradiction | 100% | 10% | +90% |
@@ -115,10 +115,10 @@ Teach steps seed memory directly (architectural best-case for recall probes).
 
 | Mode | Score | Notes |
 |------|-------|-------|
-| MnemOS (with memory) | **33%** | Unguessable single-probe retrieval |
+| MnemAgent (with memory) | **33%** | Unguessable single-probe retrieval |
 | Baseline (no memory) | **27%** | +6.2% memory advantage |
 
-Run: `python -m eval.run_eval_v2 --mode both` (requires MnemOS :8000 + baseline :8002)
+Run: `python -m eval.run_eval_v2 --mode both` (requires MnemAgent :8000 + baseline :8002)
 
 **Why the gap is smaller than v1:** Probes test one-shot recall of random facts (harder than project continuity). The architecture's UCB exploration pays off over **multiple turns** — see project_continuity (+83.4%).
 

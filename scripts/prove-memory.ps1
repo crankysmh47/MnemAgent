@@ -1,4 +1,4 @@
-# Prove MnemOS memory works via terminal (no Telegram required)
+# Prove MnemAgent memory works via terminal (no Telegram required)
 $ErrorActionPreference = "Stop"
 $Base = "http://127.0.0.1:8000"
 $Harness = "http://127.0.0.1:3000"
@@ -34,7 +34,7 @@ function Get-Dump($retries = 5) {
   throw "Memory dump empty after store"
 }
 
-Write-Host "=== MnemOS Memory Proof (terminal) ===" -ForegroundColor Cyan
+Write-Host "=== MnemAgent Memory Proof (terminal) ===" -ForegroundColor Cyan
 Write-Host ""
 
 # 1. Health
@@ -42,7 +42,7 @@ Write-Host "[1/7] Health checks..."
 $h = Invoke-RestMethod -Uri "$Base/health" -TimeoutSec 10
 $m = Invoke-RestMethod -Uri "http://127.0.0.1:8001/health" -TimeoutSec 10
 $w = Invoke-RestMethod -Uri "$Harness/health" -TimeoutSec 10
-Write-Host "  MnemOS: $($h.status) | MCP: $($m.status) | Harness: $($w.status)" -ForegroundColor Green
+Write-Host "  MnemAgent: $($h.status) | MCP: $($m.status) | Harness: $($w.status)" -ForegroundColor Green
 
 # 2. Store facts via API (sequential to avoid SQLite lock storms)
 Write-Host "[2/7] Storing memories (Python preference + FAST affiliation)..."

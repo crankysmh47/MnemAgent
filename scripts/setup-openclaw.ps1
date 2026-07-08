@@ -1,4 +1,4 @@
-# One-command MnemOS + OpenClaw setup (Windows) — delegates to onboard-openclaw.ps1
+# One-command MnemAgent + OpenClaw setup (Windows) — delegates to onboard-openclaw.ps1
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 

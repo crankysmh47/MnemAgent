@@ -1,4 +1,4 @@
-# Register MnemOS MCP server with OpenClaw CLI
+# Register MnemAgent MCP server with OpenClaw CLI
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $ConfigDir = Join-Path $env:USERPROFILE ".openclaw"

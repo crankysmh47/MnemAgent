@@ -1,10 +1,10 @@
-# MnemOS + OpenClaw setup (Windows)
+# MnemAgent + OpenClaw setup (Windows)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Harness = $PSScriptRoot
 $ConfigDir = if ($env:OPENCLAW_CONFIG_DIR) { $env:OPENCLAW_CONFIG_DIR } else { Join-Path $env:USERPROFILE ".openclaw" }
 
-Write-Host "=== MnemOS OpenClaw Setup ===" -ForegroundColor Cyan
+Write-Host "=== MnemAgent OpenClaw Setup ===" -ForegroundColor Cyan
 
 # 1. OpenClaw CLI
 $openclaw = Get-Command openclaw -ErrorAction SilentlyContinue
@@ -23,7 +23,7 @@ Write-Host "Copied mnemos.config.json -> $ConfigDir"
 # 3. Shared user id for TUI + web UI
 $UserFile = Join-Path $ConfigDir "mnemos-user-id.txt"
 if (-not (Test-Path $UserFile)) {
-  # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
+  # Resolve canonical user_id from MnemAgent so visualizer and agent share the same ID
   try {
     $body = '{"channel":"openclaw","sender_id":"main"}'
     $canonical = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/bind" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 10
@@ -48,7 +48,7 @@ npm install
 Pop-Location
 
 # 5. Start services (background jobs)
-Write-Host "Starting MnemOS backend on :8000..."
+Write-Host "Starting MnemAgent backend on :8000..."
 Start-Process -FilePath "$Root\.venv\Scripts\uvicorn.exe" -ArgumentList "main:app","--host","0.0.0.0","--port","8000" -WorkingDirectory (Join-Path $Root "mcp-memory-server\src") -WindowStyle Hidden
 
 Start-Sleep -Seconds 2
@@ -63,7 +63,7 @@ Write-Host ""
 Write-Host "Services:" -ForegroundColor Green
 Write-Host "  Chat UI:      http://localhost:3000"
 Write-Host "  Visualizer:   http://localhost:3000/visualizer"
-Write-Host "  MnemOS API:   http://localhost:8000"
+Write-Host "  MnemAgent API:   http://localhost:8000"
 Write-Host "  MCP Adapter:  http://localhost:8001"
 Write-Host "  OpenClaw TUI: openclaw gateway && openclaw tui"
 Write-Host ""

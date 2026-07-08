@@ -82,8 +82,8 @@ def test_report_generator_produces_markdown() -> None:
         return generate_comparison_report(with_report, without_report)
 
     report = asyncio.run(_run())
-    assert "# MnemOS Benchmark Comparison Report" in report
-    assert "MnemOS (with memory)" in report
+    assert "# MnemAgent Benchmark Comparison Report" in report
+    assert "MnemAgent (with memory)" in report
 
 
 def test_fixtures_cover_all_scenarios() -> None:

@@ -1,5 +1,5 @@
 /**
- * MnemOS MCP Adapter — exposes MnemOS memory operations as MCP tools over HTTP SSE.
+ * MnemAgent MCP Adapter — exposes MnemAgent memory operations as MCP tools over HTTP SSE.
  */
 
 require("dotenv").config();
@@ -96,7 +96,7 @@ const MCP_TOOLS = [
   },
   {
     name: "memory_chat",
-    description: "Send a message through MnemOS memory-augmented chat",
+    description: "Send a message through MnemAgent memory-augmented chat",
     inputSchema: {
       type: "object",
       properties: {
@@ -347,5 +347,5 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`MnemOS MCP adapter on :${PORT} → ${MNEMOS_URL}`);
+  console.log(`MnemAgent MCP adapter on :${PORT} → ${MNEMOS_URL}`);
 });

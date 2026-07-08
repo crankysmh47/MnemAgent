@@ -1,4 +1,4 @@
-# Independent product review for MnemOS memory behavior.
+# Independent product review for MnemAgent memory behavior.
 #
 # This script uses fresh per-run user ids against the running stack. It does not
 # wipe existing memories, so it is safe to run on a demo machine.
@@ -52,11 +52,11 @@ function StoreFact($UserId, $Entity, $Relation, $Value, $Category = "preference"
   }
 }
 
-Write-Host "=== MnemOS Independent Review ===" -ForegroundColor Cyan
+Write-Host "=== MnemAgent Independent Review ===" -ForegroundColor Cyan
 Write-Host "Primary user: $PrimaryUser"
 
 Step "Stack health" {
-  if ((GetJson "$Api/health").status -ne "ok") { throw "MnemOS unhealthy" }
+  if ((GetJson "$Api/health").status -ne "ok") { throw "MnemAgent unhealthy" }
   if ((GetJson "$Harness/health").status -ne "ok") { throw "Harness unhealthy" }
   if ((GetJson "http://127.0.0.1:8001/health").status -ne "ok") { throw "MCP unhealthy" }
 }

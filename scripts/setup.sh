@@ -6,7 +6,7 @@
 #   bash scripts/setup.sh
 #
 # Installs prerequisites, starts Docker services, onboards OpenClaw,
-# registers the MnemOS MCP toolset, and verifies everything works.
+# registers the MnemAgent MCP toolset, and verifies everything works.
 #
 # Works on: Linux, macOS, WSL (Windows Subsystem for Linux)
 # =============================================================================
@@ -132,7 +132,7 @@ log_cyan ""
 log_cyan "╔══════════════════════════════════════════════════════════════╗"
 log_cyan "║                                                             ║"
 log_cyan "║            MnemAgent — One-Command Setup                    ║"
-log_cyan "║     MnemOS Memory Layer  +  OpenClaw AI Agent              ║"
+log_cyan "║     MnemAgent Memory Layer  +  OpenClaw AI Agent              ║"
 log_cyan "║                                                             ║"
 log_cyan "╚══════════════════════════════════════════════════════════════╝"
 echo ""
@@ -215,7 +215,7 @@ fi
 # ═════════════════════════════════════════════════════════════════════════════
 # STEP 3 — DOCKER SERVICES
 # ═════════════════════════════════════════════════════════════════════════════
-log_cyan "[3/7] Starting MnemOS Docker services ..."
+log_cyan "[3/7] Starting MnemAgent Docker services ..."
 
 step "Building and starting containers" bash -c "
     cd '$ROOT' && docker compose up -d --build >/dev/null 2>&1
@@ -225,8 +225,8 @@ MEM_OK=true
 MCP_OK=true
 
 log_cyan "       Waiting for services (this may take a moment) ..."
-wait_health "http://127.0.0.1:8000/health" "MnemOS memory (:8000)" 120 || MEM_OK=false
-wait_health "http://127.0.0.1:8001/health" "MnemOS MCP  (:8001)"   90  || MCP_OK=false
+wait_health "http://127.0.0.1:8000/health" "MnemAgent memory (:8000)" 120 || MEM_OK=false
+wait_health "http://127.0.0.1:8001/health" "MnemAgent MCP  (:8001)"   90  || MCP_OK=false
 wait_health "http://127.0.0.1:3000/health" "Visualizer  (:3000)"   90  || true
 
 # Seed demo-brain for visualizer (~62 beliefs, hub-linked graph)
@@ -327,18 +327,18 @@ step "Onboarding OpenClaw" do_onboard
 # ═════════════════════════════════════════════════════════════════════════════
 # STEP 6 — MNEMOS MCP INTEGRATION
 # ═════════════════════════════════════════════════════════════════════════════
-log_cyan "[6/7] Integrating MnemOS MCP tools ..."
+log_cyan "[6/7] Integrating MnemAgent MCP tools ..."
 
 MCP_JS="$ROOT/mcp-server/src/index.js"
 USER_ID="$(ensure_mnemos_user_id)"
-log_gray "  MnemOS user_id: $USER_ID"
+log_gray "  MnemAgent user_id: $USER_ID"
 
 # Install MCP server npm deps
 step "MCP server npm dependencies" bash -c "
     cd '$ROOT/mcp-server' && npm install --silent 2>/dev/null
 "
 
-# Register MnemOS MCP (stdio transport)
+# Register MnemAgent MCP (stdio transport)
 # Try mcp set first (current OpenClaw CLI), fall back to mcp add (older versions).
 register_mcp() {
     openclaw mcp unset mnemos 2>/dev/null || true
@@ -356,10 +356,10 @@ register_mcp() {
             --connect-timeout 30 >/dev/null 2>&1
     fi
 }
-step "Register MnemOS MCP tools" register_mcp
+step "Register MnemAgent MCP tools" register_mcp
 if ! openclaw mcp probe mnemos >/dev/null 2>&1; then
     log_red ""
-    log_red "ERROR: Could not register MnemOS MCP tools."
+    log_red "ERROR: Could not register MnemAgent MCP tools."
     log_red "Without these tools the agent CANNOT use memory — it will give WRONG answers."
     log_red "Manual fix:  openclaw mcp set mnemos '$MCP_SET_JSON'"
     log_red "Then verify:  openclaw mcp probe mnemos"
@@ -410,7 +410,7 @@ step "Copy workspace files" copy_workspace
 # Generate a persistent user ID
 USER_FILE="$CONFIG_DIR/mnemos-user-id.txt"
 if [ ! -f "$USER_FILE" ]; then
-    # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
+    # Resolve canonical user_id from MnemAgent so visualizer and agent share the same ID
     CANONICAL_ID=$(curl -s -X POST http://127.0.0.1:8000/api/user/bind \
         -H 'Content-Type: application/json' \
         -d '{"channel":"openclaw","sender_id":"main"}' 2>/dev/null | \
@@ -443,7 +443,7 @@ start_gateway() {
 }
 step "Starting OpenClaw gateway" start_gateway
 
-# Verify MnemOS MCP probe (expect 7 tools)
+# Verify MnemAgent MCP probe (expect 7 tools)
 verify_mcp() {
     local output
     output=$(openclaw mcp probe mnemos 2>&1)
@@ -456,7 +456,7 @@ verify_mcp() {
     echo " ($count tools available)"
     return 0
 }
-step "Verify MnemOS MCP (7 tools)" verify_mcp
+step "Verify MnemAgent MCP (7 tools)" verify_mcp
 
 # ── SUMMARY ──────────────────────────────────────────────────────────────────
 echo ""
@@ -490,7 +490,7 @@ echo -e "  ${BOLD}Daily Startup${NC}"
 log_gray "    bash scripts/dev.sh"
 echo ""
 
-echo -e "  ${BOLD}Your MnemOS User ID${NC}"
+echo -e "  ${BOLD}Your MnemAgent User ID${NC}"
 log_gray "    $USER_ID"
 echo ""
 

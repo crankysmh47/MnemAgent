@@ -1,4 +1,4 @@
-# Full MnemOS + OpenClaw integration smoke test
+# Full MnemAgent + OpenClaw integration smoke test
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Failed = 0
@@ -14,9 +14,9 @@ function Test-Step($Name, $ScriptBlock) {
   }
 }
 
-Write-Host "=== MnemOS Integration Test ===" -ForegroundColor Cyan
+Write-Host "=== MnemAgent Integration Test ===" -ForegroundColor Cyan
 
-Test-Step "MnemOS health" {
+Test-Step "MnemAgent health" {
   $r = Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -TimeoutSec 5
   if ($r.status -ne "ok") { throw "bad status" }
 }

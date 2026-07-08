@@ -1,4 +1,4 @@
-# Isolated first-install product review for MnemOS.
+# Isolated first-install product review for MnemAgent.
 #
 # Starts a temporary API server against a brand-new SQLite database, exercises the
 # memory layer like a real user across sessions, then tears the server down.
@@ -91,7 +91,7 @@ try {
   $env:QWEN_MODEL = $Model
   $env:PYTHONPATH = Join-Path $Root "mcp-memory-server\src"
 
-  Write-Host "=== MnemOS Empty-DB Product Review ===" -ForegroundColor Cyan
+  Write-Host "=== MnemAgent Empty-DB Product Review ===" -ForegroundColor Cyan
   Write-Host "API: $Api"
   Write-Host "Model: $Model"
   Write-Host "Primary user: $PrimaryUser"

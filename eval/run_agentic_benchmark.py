@@ -41,7 +41,7 @@ async def _run(
             mnemos_url, "with_memory", dry_run=dry_run, seed_memory=seed_memory
         )
         with_report = await runner.run_all(scenarios)
-        print(f"MnemOS avg probe score: {with_report.average_probe_score:.1%}")
+        print(f"MnemAgent avg probe score: {with_report.average_probe_score:.1%}")
 
     if mode in ("without_memory", "both"):
         runner = AgenticBenchmarkRunner(

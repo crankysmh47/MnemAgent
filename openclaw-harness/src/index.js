@@ -1,5 +1,5 @@
 /**
- * MnemOS Visualizer Harness — memory graph UI and API proxy.
+ * MnemAgent Visualizer Harness — memory graph UI and API proxy.
  */
 
 require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
@@ -38,7 +38,7 @@ async function resolveCanonicalUserId() {
   if (process.env.MNEMOS_DEFAULT_USER_ID) {
     return process.env.MNEMOS_DEFAULT_USER_ID.trim();
   }
-  // Priority 2: try MnemOS API to get the canonical user_id (same one the agent uses)
+  // Priority 2: try MnemAgent API to get the canonical user_id (same one the agent uses)
   try {
     const resp = await axios.post(`${MNEMOS_URL}/api/user/bind`, {
       channel: "openclaw",
@@ -48,7 +48,7 @@ async function resolveCanonicalUserId() {
       return resp.data.user_id;
     }
   } catch {
-    /* MnemOS not reachable — fall through to file-based */
+    /* MnemAgent not reachable — fall through to file-based */
   }
   // Priority 3: read from setup-generated file
   return resolveSetupUserId();
@@ -143,7 +143,7 @@ app.post("/chat", async (req, res) => {
   } catch (err) {
     const code = err.response?.status || 503;
     res.status(code).json({
-      error: "Failed to reach MnemOS memory server",
+      error: "Failed to reach MnemAgent memory server",
       detail: err.message,
     });
   }
@@ -241,11 +241,11 @@ async function ensureDemoBrain(retries = 12) {
       await new Promise((r) => setTimeout(r, 5000));
     }
   }
-  console.warn("Demo brain seed skipped — MnemOS not reachable yet");
+  console.warn("Demo brain seed skipped — MnemAgent not reachable yet");
 }
 
 app.listen(PORT, () => {
-  console.log(`MnemOS visualizer on :${PORT} → MnemOS ${MNEMOS_URL}, MCP ${MCP_ADAPTER_URL}`);
+  console.log(`MnemAgent visualizer on :${PORT} → MnemAgent ${MNEMOS_URL}, MCP ${MCP_ADAPTER_URL}`);
   console.log(`Open http://localhost:${PORT}?user=${DEMO_USER_ID} to view the memory graph`);
   if (AUTO_SEED_DEMO) {
     ensureDemoBrain();

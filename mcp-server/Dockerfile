@@ -1,6 +1,6 @@
 FROM node:22-slim
-LABEL org.opencontainers.image.title="MnemOS MCP Server"
-LABEL org.opencontainers.image.description="MCP tool surface for MnemOS memory — 7 tools (stdio + HTTP)"
+LABEL org.opencontainers.image.title="MnemAgent MCP Server"
+LABEL org.opencontainers.image.description="MCP tool surface for MnemAgent memory — 7 tools (stdio + HTTP)"
 LABEL org.opencontainers.image.authors="crankysmh47"
 LABEL org.opencontainers.image.source="https://github.com/crankysmh47/MnemAgent"
 WORKDIR /app

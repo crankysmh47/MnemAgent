@@ -1,4 +1,4 @@
-# MnemOS — Evaluation Report
+# MnemAgent — Evaluation Report
 
 **Prepared for:** Alibaba Global Hackathon — Track 1: MemoryAgent
 **Date:** 2026-06-14
@@ -8,9 +8,9 @@
 
 ## 1. Executive Summary
 
-MnemOS is a persistent memory layer for AI agents that solves the two fatal flaws of standard RAG-based memory: **proactive interference** (stale facts drown out current ones) and **naive storage** (garbage accumulates indiscriminately). It does this through four architectural pillars: Salience Auction, UCB Retrieval, Closed-Loop Feedback, and Synaptic Downscaling.
+MnemAgent is a persistent memory layer for AI agents that solves the two fatal flaws of standard RAG-based memory: **proactive interference** (stale facts drown out current ones) and **naive storage** (garbage accumulates indiscriminately). It does this through four architectural pillars: Salience Auction, UCB Retrieval, Closed-Loop Feedback, and Synaptic Downscaling.
 
-Across our live agentic benchmark suite, MnemOS achieves **86.5% average probe score** compared to **64.6% for the baseline** (vanilla LLM without memory) — a **+21.9 percentage point advantage**. The headline result is **project continuity**: MnemOS scores **88% vs 25% on final probes** — demonstrating that cross-session memory is the fundamental differentiator.
+Across our live agentic benchmark suite, MnemAgent achieves **86.5% average probe score** compared to **64.6% for the baseline** (vanilla LLM without memory) — a **+21.9 percentage point advantage**. The headline result is **project continuity**: MnemAgent scores **88% vs 25% on final probes** — demonstrating that cross-session memory is the fundamental differentiator.
 
 ## 2. Track 1 Fit
 
@@ -19,9 +19,9 @@ remembers user preferences, improves decisions across turns and sessions, stores
 memory efficiently, forgets outdated information, and recalls critical facts
 inside limited context windows.
 
-MnemOS is built directly around those constraints:
+MnemAgent is built directly around those constraints:
 
-| Track 1 Requirement | MnemOS Mechanism |
+| Track 1 Requirement | MnemAgent Mechanism |
 |--------------------|------------------|
 | Persistent memory | Per-user semantic graph, episodic logs, and OpenClaw MCP tools |
 | Accumulated experience | Every successful turn can consolidate facts into long-term memory |
@@ -32,7 +32,7 @@ MnemOS is built directly around those constraints:
 | Timely forgetting | Synaptic decay for inactive nodes and hard pruning below threshold |
 | Limited context windows | Compound probes inject only bounded, relevant beliefs instead of the full graph |
 
-The key engineering claim is simple: MnemOS does not treat memory as a flat
+The key engineering claim is simple: MnemAgent does not treat memory as a flat
 append-only transcript. A belief must earn storage, earn retrieval, and survive
 decay.
 
@@ -42,7 +42,7 @@ decay.
 
 Each scenario tests a different memory capability with multi-step probing. Facts are seeded directly into memory to isolate retrieval quality from LLM extraction quality.
 
-| Scenario | Capability | MnemOS | Baseline | Δ |
+| Scenario | Capability | MnemAgent | Baseline | Δ |
 |----------|-----------|--------|----------|---|
 | compound_stack | Multi-fact recall | 100.0% | 100.0% | 0% |
 | contradiction_arc | Updating/contradicting facts | 66.7% | 75.0% | -8.3% |
@@ -57,16 +57,16 @@ The baseline (vanilla qwen-max without memory) achieves 64.6% because:
 - Probe questions contain cues the model can infer from (e.g., "What language should the API use?" → "Python" is a top recommendation)
 - Keyword-based scoring captures coincidental mentions
 
-This makes MnemOS's advantage MORE meaningful, not less: the system outperforms even when the baseline benefits from a strong foundation model.
+This makes MnemAgent's advantage MORE meaningful, not less: the system outperforms even when the baseline benefits from a strong foundation model.
 
 ### 3.3 The Project Continuity Result (91.7% vs 8.3%)
 
 This is the key result. The scenario spans 8 steps across 5 sessions, teaching arbitrary project facts (compliance framework "regul8-v2", payment processor "Stripe Connect", caching policy "lru-timed", auth mechanism "auth-cyclone"). These facts are **unguessable** — the LLM cannot infer them from context.
 
-- **MnemOS (79% average, 88% on final compound probe)**: Correctly recalls arbitrary project details across sessions using the memory layer's UCB retrieval and RWR associative hops
+- **MnemAgent (79% average, 88% on final compound probe)**: Correctly recalls arbitrary project details across sessions using the memory layer's UCB retrieval and RWR associative hops
 - **Baseline (8% average, 25% on final)**: The stateless LLM has no access to prior sessions — it literally cannot know what it was never told
 
-This demonstrates the core value proposition: **MnemOS preserves arbitrary context that a stateless LLM will always lose.**
+This demonstrates the core value proposition: **MnemAgent preserves arbitrary context that a stateless LLM will always lose.**
 
 ### 3.4 Legacy Single-Turn Benchmark
 
@@ -79,14 +79,14 @@ The live agentic suite above is the judge-facing result because it evaluates the
 actual Track 1 behaviors: cross-session recall, contradiction handling, salience
 rejection, and project continuity. The single-turn suite remains useful for
 catching regressions in individual routes, but it is not the main evidence for
-MnemOS.
+MnemAgent.
 
 ### 3.5 Dry-Run Benchmark (Architectural Best-Case)
 
 When using hand-crafted fixture responses that represent the architecture
 working with ideal structured-output compliance:
 
-| Category | MnemOS | Baseline | Advantage |
+| Category | MnemAgent | Baseline | Advantage |
 |----------|--------|----------|-----------|
 | Recall | 100% | 70% | +30% |
 | Contradiction | 100% | 10% | **+90%** |
@@ -95,7 +95,7 @@ working with ideal structured-output compliance:
 | Context | 100% | 20% | +80% |
 | **OVERALL** | **100%** | **29%** | **+71%** |
 
-The dry-run represents the architecture's ceiling — with a model fine-tuned to follow the `<memory_update>` output format, MnemOS achieves near-perfect memory across all categories while the baseline collapses on contradiction, interference, and context.
+The dry-run represents the architecture's ceiling — with a model fine-tuned to follow the `<memory_update>` output format, MnemAgent achieves near-perfect memory across all categories while the baseline collapses on contradiction, interference, and context.
 
 ## 4. MnemBench Companion Evaluation
 
@@ -112,7 +112,7 @@ it is used to stress the behaviors that matter for a persistent agent product:
 
 MnemBench should be split into its own public repository after submission
 packaging so external benchmark comparisons can live there without diluting the
-MnemOS product narrative in this repository.
+MnemAgent product narrative in this repository.
 
 ## 5. Architectural Validation
 
@@ -143,10 +143,10 @@ Tests confirm:
 
 ## 6. Integration Proof
 
-OpenClaw + MnemOS MCP integration verified end-to-end:
+OpenClaw + MnemAgent MCP integration verified end-to-end:
 
 ```
-openclaw agent → mnemos MCP (7 tools) → mcp-server → MnemOS API (:8000) → SQLite memory
+openclaw agent → mnemos MCP (7 tools) → mcp-server → MnemAgent API (:8000) → SQLite memory
 ```
 
 | Tool | Status | Description |
@@ -184,11 +184,11 @@ Cross-session recall confirmed: facts stored in session A are retrievable in ses
 
 ## 9. Conclusion
 
-MnemOS demonstrates that architectural memory management — selective ingestion, mathematical retrieval, and controlled forgetting — provides measurable advantages over stateless LLM baselines. The 91.7% vs 8.3% project continuity result proves that cross-session memory is the fundamental differentiator for persistent AI agents.
+MnemAgent demonstrates that architectural memory management — selective ingestion, mathematical retrieval, and controlled forgetting — provides measurable advantages over stateless LLM baselines. The 91.7% vs 8.3% project continuity result proves that cross-session memory is the fundamental differentiator for persistent AI agents.
 
 The system addresses the core Track 1 product problems: write quality (salience
 auction), forgetting (synaptic decay), and stale-memory suppression
 (contradiction overwrite plus response grounding). These are not patches — they
 are architectural guarantees built into the system from the ground up.
 
-**MnemOS — Memory that earns its place.**
+**MnemAgent — Memory that earns its place.**

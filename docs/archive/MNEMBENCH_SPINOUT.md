@@ -1,11 +1,11 @@
 # MnemBench Spin-Out Plan
 
-MnemBench should be positioned as a separate public repository after the MnemOS
+MnemBench should be positioned as a separate public repository after the MnemAgent
 submission package is stable.
 
 ## Why Split It
 
-The MnemOS repository should stay focused on the submitted product:
+The MnemAgent repository should stay focused on the submitted product:
 
 - OpenClaw agent integration;
 - Qwen-compatible memory-augmented chat;
@@ -59,7 +59,7 @@ Its core claim is practical rather than academic: a memory layer should be
 judged by whether an agent becomes more useful over time without leaking stale,
 irrelevant, or cross-user facts.
 
-## MnemOS Repo Narrative
+## MnemAgent Repo Narrative
 
 Keep this repository's evaluation language narrow:
 
@@ -68,7 +68,7 @@ Keep this repository's evaluation language narrow:
 - "baseline without persistent memory"
 - "Track 1 requirements"
 
-Avoid external benchmark comparisons in the MnemOS repo. Those comparisons can
+Avoid external benchmark comparisons in the MnemAgent repo. Those comparisons can
 be added to the standalone MnemBench repository where they are contextually
 useful and less distracting.
 
@@ -77,7 +77,7 @@ useful and less distracting.
 1. Copy `eval/mnembench` into a new repository as the package root.
 2. Convert imports from `eval.mnembench` to `mnembench`.
 3. Add `pyproject.toml` with a `mnembench` console script.
-4. Add one adapter example for MnemOS and one generic OpenAI-compatible server.
+4. Add one adapter example for MnemAgent and one generic OpenAI-compatible server.
 5. Move external benchmark comparison notes into the new README.
-6. Publish MnemBench separately after the MnemOS hackathon submission is final.
-7. In MnemOS, keep only a short link: "Benchmarked with MnemBench."
+6. Publish MnemBench separately after the MnemAgent hackathon submission is final.
+7. In MnemAgent, keep only a short link: "Benchmarked with MnemBench."

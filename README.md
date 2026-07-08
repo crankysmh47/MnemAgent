@@ -1,10 +1,10 @@
-﻿# MnemOS
+# MnemAgent
 
 ![MnemAgent logo](docs/assets/mnemagent-logo-wide.png)
 
 Persistent memory for OpenClaw agents.
 
-MnemOS gives an agent a long-term memory layer that is selective, inspectable, and user-scoped. It does not simply dump chat logs into a vector store. It decides what deserves storage, retrieves a bounded set of useful beliefs, resolves contradictions, and lets stale memories fade.
+MnemAgent gives an agent a long-term memory layer that is selective, inspectable, and user-scoped. It does not simply dump chat logs into a vector store. It decides what deserves storage, retrieves a bounded set of useful beliefs, resolves contradictions, and lets stale memories fade.
 
 Submission: Qwen Global AI Hackathon, Track 1: MemoryAgent
 
@@ -16,7 +16,7 @@ License: MIT
 
 - [Quick start](#quick-start)
 - [Visualizer snapshot](#visualizer-snapshot)
-- [What MnemOS does](#what-mnemos-does)
+- [What MnemAgent does](#what-mnemagent-does)
 - [Architecture](#architecture)
 - [Memory engine](#memory-engine)
 - [OpenClaw integration](#openclaw-integration)
@@ -61,7 +61,7 @@ Useful URLs and commands:
 | Surface | URL or command |
 |---------|----------------|
 | Memory visualizer | http://localhost:3000?user=demo-brain |
-| MnemOS API health | http://localhost:8000/health |
+| MnemAgent API health | http://localhost:8000/health |
 | MCP server health | http://localhost:8001/health |
 | OpenClaw gateway | http://localhost:18789 |
 | OpenClaw dashboard | `openclaw dashboard` |
@@ -70,17 +70,17 @@ Useful URLs and commands:
 
 ## Visualizer snapshot
 
-![MnemOS memory visualizer](docs/assets/visualizer-snapshot.png)
+![MnemAgent memory visualizer](docs/assets/visualizer-snapshot.png)
 
 The visualizer is intentionally not another chat UI. It shows the memory graph: beliefs, categories, confidence, recall count, and semantic links.
 
-## What MnemOS does
+## What MnemAgent does
 
-MnemOS solves two common agent memory failures.
+MnemAgent solves two common agent memory failures.
 
-First, ordinary RAG memory tends to over-store. Low-confidence thoughts, abandoned ideas, and casual suggestions enter the same store as real user preferences. MnemOS gates facts before they touch long-term memory.
+First, ordinary RAG memory tends to over-store. Low-confidence thoughts, abandoned ideas, and casual suggestions enter the same store as real user preferences. MnemAgent gates facts before they touch long-term memory.
 
-Second, flat memory tends to recall stale facts. If a user switches from Express to FastAPI, both can remain retrievable unless the system has explicit contradiction handling. MnemOS keys beliefs by user, entity, and relation, so current facts replace superseded ones.
+Second, flat memory tends to recall stale facts. If a user switches from Express to FastAPI, both can remain retrievable unless the system has explicit contradiction handling. MnemAgent keys beliefs by user, entity, and relation, so current facts replace superseded ones.
 
 The system is built around four behaviors:
 
@@ -98,12 +98,12 @@ flowchart TB
   subgraph UserSurfaces["User surfaces"]
     OCWEB["OpenClaw web UI / dashboard"]
     OCTUI["OpenClaw TUI / CLI"]
-    VIZ["MnemOS visualizer :3000"]
+    VIZ["MnemAgent visualizer :3000"]
   end
 
   GW["OpenClaw Gateway :18789"]
-  MCP["MnemOS MCP server :8001 / stdio"]
-  API["MnemOS Memory API :8000"]
+  MCP["MnemAgent MCP server :8001 / stdio"]
+  API["MnemAgent Memory API :8000"]
   QWEN["Qwen-compatible LLM API"]
   DB[("SQLite memory_state.db")]
   VEC[("sqlite-vec embeddings")]
@@ -120,7 +120,7 @@ flowchart TB
   API -. periodic snapshot .-> OSS
 ```
 
-The product path is OpenClaw -> MCP -> MnemOS. The web visualizer is a companion surface for judges and developers to see memory forming in real time.
+The product path is OpenClaw -> MCP -> MnemAgent. The web visualizer is a companion surface for judges and developers to see memory forming in real time.
 
 ## Memory engine
 
@@ -239,7 +239,7 @@ The important constraint is on `semantic_graph`: one active value per `(user_id,
 
 ## OpenClaw integration
 
-MnemOS exposes seven MCP tools to OpenClaw:
+MnemAgent exposes seven MCP tools to OpenClaw:
 
 | Tool | Purpose |
 |------|---------|
@@ -249,7 +249,7 @@ MnemOS exposes seven MCP tools to OpenClaw:
 | `memory_search` | Search beliefs for a user |
 | `memory_dump` | Show the full active brain state |
 | `memory_stats` | Show UCB utility and recall statistics |
-| `memory_chat` | Route a chat turn through MnemOS |
+| `memory_chat` | Route a chat turn through MnemAgent |
 
 Typical agent proof:
 
@@ -275,7 +275,7 @@ https://github.com/crankysmh47/MnemBench
 
 Headline local result from the current docs:
 
-| Suite | MnemOS | Baseline | Notes |
+| Suite | MnemAgent | Baseline | Notes |
 |-------|--------|----------|-------|
 | Live agentic benchmark | 86.5% | 64.6% | Cross-session and project-continuity advantage |
 | Dry-run architectural ceiling | 100% | 29% | Confirms deterministic memory logic when extraction is ideal |
@@ -310,9 +310,9 @@ eval/mnembench/
 
 The split is intentional:
 
-- this repository stays focused on the submitted MnemOS product;
-- the standalone MnemBench repository can target any memory agent, not only MnemOS;
-- external benchmark comparisons belong in the MnemBench repo, not in the MnemOS submission README.
+- this repository stays focused on the submitted MnemAgent product;
+- the standalone MnemBench repository can target any memory agent, not only MnemAgent;
+- external benchmark comparisons belong in the MnemBench repo, not in the MnemAgent submission README.
 
 ## Demo video plan
 
@@ -325,7 +325,7 @@ docs/SUBMISSION_VIDEO_PLAN.md
 The current script is built around a 3-minute flow:
 
 1. Show the problem: ordinary agents forget or over-store.
-2. Show MnemOS visualizer with `demo-brain`.
+2. Show MnemAgent visualizer with `demo-brain`.
 3. Teach three facts through OpenClaw using MCP tools.
 4. Start a new chat and recall those facts.
 5. Show the new nodes in the visualizer.
@@ -416,7 +416,7 @@ powershell -File scripts/prove-openclaw.ps1
 
 ## Deployment notes
 
-The final deployment target is Alibaba Cloud ECS running the MnemOS backend, MCP server, and visualizer containers. Qwen-compatible inference is configured through the provider-neutral `LLM_*` settings in `.env`.
+The final deployment target is Alibaba Cloud ECS running the MnemAgent backend, MCP server, and visualizer containers. Qwen-compatible inference is configured through the provider-neutral `LLM_*` settings in `.env`.
 
 For deployment and judge reset instructions, use:
 

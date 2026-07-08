@@ -84,12 +84,12 @@ Run-Check "Docker running" {
     if ($info -notmatch "Server Version") { throw "Docker Desktop not running" }
 }
 
-Run-Check "MnemOS memory (:8000)" {
+Run-Check "MnemAgent memory (:8000)" {
     $r = Invoke-RestMethod -Uri "http://127.0.0.1:8000/health" -TimeoutSec 5
     if ($r.status -ne "ok") { throw "status: $($r.status)" }
 }
 
-Run-Check "MnemOS MCP (:8001)" {
+Run-Check "MnemAgent MCP (:8001)" {
     $r = Invoke-RestMethod -Uri "http://127.0.0.1:8001/health" -TimeoutSec 5
     if ($r.status -ne "ok") { throw "status: $($r.status)" }
 }
@@ -199,8 +199,8 @@ if ($evalDryRunExit -eq 0) {
 }
 
 # Also extract scores if available
-if ($evalDryRunOut -match "MnemOS average score:\s*([0-9.]+%)") {
-    Write-Host "    MnemOS score: $($Matches[1])" -ForegroundColor Gray
+if ($evalDryRunOut -match "MnemAgent average score:\s*([0-9.]+%)") {
+    Write-Host "    MnemAgent score: $($Matches[1])" -ForegroundColor Gray
 }
 if ($evalDryRunOut -match "Baseline average score:\s*([0-9.]+%)") {
     Write-Host "    Baseline score: $($Matches[1])" -ForegroundColor Gray

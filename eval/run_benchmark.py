@@ -1,4 +1,4 @@
-"""CLI entry point for MnemOS evaluation benchmark."""
+"""CLI entry point for MnemAgent evaluation benchmark."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ async def _run(mode: str, server_url: str, output_dir: Path, dry_run: bool) -> N
             server_url, "with_memory", dry_run=dry_run, run_suffix=run_suffix
         )
         with_report = await runner.run_all_scenarios()
-        print(f"MnemOS average score: {with_report.average_score:.1%}")
+        print(f"MnemAgent average score: {with_report.average_score:.1%}")
 
     if mode in ("without_memory", "both"):
         baseline_url = server_url if mode == "without_memory" else "http://localhost:8002"
@@ -42,7 +42,7 @@ async def _run(mode: str, server_url: str, output_dir: Path, dry_run: bool) -> N
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run MnemOS evaluation benchmark")
+    parser = argparse.ArgumentParser(description="Run MnemAgent evaluation benchmark")
     parser.add_argument(
         "--mode",
         choices=["with_memory", "without_memory", "both"],

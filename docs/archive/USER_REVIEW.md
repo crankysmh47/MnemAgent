@@ -2,13 +2,13 @@
 
 ## What you are testing
 
-You are not testing a standalone chatbot. You are testing **OpenClaw with a persistent memory layer (MnemOS)** attached.
+You are not testing a standalone chatbot. You are testing **OpenClaw with a persistent memory layer (MnemAgent)** attached.
 
 | Piece | What it is | How you use it |
 |-------|------------|----------------|
 | **OpenClaw frontend** | Chat UI / CLI | `openclaw dashboard` or `openclaw agent` |
 | **OpenClaw gateway** | Agent runtime on port **18789** | Started automatically during setup |
-| **MnemOS memory API** | Brain / SQLite + vectors on port **8000** | Must be running (“awake”) for memory to work |
+| **MnemAgent memory API** | Brain / SQLite + vectors on port **8000** | Must be running (“awake”) for memory to work |
 | **MCP bridge** | 7 memory tools OpenClaw calls | Registered as server `mnemos` |
 | **Memory visualizer** (optional but recommended) | Live graph at port **3000** | Watch memories appear as you chat |
 
@@ -74,7 +74,7 @@ This automatically:
 - Seeds a demo memory graph (`demo-brain`) for the visualizer
 - Installs OpenClaw globally (`npm install -g openclaw`)
 - Onboards OpenClaw with your API key
-- Registers the **7 MnemOS MCP tools**
+- Registers the **7 MnemAgent MCP tools**
 - Copies agent instructions into `~/.openclaw/workspace/`
 - Starts the OpenClaw gateway on `:18789`
 - Verifies MCP probe
@@ -212,9 +212,9 @@ If something feels broken, run:
 
 ## What is different from a normal OpenClaw agent?
 
-Ask the tester to compare against a **plain OpenClaw install with no MnemOS MCP**. MnemAgent should feel different in these ways:
+Ask the tester to compare against a **plain OpenClaw install with no MnemAgent MCP**. MnemAgent should feel different in these ways:
 
-| Dimension | Normal OpenClaw | MnemAgent (MnemOS) |
+| Dimension | Normal OpenClaw | MnemAgent (MnemAgent) |
 |-----------|-----------------|---------------------|
 | **Cross-session recall** | Forgets after session ends | Remembers taught facts in new sessions |
 | **Tool use** | General tools only | Uses 7 `memory_*` MCP tools behind the scenes |

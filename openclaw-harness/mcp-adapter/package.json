@@ -1,7 +1,7 @@
 {
   "name": "mnemos-mcp-adapter",
   "version": "1.0.0",
-  "description": "MCP server adapter bridging OpenClaw to MnemOS",
+  "description": "MCP server adapter bridging OpenClaw to MnemAgent",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

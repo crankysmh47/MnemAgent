@@ -1,4 +1,4 @@
-﻿# MnemOS documentation
+# MnemAgent documentation
 
 Start with these files for the hackathon submission:
 

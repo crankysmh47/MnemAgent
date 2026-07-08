@@ -1,4 +1,4 @@
-"""Baseline FastAPI server — vanilla Qwen without MnemOS memory layer."""
+"""Baseline FastAPI server — vanilla Qwen without MnemAgent memory layer."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="MnemOS Baseline", lifespan=lifespan)
+app = FastAPI(title="MnemAgent Baseline", lifespan=lifespan)
 
 
 @app.get("/health")

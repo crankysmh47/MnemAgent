@@ -3,9 +3,9 @@ name: mnemos-memory
 description: Persistent memory — store, search, dump, and stats across sessions and channels
 ---
 
-# MnemOS Memory Skill
+# MnemAgent Memory Skill
 
-Use MnemOS MCP tools for all long-term memory operations.
+Use MnemAgent MCP tools for all long-term memory operations.
 
 ## Workflow
 
@@ -15,7 +15,7 @@ Use MnemOS MCP tools for all long-term memory operations.
 4. **Dump** — `mnemos__memory_dump` when user asks what's remembered.
 
 Do not use OpenClaw's built-in `memory_search` or `memory_get`. Those tools read
-OpenClaw's local file-backed memory index, not the MnemOS semantic graph.
+OpenClaw's local file-backed memory index, not the MnemAgent semantic graph.
 
 ## Examples
 

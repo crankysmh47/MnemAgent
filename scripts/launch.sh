@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unified MnemAgent launcher with mandatory MnemOS + OpenClaw integration
+# Unified MnemAgent launcher with mandatory MnemAgent + OpenClaw integration
 # Equivalent of launch.ps1 for Linux/macOS/WSL
 set -euo pipefail
 
@@ -116,7 +116,7 @@ wait_health() {
 # ═══════════════════════════════════════════════════════════════════════════
 log_cyan "╔══════════════════════════════════════════════════════════════╗"
 log_cyan "║         MnemAgent Unified Launcher                         ║"
-log_cyan "║   MnemOS Memory Layer + OpenClaw Integration               ║"
+log_cyan "║   MnemAgent Memory Layer + OpenClaw Integration               ║"
 log_cyan "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -152,13 +152,13 @@ log_cyan "[2/6] Starting Docker services..."
 }
 
 # ── 3. WAIT FOR MNEMOS ────────────────────────────────────────────────────
-log_cyan "[3/6] Waiting for MnemOS services..."
+log_cyan "[3/6] Waiting for MnemAgent services..."
 
 MEM_OK=true
-wait_health "http://127.0.0.1:8000/health" "MnemOS memory (:8000)" || MEM_OK=false
+wait_health "http://127.0.0.1:8000/health" "MnemAgent memory (:8000)" || MEM_OK=false
 
 MCP_OK=true
-wait_health "http://127.0.0.1:8001/health" "MnemOS MCP (:8001)" || MCP_OK=false
+wait_health "http://127.0.0.1:8001/health" "MnemAgent MCP (:8001)" || MCP_OK=false
 
 # Harness (optional)
 if curl -sf "http://127.0.0.1:3000/health" >/dev/null 2>&1; then
@@ -178,10 +178,10 @@ if check_openclaw; then
     step "MCP server npm dependencies" \
         bash -c "cd '$ROOT/mcp-server' && npm install --silent 2>/dev/null"
 
-    # Register MnemOS MCP
+    # Register MnemAgent MCP
     USER_ID="$(ensure_mnemos_user_id)"
-    log_gray "  MnemOS user_id: $USER_ID"
-    step "Register MnemOS MCP tools" bash -c "
+    log_gray "  MnemAgent user_id: $USER_ID"
+    step "Register MnemAgent MCP tools" bash -c "
         MCP_PATH='$ROOT/mcp-server/src/index.js'
         USER_ID='$USER_ID'
         openclaw mcp unset mnemos 2>/dev/null
@@ -236,7 +236,7 @@ if check_openclaw; then
     "
 
     # Verify MCP probe
-    step "Verify MnemOS MCP probe" bash -c "
+    step "Verify MnemAgent MCP probe" bash -c "
         probe=\$(openclaw mcp probe mnemos 2>&1)
         if ! echo \"\$probe\" | grep -qE '[0-9]+ tool'; then
             exit 1
@@ -277,8 +277,8 @@ print_service_row() {
 echo "  +------------------+--------+-------------------------------+"
 echo "  | Service          | Port   | Status                        |"
 echo "  +------------------+--------+-------------------------------+"
-print_service_row "MnemOS Memory API" "8000" "$mem_status"
-print_service_row "MnemOS MCP Server" "8001" "$mcp_status"
+print_service_row "MnemAgent Memory API" "8000" "$mem_status"
+print_service_row "MnemAgent MCP Server" "8001" "$mcp_status"
 print_service_row "Web Harness"      "3000" "$harness_status"
 if check_openclaw; then
     if openclaw gateway health 2>&1 | grep -qiE "error|refused|not running"; then
@@ -293,7 +293,7 @@ echo "  +------------------+--------+-------------------------------+"
 log_cyan "[6/6] Quick-start commands"
 echo ""
 
-echo -e "  ${GRAY}MnemOS Services Running:${NC}"
+echo -e "  ${GRAY}MnemAgent Services Running:${NC}"
 [ "$MEM_OK" = true ] && log_gray "    o Memory API:  http://localhost:8000/docs"
 [ "$MCP_OK" = true ] && log_gray "    o MCP Server:  http://localhost:8001/health"
 log_gray "    o Web Harness: http://localhost:3000"
@@ -308,7 +308,7 @@ if check_openclaw; then
     log_gray "    o Chat (CLI):   openclaw agent --agent main --message \"Hello\""
     log_gray "    o Dashboard:    openclaw dashboard"
     log_gray "    o MCP Verify:   openclaw mcp probe mnemos"
-    log_gray "    o MnemOS User:  $uid"
+    log_gray "    o MnemAgent User:  $uid"
     echo ""
 fi
 

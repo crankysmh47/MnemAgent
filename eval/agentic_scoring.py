@@ -149,7 +149,7 @@ def compute_memory_advantage_trajectory(
     Compute how much the memory layer advantage grows across probe steps.
 
     Args:
-        with_probe_scores: Per-probe scores for MnemOS (0–1).
+        with_probe_scores: Per-probe scores for MnemAgent (0–1).
         without_probe_scores: Per-probe scores for baseline (0–1).
 
     Returns:

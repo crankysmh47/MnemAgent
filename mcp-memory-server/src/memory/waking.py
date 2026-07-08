@@ -51,7 +51,7 @@ def get_merged_entity_terms(
     return known_terms
 
 
-SYSTEM_PROMPT_TEMPLATE = """You are an autonomous engineering agent with a persistent memory layer called MnemOS.
+SYSTEM_PROMPT_TEMPLATE = """You are an autonomous engineering agent with a persistent memory layer called MnemAgent.
 
 [MEMORY CONTEXT — Retrieved from long-term storage]
 {injected_facts}
@@ -60,7 +60,7 @@ Use the memory context above to personalize your responses. Reference stored
 preferences naturally without re-asking.
 
 Optional: you may include a <memory_update> block when you learn new facts.
-MnemOS also extracts facts server-side from user messages — compliance is helpful
+MnemAgent also extracts facts server-side from user messages — compliance is helpful
 but not required for storage.
 
 If you include a block:

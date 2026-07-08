@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# One-command MnemOS + OpenClaw setup (Linux/macOS)
+# One-command MnemAgent + OpenClaw setup (Linux/macOS)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-$HOME/.openclaw}"
 WORKSPACE_DIR="$CONFIG_DIR/workspace"
 
-echo "=== MnemOS + OpenClaw Setup ==="
+echo "=== MnemAgent + OpenClaw Setup ==="
 
 command -v node >/dev/null || { echo "Node.js 24+ required"; exit 1; }
 echo "Node: $(node --version)"
@@ -17,7 +17,7 @@ else
   echo "OpenClaw: $(openclaw --version)"
 fi
 
-echo "Installing MnemOS MCP server..."
+echo "Installing MnemAgent MCP server..."
 (cd "$ROOT/mcp-server" && npm install)
 
 mkdir -p "$WORKSPACE_DIR/skills/mnemos-memory"
@@ -35,7 +35,7 @@ openclaw mcp set mnemos "{\"command\":\"node\",\"args\":[\"$MCP_PATH\",\"--trans
 
 USER_FILE="$CONFIG_DIR/mnemos-user-id.txt"
 if [ ! -f "$USER_FILE" ]; then
-  # Resolve canonical user_id from MnemOS so visualizer and agent share the same ID
+  # Resolve canonical user_id from MnemAgent so visualizer and agent share the same ID
   CANONICAL_ID=$(curl -s -X POST http://127.0.0.1:8000/api/user/bind \
       -H 'Content-Type: application/json' \
       -d '{"channel":"openclaw","sender_id":"main"}' 2>/dev/null | \

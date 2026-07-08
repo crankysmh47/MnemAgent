@@ -13,8 +13,8 @@ The submission should include two proof artifacts:
 
 For this project, the cloud proof is:
 
-- MnemOS running on an Alibaba Cloud ECS instance.
-- Docker Compose showing the MnemOS services healthy on ECS.
+- MnemAgent running on an Alibaba Cloud ECS instance.
+- Docker Compose showing the MnemAgent services healthy on ECS.
 - ECS metadata showing the instance is really Alibaba Cloud infrastructure.
 - Public ECS IP serving the visualizer and health endpoints.
 - Optional OSS snapshot code path for Alibaba Cloud Object Storage backup.
@@ -34,7 +34,7 @@ That code uses Alibaba Cloud OSS through `oss2` and uploads SQLite snapshots to:
 agent_runtime/backups/memory_state_<timestamp>.db
 ```
 
-MnemOS keeps the live memory graph in SQLite for simple single-instance ECS
+MnemAgent keeps the live memory graph in SQLite for simple single-instance ECS
 deployment, then snapshots the database to OSS for recovery and cloud-service
 proof.
 
@@ -137,12 +137,12 @@ pwsh ./scripts/deploy-preflight.ps1 \
 
 Capture the output showing:
 
-- MnemOS API is healthy.
+- MnemAgent API is healthy.
 - Visualizer harness is healthy.
 - Judge user id is isolated.
 - Judge namespace starts empty.
 - Demo graph is populated.
-- OpenClaw sees 7 MnemOS MCP tools.
+- OpenClaw sees 7 MnemAgent MCP tools.
 
 This is the cleanest proof that judges will not inherit stale test memories.
 

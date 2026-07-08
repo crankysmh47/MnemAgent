@@ -1,4 +1,4 @@
-"""Channel sender to canonical MnemOS user_id bindings."""
+"""Channel sender to canonical MnemAgent user_id bindings."""
 
 from __future__ import annotations
 
@@ -24,13 +24,13 @@ def bind_user(
     db_path: Path | None = None,
 ) -> dict:
     """
-    Bind a channel sender to a canonical MnemOS user_id.
+    Bind a channel sender to a canonical MnemAgent user_id.
 
     Args:
         channel: Channel name (telegram, discord, whatsapp, etc.).
         sender_id: Platform-specific sender identifier.
         display_name: Optional human-readable name.
-        user_id: Optional existing canonical MnemOS user id to bind to.
+        user_id: Optional existing canonical MnemAgent user id to bind to.
         db_path: Optional database path override.
 
     Returns:
@@ -99,7 +99,7 @@ def list_bindings_for_user(user_id: str, db_path: Path | None = None) -> list[di
     List all channel bindings for a canonical user_id.
 
     Args:
-        user_id: Canonical MnemOS user id.
+        user_id: Canonical MnemAgent user id.
         db_path: Optional database path override.
 
     Returns:

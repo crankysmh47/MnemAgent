@@ -1,16 +1,16 @@
-# Prove OpenClaw -> MnemOS MCP -> memory layer end-to-end
+# Prove OpenClaw -> MnemAgent MCP -> memory layer end-to-end
 $ErrorActionPreference = "Stop"
 $Uid = "demo-openclaw"
 $TeachSession = "oc-teach-" + [guid]::NewGuid().ToString().Substring(0, 6)
 $ProbeSession = "oc-probe-" + [guid]::NewGuid().ToString().Substring(0, 6)
 $Base = "http://127.0.0.1:8000"
 
-Write-Host "=== OpenClaw + MnemOS Proof ===" -ForegroundColor Cyan
+Write-Host "=== OpenClaw + MnemAgent Proof ===" -ForegroundColor Cyan
 
 Write-Host "[1/5] Gateway + MCP..."
 openclaw gateway health | Out-Null
 $probe = openclaw mcp probe mnemos 2>&1 | Out-String
-if ($probe -notmatch "7 tools") { throw "MnemOS MCP not ready: $probe" }
+if ($probe -notmatch "7 tools") { throw "MnemAgent MCP not ready: $probe" }
 Write-Host "  Gateway OK, MCP 7 tools" -ForegroundColor Green
 
 Write-Host "[2/5] Teach via OpenClaw agent (memory_store)..."
@@ -20,11 +20,11 @@ if ($teach -notmatch "mnemos__memory_store") { Write-Host "  WARN: memory_store 
 else { Write-Host "  memory_store called" -ForegroundColor Green }
 
 Start-Sleep -Seconds 3
-Write-Host "[3/5] MnemOS dump API..."
+Write-Host "[3/5] MnemAgent dump API..."
 $dump = Invoke-RestMethod -Uri "$Base/api/memory/dump/${Uid}?format=markdown" -TimeoutSec 30
 Write-Host $dump.response
 if ($dump.response -match "FAST|Python") {
-  Write-Host "  Memories persisted in MnemOS" -ForegroundColor Green
+  Write-Host "  Memories persisted in MnemAgent" -ForegroundColor Green
 } else {
   Write-Host "  WARN: expected FAST or Python in dump" -ForegroundColor Yellow
 }

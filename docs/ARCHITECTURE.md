@@ -1,4 +1,4 @@
-# MnemOS Architecture
+# MnemAgent Architecture
 
 > Memory that earns its place. — Qwen Global AI Hackathon, Track 1: MemoryAgent
 
@@ -9,7 +9,7 @@ Standard RAG-based memory agents have two fatal flaws:
 1. **Proactive Interference** — stale facts sit alongside current ones in the same flat store and get injected indiscriminately. The agent confidently recalls outdated information.
 2. **Naive Storage** — everything gets stored, garbage included, and pruning happens after the fact. The graph bloats with low-conviction throwaway remarks.
 
-MnemOS solves both at the architectural level, not as patches.
+MnemAgent solves both at the architectural level, not as patches.
 
 ## The Two-Phase Engine
 

@@ -1,4 +1,4 @@
-# Unified MnemAgent launcher with mandatory MnemOS + OpenClaw integration
+# Unified MnemAgent launcher with mandatory MnemAgent + OpenClaw integration
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $ConfigDir = Join-Path $env:USERPROFILE ".openclaw"
@@ -81,7 +81,7 @@ function Ensure-MnemosUserId {
         $canonical = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/bind" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 10
         if ($canonical.user_id) {
             $canonical.user_id | Set-Content $UserFile
-            Write-Host "  Canonical MnemOS user_id: $($canonical.user_id)" -ForegroundColor Gray
+            Write-Host "  Canonical MnemAgent user_id: $($canonical.user_id)" -ForegroundColor Gray
             return $canonical.user_id
         }
         throw "No user_id in response"
@@ -111,7 +111,7 @@ function Resolve-LlmEnv {
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Write-Cyan "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 Write-Cyan "---         MnemAgent Unified Launcher                         ---"
-Write-Cyan "---   MnemOS Memory Layer + OpenClaw Integration               ---"
+Write-Cyan "---   MnemAgent Memory Layer + OpenClaw Integration               ---"
 Write-Cyan "------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 Write-Host ""
 
@@ -150,12 +150,12 @@ if ($LASTEXITCODE -ne 0) { Write-Red "docker compose failed"; $Global:StepOk = $
 Pop-Location
 
 # ------ 3. WAIT FOR MNEMOS ------------------------------------------------------------------------------------------------------------------------------------------------------------
-Write-Cyan "[3/6] Waiting for MnemOS services..."
-$memOk = Wait-ForHealth -Url "http://127.0.0.1:8000/health" -Label "MnemOS memory (:8000)"
-if (-not $memOk) { Write-Red "MnemOS memory service did not start"; $Global:StepOk = $false }
+Write-Cyan "[3/6] Waiting for MnemAgent services..."
+$memOk = Wait-ForHealth -Url "http://127.0.0.1:8000/health" -Label "MnemAgent memory (:8000)"
+if (-not $memOk) { Write-Red "MnemAgent memory service did not start"; $Global:StepOk = $false }
 
-$mcpOk = Wait-ForHealth -Url "http://127.0.0.1:8001/health" -Label "MnemOS MCP (:8001)"
-if (-not $mcpOk) { Write-Red "MnemOS MCP service did not start"; $Global:StepOk = $false }
+$mcpOk = Wait-ForHealth -Url "http://127.0.0.1:8001/health" -Label "MnemAgent MCP (:8001)"
+if (-not $mcpOk) { Write-Red "MnemAgent MCP service did not start"; $Global:StepOk = $false }
 
 # Wait for harness (optional, softer)
 try {
@@ -176,8 +176,8 @@ if (Test-OpenClawInstalled) {
         Pop-Location
     }
 
-    # Register MnemOS MCP
-    Step "Register MnemOS MCP tools" {
+    # Register MnemAgent MCP
+    Step "Register MnemAgent MCP tools" {
         $McpJs = (Join-Path $Root "mcp-server/src/index.js") -replace "\\", "/"
         $MnemosUserId = Ensure-MnemosUserId
         openclaw mcp unset mnemos 2>$null | Out-Null
@@ -240,7 +240,7 @@ if (Test-OpenClawInstalled) {
     }
 
     # Verify MCP probe
-    Step "Verify MnemOS MCP probe" {
+    Step "Verify MnemAgent MCP probe" {
         $probe = openclaw mcp probe mnemos 2>&1 | Out-String
         if ($probe -notmatch "\d+ tool") { throw "MCP probe returned: $probe" }
         Write-Host "($($probe.Trim())) " -NoNewline
@@ -262,8 +262,8 @@ Write-Host "  +------------------+--------+-------------------------------+"
 Write-Host "  | Service          | Port   | Status                        |"
 Write-Host "  +------------------+--------+-------------------------------+"
 $services = @(
-    @{ Name = "MnemOS Memory API"; Port = "8000"; Test = $memOk }
-    @{ Name = "MnemOS MCP Server"; Port = "8001"; Test = $mcpOk }
+    @{ Name = "MnemAgent Memory API"; Port = "8000"; Test = $memOk }
+    @{ Name = "MnemAgent MCP Server"; Port = "8001"; Test = $mcpOk }
     @{ Name = "Web Harness";      Port = "3000"; Test = $null }  # checked above
 )
 foreach ($svc in $services) {
@@ -290,7 +290,7 @@ if (Test-OpenClawInstalled) {
 # ------ 6. QUICK-START ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Write-Cyan "[6/6] Quick-start commands"
 Write-Host ""
-Write-Host "  MnemOS Services Running:" -ForegroundColor White
+Write-Host "  MnemAgent Services Running:" -ForegroundColor White
 if ($memOk)   { Write-Host "    o Memory API:  http://localhost:8000/docs" -ForegroundColor Gray }
 if ($mcpOk)   { Write-Host "    o MCP Server:  http://localhost:8001/health" -ForegroundColor Gray }
 Write-Host "    o Web Harness: http://localhost:3000" -ForegroundColor Gray
@@ -304,7 +304,7 @@ if (Test-OpenClawInstalled) {
     Write-Host "    o Chat (CLI):   openclaw agent --agent main --message `"Hello`"" -ForegroundColor Gray
     Write-Host "    o Dashboard:    openclaw dashboard" -ForegroundColor Gray
     Write-Host "    o MCP Verify:   openclaw mcp probe mnemos" -ForegroundColor Gray
-    Write-Host "    o MnemOS User:  $uid" -ForegroundColor Gray
+    Write-Host "    o MnemAgent User:  $uid" -ForegroundColor Gray
     Write-Host ""
 }
 

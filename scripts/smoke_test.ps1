@@ -1,8 +1,8 @@
-# MnemOS end-to-end smoke test
+# MnemAgent end-to-end smoke test
 $ErrorActionPreference = "Stop"
 $base = Split-Path -Parent $PSScriptRoot
 
-Write-Host "=== MnemOS Smoke Test ===" -ForegroundColor Cyan
+Write-Host "=== MnemAgent Smoke Test ===" -ForegroundColor Cyan
 
 function Test-Endpoint($name, $url) {
     try {
@@ -15,7 +15,7 @@ function Test-Endpoint($name, $url) {
     }
 }
 
-Test-Endpoint "MnemOS health" "http://127.0.0.1:8000/health"
+Test-Endpoint "MnemAgent health" "http://127.0.0.1:8000/health"
 Test-Endpoint "MCP adapter health" "http://127.0.0.1:8001/health"
 $h = Test-Endpoint "Harness health" "http://127.0.0.1:3000/health"
 Test-Endpoint "Graph API" "http://127.0.0.1:3000/api/graph/smoke-user"

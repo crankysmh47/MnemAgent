@@ -1,4 +1,4 @@
-# MnemOS Verification Evidence
+# MnemAgent Verification Evidence
 
 This file records the product-level checks used before the deployment/submission
 phase. It is intentionally focused on user-visible behavior, not only unit tests.
@@ -34,7 +34,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\empty-db-review.ps
 
 What it does:
 
-1. Starts a temporary MnemOS API server on port `8010`.
+1. Starts a temporary MnemAgent API server on port `8010`.
 2. Uses a brand-new SQLite database under the system temp directory.
 3. Teaches explicit memories through `/chat`.
 4. Verifies a different session recalls those memories.
@@ -57,8 +57,8 @@ brain" path because it does not rely on the warmed Docker demo database.
 
 ## OpenClaw Agent Path
 
-The product is not only the MnemOS API. The submission path is OpenClaw with
-MnemOS attached through MCP.
+The product is not only the MnemAgent API. The submission path is OpenClaw with
+MnemAgent attached through MCP.
 
 Health checks:
 
@@ -141,7 +141,7 @@ Observed behavior:
   - deployment region: Singapore
   - benchmark suite: MnemBench
 
-Live chat check through the MnemOS API:
+Live chat check through the MnemAgent API:
 
 ```text
 Teach: stored Singapore and MnemBench.
@@ -193,7 +193,7 @@ These tests cover the highest-risk memory UX paths touched during review:
 | OpenClaw integration works | Gateway health plus `openclaw mcp probe mnemos` reports 7 tools |
 | Real agent can store through MCP | OpenClaw teach command stored SolarisWing/Python/React |
 | Real agent can recall through MCP | OpenClaw recall command answered from stored memory |
-| Casual chat is not invasive | MnemOS and OpenClaw casual checks did not mention stored project facts |
+| Casual chat is not invasive | MnemAgent and OpenClaw casual checks did not mention stored project facts |
 | User-id namespace is preserved in UI | Browser check kept `ux-review-6612d988` and showed matching memories |
 | Low-conviction noise is rejected | Empty-DB review rejects `conviction=0.2` preference |
 | Contradictions overwrite stale values | Empty-DB review replaces backend language with Rust |

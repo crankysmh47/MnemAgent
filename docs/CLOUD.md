@@ -1,6 +1,6 @@
-# MnemOS — Cloud Deployment Guide
+# MnemAgent — Cloud Deployment Guide
 
-Deploy MnemOS (memory layer + visualizer + MCP tools) to cloud infrastructure. Target platform: **Alibaba Cloud ECS** with optional **OSS backup**.
+Deploy MnemAgent (memory layer + visualizer + MCP tools) to cloud infrastructure. Target platform: **Alibaba Cloud ECS** with optional **OSS backup**.
 
 ---
 
@@ -52,7 +52,7 @@ Deploy MnemOS (memory layer + visualizer + MCP tools) to cloud infrastructure. T
 |------|----------|--------|---------|
 | 22 | TCP | Your IP | SSH |
 | 3000 | TCP | 0.0.0.0/0 (or restrict) | Memory visualizer |
-| 8000 | TCP | 127.0.0.1 only | MnemOS API (internal) |
+| 8000 | TCP | 127.0.0.1 only | MnemAgent API (internal) |
 | 8001 | TCP | 127.0.0.1 only | MCP server (internal) |
 
 > **Important:** Ports 8000 and 8001 carry unauthenticated API traffic. Bind them to
@@ -155,7 +155,7 @@ services:
 
 ## OSS backup configuration
 
-MnemOS automatically snapshots `memory_state.db` to Alibaba Cloud OSS every 50 turns
+MnemAgent automatically snapshots `memory_state.db` to Alibaba Cloud OSS every 50 turns
 when valid credentials are provided.
 
 ### 1. Create an OSS bucket
@@ -215,7 +215,7 @@ All variables are read from `.env` at container start. Required variables are **
 | `LLM_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | API base URL for OpenAI-compatible providers |
 | `ANTHROPIC_API_KEY` | empty | Anthropic key when `LLM_PROVIDER=anthropic` |
 | `HOST` | `0.0.0.0` | uvicorn bind address |
-| `PORT` | `8000` | MnemOS API port |
+| `PORT` | `8000` | MnemAgent API port |
 | `LOG_LEVEL` | `INFO` | Python log level |
 | `DB_PATH` | `./data/memory_state.db` | SQLite database path |
 | `ENABLE_DREAMING_EXTRACTION` | `true` | Server-side fact extraction |
@@ -240,7 +240,7 @@ All variables are read from `.env` at container start. Required variables are **
 
 ```bash
 # All three services expose /health:
-curl http://<ecs-ip>:8000/health   # MnemOS API
+curl http://<ecs-ip>:8000/health   # MnemAgent API
 curl http://<ecs-ip>:8001/health   # MCP server
 curl http://<ecs-ip>:3000/health   # Visualizer harness
 ```

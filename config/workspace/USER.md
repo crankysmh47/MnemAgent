@@ -8,6 +8,6 @@
 - **Affiliation:** (ask the user — do not assume)
 - **Preferences:** (learned via memory_store during conversation)
 
-<!-- MnemOS stores the user's real facts in its semantic_graph database.
+<!-- MnemAgent stores the user's real facts in its semantic_graph database.
      Use memory_search to retrieve them.  If memory_search returns empty or
      errors, admit you don't know rather than guessing from this template. -->

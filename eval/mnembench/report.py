@@ -393,7 +393,7 @@ def generate_judge_report(
     if comparison is not None:
         agg = comparison.aggregate
         lines.extend([
-            "| Metric | MnemOS | Baseline | Delta |",
+            "| Metric | MnemAgent | Baseline | Delta |",
             "|--------|-------:|---------:|------:|",
             f"| Average probe score | {agg.get('with_avg_score', 0):.1%} | {agg.get('without_avg_score', 0):.1%} | {agg.get('avg_score_delta', 0):+.1%} |",
             f"| Composite score | {agg.get('with_avg_composite', 0):.3f} | {agg.get('without_avg_composite', 0):.3f} | {agg.get('avg_composite_delta', 0):+.3f} |",
@@ -401,7 +401,7 @@ def generate_judge_report(
         ])
     else:
         lines.extend([
-            "| Metric | MnemOS |",
+            "| Metric | MnemAgent |",
             "|--------|-------:|",
             f"| Average probe score | {with_report.average_score:.1%} |",
             f"| Composite score | {with_report.average_composite:.3f} |",

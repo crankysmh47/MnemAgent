@@ -1,7 +1,7 @@
 {
   "name": "openclaw-harness",
   "version": "1.0.0",
-  "description": "OpenClaw gateway routing to MnemOS memory server",
+  "description": "OpenClaw gateway routing to MnemAgent memory server",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

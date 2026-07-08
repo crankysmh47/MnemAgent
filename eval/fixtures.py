@@ -1,7 +1,7 @@
 """Pre-recorded responses for offline benchmark dry-run mode.
 
 All 25 scenarios have detailed fixtures showing clear night-and-day differences
-between MnemOS (with memory) and baseline (without memory) responses.
+between MnemAgent (with memory) and baseline (without memory) responses.
 """
 
 from __future__ import annotations
@@ -358,8 +358,8 @@ for scenario in ALL_SCENARIOS:
     if scenario.id not in FIXTURE_RESPONSES:
         FIXTURE_RESPONSES[scenario.id] = {
             "with_memory": [
-                f"[MnemOS] Setup acknowledged with memory context for {scenario.name}.",
-                f"[MnemOS] Memory-informed response for {scenario.name}.",
+                f"[MnemAgent] Setup acknowledged with memory context for {scenario.name}.",
+                f"[MnemAgent] Memory-informed response for {scenario.name}.",
             ],
             "without_memory": [
                 f"[Baseline] Setup acknowledged for {scenario.name}.",

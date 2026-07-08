@@ -129,7 +129,7 @@ def main() -> None:
 
     async def _run() -> None:
         if args.mode in ("with_memory", "both"):
-            print("=== MnemOS (with memory) ===")
+            print("=== MnemAgent (with memory) ===")
             with_report = await run_all("with_memory", args.mnemos_url)
             print(f"  OVERALL: {with_report.avg_score:.1%}")
 

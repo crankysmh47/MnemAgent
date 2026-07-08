@@ -8,7 +8,7 @@ Produces submission-ready reports for the Alibaba Global Hackathon Track 1
   - Hackathon-relevant metrics (Context Efficiency, Forgetting Accuracy,
     Recall Precision, Interference Prevention Rate)
   - Per-scenario result table
-  - "Night & Day" section highlighting MnemOS's largest wins with excerpts
+  - "Night & Day" section highlighting MnemAgent's largest wins with excerpts
 """
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ def generate_comparison_report(
     Build a side-by-side Markdown comparison report.
 
     Args:
-        with_memory: MnemOS benchmark report.
+        with_memory: MnemAgent benchmark report.
         without_memory: Baseline (no memory) benchmark report.
 
     Returns:
@@ -132,16 +132,16 @@ def generate_comparison_report(
     # Header & Executive Summary
     # ------------------------------------------------------------------
     lines: list[str] = [
-        "# MnemOS Benchmark Comparison Report",
+        "# MnemAgent Benchmark Comparison Report",
         "",
         f"**Generated:** {datetime.now(timezone.utc).isoformat()}",
-        "**Mode:** MnemOS (with memory) vs Baseline (without memory)",
+        "**Mode:** MnemAgent (with memory) vs Baseline (without memory)",
         "",
         "---",
         "",
         "## Executive Summary",
         "",
-        "| Metric | MnemOS | Baseline | Delta |",
+        "| Metric | MnemAgent | Baseline | Delta |",
         "| --- | ---: | ---: | ---: |",
         f"| **Average Score** | **{with_memory.average_score:.1%}** | {without_memory.average_score:.1%} | **{improvement:+.1%}** |",
         f"| **Pass Rate** | {with_pass}/{total} | {without_pass}/{total} | **{with_pass - without_pass:+d}** |",
@@ -156,7 +156,7 @@ def generate_comparison_report(
     # ------------------------------------------------------------------
     lines.append("## Category Breakdown")
     lines.append("")
-    lines.append("| Category | MnemOS | Baseline | Delta | Leader |")
+    lines.append("| Category | MnemAgent | Baseline | Delta | Leader |")
     lines.append("| --- | ---: | ---: | ---: | --- |")
 
     for cat in _CATEGORY_ORDER:
@@ -165,7 +165,7 @@ def generate_comparison_report(
         w_avg = statistics.mean(w_scores) if w_scores else 0.0
         wo_avg = statistics.mean(wo_scores) if wo_scores else 0.0
         delta = w_avg - wo_avg
-        leader = "MnemOS" if delta > 0 else ("Baseline" if delta < 0 else "Tie")
+        leader = "MnemAgent" if delta > 0 else ("Baseline" if delta < 0 else "Tie")
         label = _CATEGORY_LABELS.get(cat, cat.title())
         count = len(w_scores)
         lines.append(
@@ -193,7 +193,7 @@ def generate_comparison_report(
     # ------------------------------------------------------------------
     lines.append("## Statistical Summary")
     lines.append("")
-    lines.append("| Statistic | MnemOS | Baseline |")
+    lines.append("| Statistic | MnemAgent | Baseline |")
     lines.append("| --- | ---: | ---: |")
     rows = [
         ("Mean", "mean"),
@@ -220,7 +220,7 @@ def generate_comparison_report(
         "Global Hackathon Track 1 (MemoryAgent):"
     )
     lines.append("")
-    lines.append("| Metric | MnemOS | Baseline | Improvement |")
+    lines.append("| Metric | MnemAgent | Baseline | Improvement |")
     lines.append("| --- | ---: | ---: | ---: |")
 
     for label, cat, _desc in _HACKATHON_METRICS:
@@ -242,7 +242,7 @@ def generate_comparison_report(
     # ------------------------------------------------------------------
     lines.append("## Per-Scenario Results")
     lines.append("")
-    lines.append("| Scenario | Category | MnemOS | Baseline | Delta |")
+    lines.append("| Scenario | Category | MnemAgent | Baseline | Delta |")
     lines.append("| --- | --- | ---: | ---: | ---: |")
 
     for result in with_memory.results:
@@ -260,7 +260,7 @@ def generate_comparison_report(
     lines.append("")
 
     # ------------------------------------------------------------------
-    # Night & Day — Top MnemOS Wins
+    # Night & Day — Top MnemAgent Wins
     # ------------------------------------------------------------------
     scored_deltas: list[tuple[str, float, ScenarioResult, ScenarioResult]] = []
     for result in with_memory.results:
@@ -273,11 +273,11 @@ def generate_comparison_report(
     scored_deltas.sort(key=lambda x: x[1], reverse=True)
     top_3 = scored_deltas[:3]
 
-    lines.append("## Night & Day: Top 3 Scenarios Where MnemOS Excels")
+    lines.append("## Night & Day: Top 3 Scenarios Where MnemAgent Excels")
     lines.append("")
     lines.append(
         "The following scenarios show the largest performance gap between "
-        "MnemOS and the baseline, with actual response excerpts."
+        "MnemAgent and the baseline, with actual response excerpts."
     )
     lines.append("")
 
@@ -290,7 +290,7 @@ def generate_comparison_report(
                 f"### {rank}. {sid} ({delta:+.0%} improvement)",
                 f"**Category:** {cat}",
                 "",
-                "**MnemOS response:**",
+                "**MnemAgent response:**",
                 f"> {w_resp}",
                 "",
                 "**Baseline response:**",
@@ -301,7 +301,7 @@ def generate_comparison_report(
 
     if not top_3:
         lines.append(
-            "*No scenarios showed a positive improvement for MnemOS in this run.*"
+            "*No scenarios showed a positive improvement for MnemAgent in this run.*"
         )
         lines.append("")
 

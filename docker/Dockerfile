@@ -1,5 +1,5 @@
 FROM python:3.11-slim
-LABEL org.opencontainers.image.title="MnemOS Memory Server"
+LABEL org.opencontainers.image.title="MnemAgent Memory Server"
 LABEL org.opencontainers.image.description="Persistent biologically-inspired memory layer — FastAPI + sqlite-vec + UCB retrieval"
 LABEL org.opencontainers.image.authors="crankysmh47"
 LABEL org.opencontainers.image.source="https://github.com/crankysmh47/MnemAgent"

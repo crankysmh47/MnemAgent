@@ -44,11 +44,11 @@ After reset, run:
 
 This fails if:
 
-- MnemOS or the harness is unhealthy.
+- MnemAgent or the harness is unhealthy.
 - The judge user id is missing or points at a known demo/test namespace.
 - The judge namespace already contains memories.
 - The `demo-brain` visualizer graph is not populated.
-- OpenClaw does not see exactly 7 MnemOS MCP tools.
+- OpenClaw does not see exactly 7 MnemAgent MCP tools.
 
 ## Judge URLs
 

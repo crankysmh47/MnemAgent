@@ -1,4 +1,4 @@
-# Prepare a judge-safe MnemOS database.
+# Prepare a judge-safe MnemAgent database.
 #
 # Preserves demo namespaces such as demo-brain, removes all test/live users,
 # creates a fresh judge user id, and updates local OpenClaw MCP registration
@@ -192,7 +192,7 @@ $resolvedDb = if ($useDockerDb) { "/app/data/memory_state.db (mnemos-memory cont
 $keep = if ($KeepDemoBrain) { $KeepUsers } else { $KeepUsers }
 $judgeUserId = "$JudgePrefix-$([guid]::NewGuid().ToString("N").Substring(0, 12))"
 
-Write-Host "=== MnemOS Cloud Memory Reset ===" -ForegroundColor Cyan
+Write-Host "=== MnemAgent Cloud Memory Reset ===" -ForegroundColor Cyan
 Write-Host "Database: $resolvedDb"
 Write-Host "Preserving users: $($keep -join ', ')"
 Write-Host "Fresh judge user_id: $judgeUserId"

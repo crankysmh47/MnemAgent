@@ -1,4 +1,4 @@
-"""Multi-step agentic benchmark runner — MnemOS vs baseline with trajectory metrics."""
+"""Multi-step agentic benchmark runner — MnemAgent vs baseline with trajectory metrics."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ class AgenticComparisonReport:
 
 
 class AgenticBenchmarkRunner:
-    """Execute multi-step scenarios against MnemOS or baseline."""
+    """Execute multi-step scenarios against MnemAgent or baseline."""
 
     def __init__(
         self,
@@ -162,7 +162,7 @@ def build_comparison(
     Pair scenarios and compute memory advantage trajectories.
 
     Args:
-        with_report: MnemOS run results.
+        with_report: MnemAgent run results.
         without_report: Baseline run results.
 
     Returns:

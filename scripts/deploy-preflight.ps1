@@ -28,10 +28,10 @@ function Assert-Ok {
   Write-Host "OK  $Message" -ForegroundColor Green
 }
 
-Write-Host "=== MnemOS Deploy Preflight ===" -ForegroundColor Cyan
+Write-Host "=== MnemAgent Deploy Preflight ===" -ForegroundColor Cyan
 
 $health = Invoke-RestMethod -Uri "$MnemosUrl/health" -TimeoutSec 10
-Assert-Ok ($health.status -eq "ok") "MnemOS API is healthy"
+Assert-Ok ($health.status -eq "ok") "MnemAgent API is healthy"
 
 $harness = Invoke-RestMethod -Uri "$HarnessUrl/health" -TimeoutSec 10
 Assert-Ok ($harness.status -eq "ok") "Visualizer harness is healthy"
@@ -49,7 +49,7 @@ $demoCount = @($demoGraph.beliefs).Count
 Assert-Ok ($demoCount -ge 8) "Demo graph is populated ($demoCount beliefs)"
 
 $probe = openclaw mcp probe mnemos --json 2>$null | ConvertFrom-Json
-Assert-Ok (@($probe.tools).Count -eq 7) "OpenClaw sees 7 MnemOS MCP tools"
+Assert-Ok (@($probe.tools).Count -eq 7) "OpenClaw sees 7 MnemAgent MCP tools"
 
 Write-Host ""
 Write-Host "Deployment preflight passed." -ForegroundColor Green

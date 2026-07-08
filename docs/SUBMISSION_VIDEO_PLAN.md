@@ -1,14 +1,14 @@
-# MnemOS Submission Video Plan
+# MnemAgent Submission Video Plan
 
 Target length: 2:45 to 3:15.
 
-Goal: convince judges that MnemOS is a real OpenClaw agent with persistent,
+Goal: convince judges that MnemAgent is a real OpenClaw agent with persistent,
 selective, inspectable memory running on Alibaba Cloud with Qwen-compatible
 inference.
 
 ## Core Narrative
 
-Most agents either forget between sessions or store too much. MnemOS gives
+Most agents either forget between sessions or store too much. MnemAgent gives
 OpenClaw a memory layer that:
 
 - stores only high-salience facts;
@@ -62,13 +62,13 @@ Caption:
 Problem: agents forget, over-store, and recall stale facts.
 ```
 
-### 0:12-0:30 — What MnemOS Is
+### 0:12-0:30 — What MnemAgent Is
 
 Visual: `demo-brain` visualizer with the biological graph visible.
 
 Voiceover:
 
-> MnemOS is a persistent memory layer for OpenClaw. It decides what deserves
+> MnemAgent is a persistent memory layer for OpenClaw. It decides what deserves
 > storage, retrieves only useful beliefs, updates contradictions, and lets old
 > memories fade.
 
@@ -111,7 +111,7 @@ and the database is PostgreSQL.
 Voiceover:
 
 > This is a new chat. The model is not relying on chat history. OpenClaw is
-> calling MnemOS through MCP, and MnemOS is retrieving persistent user memory.
+> calling MnemAgent through MCP, and MnemAgent is retrieving persistent user memory.
 
 Caption:
 
@@ -165,7 +165,7 @@ Optional proof shot: event API or graph tooltip showing contradiction metadata.
 
 Voiceover:
 
-> Flat memory often keeps old and new values side by side. MnemOS keys beliefs
+> Flat memory often keeps old and new values side by side. MnemAgent keys beliefs
 > by user, entity, and relation, so the current backend framework replaces the
 > stale one.
 
@@ -195,7 +195,7 @@ The memory store operation was rejected.
 
 Voiceover:
 
-> MnemOS rejects low-conviction noise at ingestion. Garbage does not enter the
+> MnemAgent rejects low-conviction noise at ingestion. Garbage does not enter the
 > graph and does not wait around to be pruned later.
 
 Caption:
@@ -217,7 +217,7 @@ Voiceover:
 Show headline numbers:
 
 ```text
-Live agentic benchmark: 86.5% MnemOS vs 64.6% baseline
+Live agentic benchmark: 86.5% MnemAgent vs 64.6% baseline
 Project continuity: dominant cross-session advantage
 MnemBench contradiction-chain sample: 89.6% probe score
 ```
@@ -243,20 +243,20 @@ passing preflight output and the ECS public visualizer URL.
 
 Voiceover:
 
-> MnemOS runs on Alibaba Cloud with Qwen-compatible inference, Docker services,
+> MnemAgent runs on Alibaba Cloud with Qwen-compatible inference, Docker services,
 > OpenClaw MCP integration, and a judge-safe clean memory namespace.
 
 Caption:
 
 ```text
-Alibaba Cloud + Qwen + OpenClaw + MnemOS
+Alibaba Cloud + Qwen + OpenClaw + MnemAgent
 ```
 
 ## Live Test Results From Local Stack
 
 Verified on 2026-07-05:
 
-- MnemOS API healthy: `prompt_version=v4-dual-path-write`.
+- MnemAgent API healthy: `prompt_version=v4-dual-path-write`.
 - Visualizer harness healthy with `demo-brain`: 62 beliefs, 405 edges.
 - OpenClaw gateway healthy after restart.
 - OpenClaw MCP probe: `mnemos` exposes 7 tools.

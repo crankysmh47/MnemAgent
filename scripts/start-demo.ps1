@@ -4,7 +4,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 $Uid = "demo-brain"
 $Harness = "http://127.0.0.1:3000"
 
-Write-Host "Starting MnemOS stack..." -ForegroundColor Cyan
+Write-Host "Starting MnemAgent stack..." -ForegroundColor Cyan
 Push-Location $Root
 docker compose up -d --build
 Pop-Location

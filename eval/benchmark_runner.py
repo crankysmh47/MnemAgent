@@ -1,4 +1,4 @@
-"""Benchmark orchestrator for MnemOS vs baseline comparison."""
+"""Benchmark orchestrator for MnemAgent vs baseline comparison."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class BenchmarkReport:
 
 
 class BenchmarkRunner:
-    """Run benchmark scenarios against MnemOS or baseline server."""
+    """Run benchmark scenarios against MnemAgent or baseline server."""
 
     def __init__(
         self,

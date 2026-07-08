@@ -14,7 +14,7 @@ can reproduce the submission without cloning another project.
 
 The strongest full-suite MnemBench run remains the June 14 comparison:
 
-| Metric | MnemOS | Baseline | Delta |
+| Metric | MnemAgent | Baseline | Delta |
 | --- | ---: | ---: | ---: |
 | Average probe score | 99.0% | 45.8% | +53.1% |
 | Average composite | 0.793 | 0.511 | +0.282 |
@@ -34,10 +34,10 @@ through the direct endpoint, so the live run used `deepseek-chat`, the fast
 DeepSeek model that returned valid completions.
 
 The full DeepSeek suite was not better overall, so it is not used as the
-headline result. We kept only the scenario reports where MnemOS improved over
+headline result. We kept only the scenario reports where MnemAgent improved over
 the baseline:
 
-| Scenario | MnemOS | Baseline | Delta |
+| Scenario | MnemAgent | Baseline | Delta |
 | --- | ---: | ---: | ---: |
 | `salience_gate` | 100.0% | 33.3% | +66.7% |
 | `contradiction_chain` | 57.3% | 39.6% | +17.7% |
@@ -56,7 +56,7 @@ Dry-run sanity check:
 python -m eval.mnembench --dry-run --scenario contradiction_chain --judge-report
 ```
 
-Live run with a local MnemOS server and baseline:
+Live run with a local MnemAgent server and baseline:
 
 ```bash
 python -m eval.mnembench \

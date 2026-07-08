@@ -1,4 +1,4 @@
-# Force-rebuild MnemOS memory container with latest prompt/extraction code
+# Force-rebuild MnemAgent memory container with latest prompt/extraction code
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Push-Location $Root

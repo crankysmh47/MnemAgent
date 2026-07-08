@@ -1,4 +1,4 @@
-"""MnemOS — FastAPI application with memory-augmented chat endpoint."""
+"""MnemAgent — FastAPI application with memory-augmented chat endpoint."""
 
 from __future__ import annotations
 
@@ -236,12 +236,12 @@ async def lifespan(app: FastAPI):
         await asyncio.wait_for(_warmup_embeddings(), timeout=45)
     except asyncio.TimeoutError:
         logger.warning("Embedding warmup timed out; continuing startup.")
-    logger.info("MnemOS booted successfully.")
+    logger.info("MnemAgent booted successfully.")
     yield
-    logger.info("MnemOS shutting down.")
+    logger.info("MnemAgent shutting down.")
 
 
-app = FastAPI(title="MnemOS Memory Server", lifespan=lifespan)
+app = FastAPI(title="MnemAgent Memory Server", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -430,7 +430,7 @@ async def api_memory_stats(
 
 @app.post("/api/user/bind")
 async def api_user_bind(request: UserBindRequest) -> dict:
-    """Bind channel sender to canonical MnemOS user_id."""
+    """Bind channel sender to canonical MnemAgent user_id."""
     channel = request.channel.strip()
     sender_id = request.sender_id.strip()
     if not channel or not sender_id:

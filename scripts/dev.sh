@@ -66,15 +66,15 @@ if ! check_docker; then
 fi
 
 # ── Start Docker services ────────────────────────────────────────────────────
-log_cyan "[1/3] Starting MnemOS Docker services..."
+log_cyan "[1/3] Starting MnemAgent Docker services..."
 (cd "$ROOT" && docker compose up -d --build >/dev/null 2>&1) || {
     log_red "docker compose failed"
     exit 1
 }
 
 log_cyan "       Waiting for services ..."
-wait_health "http://127.0.0.1:8000/health" "MnemOS memory (:8000)" 60
-wait_health "http://127.0.0.1:8001/health" "MnemOS MCP  (:8001)"   45
+wait_health "http://127.0.0.1:8000/health" "MnemAgent memory (:8000)" 60
+wait_health "http://127.0.0.1:8001/health" "MnemAgent MCP  (:8001)"   45
 
 # Ensure demo-brain is populated for the visualizer
 curl -sf -X POST "http://127.0.0.1:3000/api/demo/seed" \
@@ -102,7 +102,7 @@ fi
 # ── Summary ──────────────────────────────────────────────────────────────────
 log_cyan "[3/3] Ready"
 echo ""
-log_green "  MnemOS is up and running!"
+log_green "  MnemAgent is up and running!"
 log_gray "    Dashboard:  http://localhost:3000"
 log_gray "    Visualizer: http://localhost:3000/visualizer"
 log_gray "    Gateway:    http://localhost:18789"

@@ -1,4 +1,4 @@
-"""Benchmark scenario definitions for MnemOS evaluation — 25 scenarios, 5 categories.
+"""Benchmark scenario definitions for MnemAgent evaluation — 25 scenarios, 5 categories.
 
 All 25 scenarios are fully fleshed out with multi-session conversations and
 specific expected outcomes that test hackathon-relevant metrics.

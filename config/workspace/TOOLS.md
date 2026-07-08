@@ -1,11 +1,11 @@
-# MnemOS Memory Tools
+# MnemAgent Memory Tools
 
 ## MCP Server: mnemos
 
 - **stdio**: `node /path/to/mcp-server/src/index.js --transport stdio`
 - **HTTP**: `http://localhost:8001/mcp` (transport: streamable-http)
 
-## MnemOS Backend
+## MnemAgent Backend
 
 - API: `http://localhost:8000`
 - Health: `GET /health`

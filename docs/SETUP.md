@@ -1,6 +1,6 @@
 # MnemAgent Setup Guide
 
-Set up MnemOS (persistent memory layer) with OpenClaw (AI agent gateway) in one command.
+Set up MnemAgent (persistent memory layer) with OpenClaw (AI agent gateway) in one command.
 
 ## Table of Contents
 
@@ -67,11 +67,11 @@ bash scripts/setup.sh
 1. Checks prerequisites (Docker, Node.js, npm, Python 3.11+)
 2. Creates `.env` from `config/env.template` (edit your API key in `.env`)
 3. Creates a Python virtual environment and installs dependencies
-4. Builds and starts Docker containers (MnemOS memory + MCP + web harness)
+4. Builds and starts Docker containers (MnemAgent memory + MCP + web harness)
 5. Waits for health on ports 8000 and 8001 (with countdown)
 6. Installs OpenClaw globally via npm
 7. Runs `openclaw onboard` with your credentials
-8. Registers the MnemOS MCP toolset (7 tools via stdio transport)
+8. Registers the MnemAgent MCP toolset (7 tools via stdio transport)
 9. Copies workspace files to `~/.openclaw/workspace/`
 10. Starts the OpenClaw gateway
 12. Verifies MCP probe returns 7 tools
@@ -85,7 +85,7 @@ bash scripts/setup.sh
 
 | Component | Where | Purpose |
 |-----------|-------|---------|
-| Docker containers | Local ports 8000, 8001, 3000 | MnemOS memory + MCP + web UI |
+| Docker containers | Local ports 8000, 8001, 3000 | MnemAgent memory + MCP + web UI |
 | `.venv/` | Repo root | Python dependencies (FastAPI, sentence-transformers, etc.) |
 | `openclaw` (npm global) | System PATH | AI agent gateway (CLI + daemon) |
 | `~/.openclaw/` | User home | OpenClaw config, workspace, MCP registrations |
@@ -157,7 +157,7 @@ openclaw onboard \
   --gateway-port 18789
 ```
 
-### 6. Register MnemOS MCP
+### 6. Register MnemAgent MCP
 
 ```bash
 # Install MCP server dependencies
@@ -351,7 +351,7 @@ openclaw gateway restart --force
 |---------|-----|
 | `mnemos` not in MCP list | Re-run MCP registration step |
 | Probe shows 0 tools | `openclaw mcp unset mnemos` then re-register |
-| "Connection timeout" | Is MnemOS Docker running? `curl http://localhost:8000/health` |
+| "Connection timeout" | Is MnemAgent Docker running? `curl http://localhost:8000/health` |
 | Node errors in MCP | `cd mcp-server && npm install` |
 | **"index metadata is missing"** or **"memory search is paused"** | Your MCP tools are NOT registered. The agent has fallen back to OpenClaw's broken built-in memory. Run `openclaw mcp list` — if `mnemos` is missing, re-register: `openclaw mcp set mnemos '{"command":"node","args":["<path-to-mcp-server>/src/index.js","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000"}}'` |
 | **Agent gives wrong facts (e.g. "FAST student")** | This is demo data from `USER.md` leaking because memory search failed. Fix the MCP registration first (above). The fixed USER.md is now a template that won't be treated as real data. |
@@ -395,22 +395,22 @@ OpenClaw Gateway (:18789)     ←──  openclaw agent / dashboard
        │  mcp-server/src/index.js
        │       │  (node process spawned by OpenClaw)
        │       ▼
-       │  MnemOS Memory API (:8000)  ←── FastAPI + SQLite + sqlite-vec
+       │  MnemAgent Memory API (:8000)  ←── FastAPI + SQLite + sqlite-vec
        │       │
        │       ├── Waking Phase  (sync — embed, UCB retrieve, respond)
        │       └── Dreaming Phase (async — salience auction, decay, prune)
        │
        └── Web Harness (:3000)     ←── Real-time memory visualizer
                 │
-                └── MnemOS MCP HTTP (:8001)   ←── Docker container
+                └── MnemAgent MCP HTTP (:8001)   ←── Docker container
 ```
 
 ### Data Flow
 
 1. **User message** arrives via OpenClaw CLI or web dashboard
 2. **Agent** calls `memory_search(user_id, query)` via MCP stdio
-3. **mcp-server** forwards to MnemOS API (`POST /api/memory/search`)
-4. **MnemOS** performs UCB retrieval + RWR associative hops
+3. **mcp-server** forwards to MnemAgent API (`POST /api/memory/search`)
+4. **MnemAgent** performs UCB retrieval + RWR associative hops
 5. **Agent** receives results, builds prompt, sends to LLM
 6. **LLM response** is returned to user; facts are extracted and stored in background
 
@@ -418,7 +418,7 @@ OpenClaw Gateway (:18789)     ←──  openclaw agent / dashboard
 
 | Port | Service | Purpose |
 |------|---------|---------|
-| 8000 | MnemOS Memory API | FastAPI backend (health at `/health`) |
+| 8000 | MnemAgent Memory API | FastAPI backend (health at `/health`) |
 | 8001 | MCP Server (HTTP) | Docker container for web harness |
 | 3000 | Web Harness | Visualizer + dashboard UI |
 | 18789 | OpenClaw Gateway | Agent gateway + MCP proxy |

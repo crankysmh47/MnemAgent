@@ -1,4 +1,4 @@
-# Full OpenClaw + MnemOS onboarding (Windows)
+# Full OpenClaw + MnemAgent onboarding (Windows)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $ConfigDir = Join-Path $env:USERPROFILE ".openclaw"
@@ -38,7 +38,7 @@ function Ensure-MnemosUserId {
   }
 }
 
-Write-Host "=== OpenClaw + MnemOS Onboarding ===" -ForegroundColor Cyan
+Write-Host "=== OpenClaw + MnemAgent Onboarding ===" -ForegroundColor Cyan
 Write-Host ""
 
 # --------- Pre-flight warnings ---------
@@ -54,7 +54,7 @@ try {
     $conn.Close()
 } catch { }
 if ($port3000InUse) {
-    Write-Host "  WARNING: Port 3000 is in use (probably the MnemOS visualizer container)." -ForegroundColor Yellow
+    Write-Host "  WARNING: Port 3000 is in use (probably the MnemAgent visualizer container)." -ForegroundColor Yellow
     Write-Host "  If this script needs to run an OAuth login flow, the callback will FAIL" -ForegroundColor Yellow
     Write-Host "  because OpenClaw also redirects to localhost:3000.  To fix:" -ForegroundColor Yellow
     Write-Host "    1. docker compose stop openclaw-harness" -ForegroundColor DarkGray
@@ -64,7 +64,7 @@ if ($port3000InUse) {
 }
 
 # API key: OpenClaw uses its own credential store (openclaw.json), NOT .env.
-# The .env file is only read by the MnemOS Python server.  Editing .env
+# The .env file is only read by the MnemAgent Python server.  Editing .env
 # without also configuring OpenClaw has no effect on the agent's model.
 Write-Host "  Note: API keys go through 'openclaw' auth, not just .env" -ForegroundColor DarkGray
 Write-Host "        This script handles both for you." -ForegroundColor DarkGray
@@ -128,8 +128,8 @@ if ($provider -eq "anthropic") {
 }
 $freePatch = Join-Path $Root "config\openclaw\free-models.patch.json"
 
-# MnemOS stack
-Write-Host "Starting MnemOS Docker stack..."
+# MnemAgent stack
+Write-Host "Starting MnemAgent Docker stack..."
 Push-Location $Root
 docker compose up -d --build | Out-Null
 Pop-Location
@@ -207,12 +207,12 @@ if ($isAlibabaKey) {
   openclaw config set agents.defaults.model.primary "dashscope/qwen-flash" 2>$null | Out-Null
 }
 
-# MnemOS MCP (stdio -> spawns mcp-server -> MnemOS :8000)
+# MnemAgent MCP (stdio -> spawns mcp-server -> MnemAgent :8000)
 # Try mcp set first (current OpenClaw CLI), fall back to mcp add (older versions).
 # If both fail the agent has NO memory tools --- it will fall back to its broken
 # built-in index and leak workspace demo data as real user memory.  We must
 # surface a clear error here rather than let the user continue blind.
-Write-Host "Registering MnemOS MCP..."
+Write-Host "Registering MnemAgent MCP..."
 openclaw mcp unset mnemos 2>$null | Out-Null
 
 $mcpSetJson = '{"command":"node","args":["' + $McpJs + '","--transport","stdio"],"env":{"MNEMOS_URL":"http://localhost:8000","MNEMOS_DEFAULT_USER_ID":"' + $MnemosUserId + '"}}'
@@ -231,7 +231,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
-    Write-Host "ERROR: Could not register MnemOS MCP tools." -ForegroundColor Red
+    Write-Host "ERROR: Could not register MnemAgent MCP tools." -ForegroundColor Red
     Write-Host "Without these tools the agent CANNOT use memory --- it will give WRONG answers." -ForegroundColor Red
     Write-Host "Manual fix:  openclaw mcp set mnemos '$mcpSetJson'" -ForegroundColor Yellow
     Write-Host "Then verify:  openclaw mcp probe mnemos" -ForegroundColor Yellow
@@ -258,8 +258,8 @@ Write-Host "=== OpenClaw Ready ===" -ForegroundColor Green
 Write-Host "  Dashboard:     openclaw dashboard"
 Write-Host "  Chat (CLI):    openclaw agent --agent main --message `"Hello`""
 Write-Host "  Proof script:  .\scripts\prove-openclaw.ps1"
-Write-Host "  MnemOS user:   $(Get-Content $UserFile)"
+Write-Host "  MnemAgent user:   $(Get-Content $UserFile)"
 Write-Host ""
 Write-Host "Architecture:"
 Write-Host "  You -> OpenClaw Gateway (:18789) -> Agent + mnemos MCP tools"
-Write-Host "       -> mcp-server (stdio) -> MnemOS API (:8000) -> SQLite memory"
+Write-Host "       -> mcp-server (stdio) -> MnemAgent API (:8000) -> SQLite memory"

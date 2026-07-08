@@ -1,4 +1,4 @@
-"""Logging configuration for MnemOS."""
+"""Logging configuration for MnemAgent."""
 
 from __future__ import annotations
 

@@ -17,13 +17,13 @@ def generate_agentic_report(comparison: AgenticComparisonReport) -> str:
     """
     agg = comparison.aggregate
     lines = [
-        "# MnemOS Agentic Memory Advantage Benchmark",
+        "# MnemAgent Agentic Memory Advantage Benchmark",
         "",
         "Multi-step scenarios where probe difficulty increases; memory layer advantage should grow.",
         "",
         "## Aggregate Results",
         "",
-        f"| Metric | MnemOS | Baseline |",
+        f"| Metric | MnemAgent | Baseline |",
         f"|--------|--------|----------|",
         f"| Avg probe score | {agg.get('mnemos_avg_probe_score', 0):.1%} | {agg.get('baseline_avg_probe_score', 0):.1%} |",
         f"| Avg cumulative advantage | {agg.get('avg_cumulative_advantage', 0):+.3f} | — |",
@@ -44,7 +44,7 @@ def generate_agentic_report(comparison: AgenticComparisonReport) -> str:
         lines.append(f"### `{scenario_id}`")
         lines.append("")
         weights = traj.get("probe_weights", [1.0] * len(traj["with_scores"]))
-        lines.append("| Probe | Weight | MnemOS | Baseline | Advantage Δ |")
+        lines.append("| Probe | Weight | MnemAgent | Baseline | Advantage Δ |")
         lines.append("|-------|--------|--------|----------|-------------|")
         for i, (w, b, a, wt) in enumerate(
             zip(
@@ -78,7 +78,7 @@ def generate_agentic_report(comparison: AgenticComparisonReport) -> str:
     lines.append("## Interpretation")
     lines.append("")
     lines.append(
-        "- **Advantage Δ** = MnemOS probe score − baseline probe score (higher = memory helped)."
+        "- **Advantage Δ** = MnemAgent probe score − baseline probe score (higher = memory helped)."
     )
     lines.append(
         "- **Growing advantage** on compound probes shows the memory layer compounding over agentic steps."

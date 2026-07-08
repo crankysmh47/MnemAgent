@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for MnemOS tests."""
+"""Shared pytest fixtures for MnemAgent tests."""
 
 from __future__ import annotations
 
