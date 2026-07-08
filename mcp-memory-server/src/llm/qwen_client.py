@@ -249,10 +249,38 @@ def extract_facts_deterministically(user_message: str) -> list[dict]:
 
     clause_text = re.sub(r"\bremember this for future chats?:?", "", user_message, flags=re.I)
     clause_text = re.sub(r"\band\s+(my|our)\b", r"\1", clause_text, flags=re.I)
+    for cue, action in re.findall(
+        r"\bwhen\s+(?:I\s+)?(?:ask|talk|discuss|mention)\s+about\s+([a-zA-Z0-9 _-]{2,48})\s*,?\s+remind\s+me\s+to\s+([^.;]+)",
+        clause_text,
+        flags=re.I,
+    ):
+        add(
+            f"when_asked_about_{cue}",
+            "remind",
+            action,
+            "system_state",
+            1.0,
+        )
     clauses = re.split(r"[,.;]\s*", clause_text)
     for clause in clauses:
         clause = clause.strip()
         if not clause:
+            continue
+
+        prospective = re.search(
+            r"\bwhen\s+(?:I\s+)?(?:ask|talk|discuss|mention)\s+about\s+([a-zA-Z0-9 _-]{2,48})\s*,?\s+remind\s+me\s+to\s+(.+)$",
+            clause,
+            flags=re.I,
+        )
+        if prospective:
+            cue, action = prospective.groups()
+            add(
+                f"when_asked_about_{cue}",
+                "remind",
+                action,
+                "system_state",
+                1.0,
+            )
             continue
 
         mine = re.search(

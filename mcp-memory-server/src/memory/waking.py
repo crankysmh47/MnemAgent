@@ -16,6 +16,7 @@ import networkx as nx
 from config import settings
 from memory.entity_lexicon import CORE_TECH_DICTIONARY
 from memory.event_log import log_memory_event
+from memory.prospective import fetch_due_prospective_memories
 from memory.response_grounding import (
     fetch_all_active_beliefs,
     fetch_salience_rejected_values,
@@ -55,6 +56,9 @@ SYSTEM_PROMPT_TEMPLATE = """You are an autonomous engineering agent with a persi
 
 [MEMORY CONTEXT — Retrieved from long-term storage]
 {injected_facts}
+
+[DUE PROSPECTIVE REMINDERS â€” Fire only when the user's current prompt matches the cue]
+{prospective_facts}
 
 Use the memory context above to personalize your responses. Reference stored
 preferences naturally without re-asking.
@@ -651,7 +655,16 @@ async def build_optimized_qwen_payload(
             conn.close()
 
         injected_facts = "\n".join(fact_lines) if fact_lines else "(no stored memories yet)"
-        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(injected_facts=injected_facts)
+        due_prospective = fetch_due_prospective_memories(user_id, user_input, db_path=db_path)
+        prospective_lines = [
+            f"- When the user asks about {item['cue']}: remind them to {item['action']}"
+            for item in due_prospective
+        ]
+        prospective_facts = "\n".join(prospective_lines) if prospective_lines else "(none)"
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+            injected_facts=injected_facts,
+            prospective_facts=prospective_facts,
+        )
         if compound and injected_values:
             values_csv = ", ".join(injected_values)
             system_prompt += (

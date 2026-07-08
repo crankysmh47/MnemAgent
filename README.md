@@ -87,9 +87,10 @@ The system is built around four behaviors:
 | Behavior | Mechanism |
 |----------|-----------|
 | Selective storage | Salience auction: store only conviction >= 0.4, except `system_state` facts |
-| Bounded recall | sqlite-vec candidate search, UCB ranking, max 6 injected facts |
+| Bounded recall | sqlite-vec/pgvector candidate search, UCB ranking, max 6 injected facts |
 | Contradiction handling | Unique belief key: `(user_id, entity_source, relation)` |
 | Forgetting | Inactive nodes decay and are pruned below `node_weight < 0.1` |
+| Prospective memory | Cue-triggered reminders fire only when the user's prompt matches the cue |
 
 ## Architecture
 
@@ -105,8 +106,8 @@ flowchart TB
   MCP["MnemAgent MCP server :8001 / stdio"]
   API["MnemAgent Memory API :8000"]
   QWEN["Qwen-compatible LLM API"]
-  DB[("SQLite memory_state.db")]
-  VEC[("sqlite-vec embeddings")]
+  DB[("SQLite local / Postgres+pgvector cloud")]
+  VEC[("vector embeddings")]
   OSS[("Alibaba OSS backup")]
 
   OCWEB --> GW
@@ -156,6 +157,7 @@ Retrieval uses:
 - keyword fallback using a global and per-user entity dictionary;
 - UCB ranking: `Score_i = Q_i + c * sqrt(ln(T) / (N_i + 1))`;
 - associative hops for larger graphs;
+- cue-triggered prospective reminders;
 - a hard cap of 6 injected memories.
 
 ### Dreaming phase
@@ -369,6 +371,9 @@ Important variables:
 | `LLM_MODEL` | Default model for chat/extraction |
 | `ANTHROPIC_API_KEY` | Anthropic key when `LLM_PROVIDER=anthropic` |
 | `DB_PATH` | SQLite memory database path |
+| `STORAGE_BACKEND` | `sqlite` locally; `postgres` for RDS/pgvector cloud deployments |
+| `DATABASE_URL` | PostgreSQL/RDS connection string when using the Postgres path |
+| `MNEMAGENT_API_TOKEN` | Optional bearer token for cloud API protection |
 | `AWAIT_DREAMING` | Whether chat waits for memory consolidation |
 | `ENABLE_DREAMING_EXTRACTION` | Enables server-side fallback extraction |
 | `MNEMOS_URL` | API URL used by MCP/OpenClaw |

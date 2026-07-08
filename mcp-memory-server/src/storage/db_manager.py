@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 import threading
 import time
@@ -17,6 +18,53 @@ VEC_AVAILABLE: bool = False
 _db_lock = threading.Lock()
 
 
+def is_postgres_backend() -> bool:
+    """Return True when STORAGE_BACKEND requests PostgreSQL."""
+
+    return settings.STORAGE_BACKEND.strip().lower() in {"postgres", "postgresql", "pg"}
+
+
+class _PostgresConnection:
+    """Small compatibility wrapper for the sqlite-style storage call sites."""
+
+    def __init__(self, database_url: str):
+        import psycopg
+        from psycopg.rows import dict_row
+
+        self._conn = psycopg.connect(database_url, row_factory=dict_row)
+
+    def execute(self, sql: str, params: tuple | list | None = None):
+        return self._conn.execute(_translate_sqlite_sql(sql), params or ())
+
+    def executescript(self, sql: str) -> None:
+        with self._conn.cursor() as cursor:
+            cursor.execute(sql)
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def close(self) -> None:
+        self._conn.close()
+
+
+def _translate_sqlite_sql(sql: str) -> str:
+    """Translate the small SQLite dialect subset used by MnemAgent to Postgres."""
+
+    translated = sql
+    translated = translated.replace(
+        "datetime('now', '-45 minutes')",
+        "CURRENT_TIMESTAMP - INTERVAL '45 minutes'",
+    )
+    translated = translated.replace("MIN(1.0, node_weight + 0.05)", "LEAST(1.0, node_weight + 0.05)")
+    translated = translated.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+    if "INSERT INTO user_entities" in translated and "ON CONFLICT" not in translated:
+        translated = translated.rstrip().rstrip(";") + " ON CONFLICT DO NOTHING"
+    if "INSERT INTO prospective_memories" in translated and "ON CONFLICT" not in translated:
+        translated = translated.rstrip().rstrip(";") + " ON CONFLICT DO NOTHING"
+    translated = re.sub(r"\?", "%s", translated)
+    return translated
+
+
 def get_db_connection(db_path: Path | None = None) -> sqlite3.Connection:
     """
     Open a SQLite connection with WAL mode and row factory enabled.
@@ -27,6 +75,11 @@ def get_db_connection(db_path: Path | None = None) -> sqlite3.Connection:
     Returns:
         An open sqlite3.Connection.
     """
+    if is_postgres_backend():
+        if not settings.DATABASE_URL:
+            raise RuntimeError("STORAGE_BACKEND=postgres requires DATABASE_URL")
+        return _PostgresConnection(settings.DATABASE_URL)  # type: ignore[return-value]
+
     path = db_path or settings.DB_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path), check_same_thread=False)
@@ -121,6 +174,19 @@ def initialize_database(db_path: Path | None = None) -> None:
     global VEC_AVAILABLE
     path = db_path or settings.DB_PATH
     with _db_lock:
+        if is_postgres_backend():
+            conn = get_db_connection(path)
+            try:
+                schema_path = Path(__file__).parent / "schema.postgres.sql"
+                conn.executescript(schema_path.read_text(encoding="utf-8"))
+                _backfill_user_entities(conn)  # type: ignore[arg-type]
+                conn.commit()
+                logger.info("Postgres database initialized")
+            finally:
+                conn.close()
+            VEC_AVAILABLE = False
+            return
+
         conn = get_db_connection(path)
         try:
             schema_path = Path(__file__).parent / "schema.sql"

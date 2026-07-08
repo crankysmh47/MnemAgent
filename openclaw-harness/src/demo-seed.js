@@ -89,7 +89,7 @@ function factKey(fact) {
   return `${fact.entity}|${fact.relation}`;
 }
 
-async function storeBatch(axios, mnemosUrl, userId, facts, { refreshVitality = false } = {}) {
+async function storeBatch(axios, mnemosUrl, userId, facts, { refreshVitality = false, requestConfig = {} } = {}) {
   const payload = facts.map((fact) => ({ ...fact, user_id: userId }));
   for (let i = 0; i < payload.length; i += BATCH_CHUNK) {
     const chunk = payload.slice(i, i + BATCH_CHUNK);
@@ -102,19 +102,19 @@ async function storeBatch(axios, mnemosUrl, userId, facts, { refreshVitality = f
         skip_maintenance: true,
         refresh_vitality: refreshVitality && isLast,
       },
-      { timeout: BATCH_TIMEOUT_MS }
+      { timeout: BATCH_TIMEOUT_MS, ...(requestConfig || {}) }
     );
   }
 }
 
-async function seedDemoBrain(axios, mnemosUrl, { force = false } = {}) {
+async function seedDemoBrain(axios, mnemosUrl, { force = false, requestConfig = {} } = {}) {
   const userId = DEMO_USER_ID;
   const graphUrl = `${mnemosUrl}/api/graph/${encodeURIComponent(userId)}`;
 
   const existingKeys = new Set();
   let beliefCount = 0;
   try {
-    const existing = await axios.get(graphUrl, { timeout: 30000 });
+    const existing = await axios.get(graphUrl, { timeout: 30000, ...(requestConfig || {}) });
     beliefCount = existing.data?.beliefs?.length ?? 0;
     (existing.data?.beliefs || []).forEach((b) => {
       existingKeys.add(`${b.entity_source}|${b.relation}`);
@@ -127,7 +127,7 @@ async function seedDemoBrain(axios, mnemosUrl, { force = false } = {}) {
   const needsSeed = force || missing.length > 0 || beliefCount < DEMO_TARGET_COUNT - 2;
 
   if (!needsSeed) {
-    const graph = await axios.get(graphUrl, { timeout: 30000 });
+    const graph = await axios.get(graphUrl, { timeout: 30000, ...(requestConfig || {}) });
     return {
       user_id: userId,
       seeded: false,
@@ -139,9 +139,9 @@ async function seedDemoBrain(axios, mnemosUrl, { force = false } = {}) {
   }
 
   const toStore = force ? DEMO_FACTS : missing;
-  await storeBatch(axios, mnemosUrl, userId, toStore, { refreshVitality: true });
+  await storeBatch(axios, mnemosUrl, userId, toStore, { refreshVitality: true, requestConfig });
 
-  const graph = await axios.get(graphUrl, { timeout: 30000 });
+  const graph = await axios.get(graphUrl, { timeout: 30000, ...(requestConfig || {}) });
   return {
     user_id: userId,
     seeded: true,

@@ -14,6 +14,9 @@ services:
     environment:
       - DB_PATH=/app/data/memory_state.db
       - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-sqlite}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - MNEMAGENT_API_TOKEN=${MNEMAGENT_API_TOKEN:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -31,6 +34,7 @@ services:
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
       - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
+      - MNEMAGENT_API_TOKEN=${MNEMAGENT_API_TOKEN:-}
       - MCP_PORT=8001
     depends_on:
       mnemos-memory:
@@ -70,6 +74,7 @@ services:
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
       - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
+      - MNEMAGENT_API_TOKEN=${MNEMAGENT_API_TOKEN:-}
       - MCP_ADAPTER_URL=http://mnemos-mcp:8001
       - PORT=3000
     depends_on:
@@ -85,5 +90,26 @@ services:
       retries: 3
       start_period: 30s
 
+  postgres:
+    image: pgvector/pgvector:pg16
+    profiles:
+      - postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-mnemagent}
+      - POSTGRES_USER=${POSTGRES_USER:-mnemagent}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - mnemos-postgres:/var/lib/postgresql/data
+      - ./mcp-memory-server/src/storage/schema.postgres.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mnemagent} -d ${POSTGRES_DB:-mnemagent}"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
 volumes:
   mnemos-data:
+  mnemos-postgres:

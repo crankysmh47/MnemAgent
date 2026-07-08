@@ -177,3 +177,38 @@ And is instructed to output new persistent facts inside `<memory_update>` tags w
 | `/api/events/{uid}` | GET | Lifecycle event stream |
 | `/api/metrics/{uid}` | GET | Aggregate metrics + UCB timeline |
 | `/api/user/bind` | POST | Channel → user_id binding |
+## Cue-Triggered Prospective Memory
+
+MnemAgent supports a small form of human-like prospective memory: intentions that fire when a cue appears, not after a wall-clock timer expires.
+
+Example:
+
+```text
+When I ask about deployment, remind me to check the OSS snapshot.
+```
+
+The deterministic extractor stores:
+
+```json
+{"entity":"when_asked_about_deployment","relation":"remind","value":"check the OSS snapshot","category":"system_state","conviction":1.0}
+```
+
+During the waking phase, MnemAgent scans the user's current prompt for due cues and injects a separate prospective reminder block:
+
+```text
+[DUE PROSPECTIVE REMINDERS]
+- When the user asks about deployment: remind them to check the OSS snapshot
+```
+
+This avoids timed reminders. OpenClaw does not need to track wall-clock time, there is no scheduler overhead, and the feature still tests a memory capability most agent benchmarks ignore: remembering to do the right thing when the relevant context returns.
+
+## Cloud Multi-User Posture
+
+Local development keeps SQLite because it is cheap and deterministic. Alibaba Cloud deployments can use the bundled Postgres/pgvector schema through the `postgres` compose profile or Alibaba RDS.
+
+Security controls for cloud mode:
+
+- optional `MNEMAGENT_API_TOKEN` bearer auth on chat, memory, graph, metrics, and binding endpoints;
+- token forwarding from the OpenClaw MCP server and visualizer harness;
+- Postgres schema with row-level security policies keyed by `mnemagent.user_id`;
+- prompt-injection memory firewall that rejects extracted writes from obvious memory-rule override attempts.

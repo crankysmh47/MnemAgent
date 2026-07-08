@@ -15,6 +15,15 @@ const PORT = process.env.PORT || 3000;
 const MNEMOS_URL = (process.env.MNEMOS_URL || process.env.MCP_SERVER_URL || "http://localhost:8000").replace(/\/$/, "");
 const MCP_ADAPTER_URL = (process.env.MCP_ADAPTER_URL || "http://localhost:8001").replace(/\/$/, "");
 const AUTO_SEED_DEMO = process.env.AUTO_SEED_DEMO !== "false";
+const MNEMAGENT_API_TOKEN = (process.env.MNEMAGENT_API_TOKEN || "").trim();
+
+function mnemosConfig(config = {}) {
+  const headers = { ...(config.headers || {}) };
+  if (MNEMAGENT_API_TOKEN) {
+    headers.Authorization = `Bearer ${MNEMAGENT_API_TOKEN}`;
+  }
+  return { ...config, headers };
+}
 
 function resolveSetupUserId() {
   if (process.env.MNEMOS_DEFAULT_USER_ID) {
@@ -43,7 +52,7 @@ async function resolveCanonicalUserId() {
     const resp = await axios.post(`${MNEMOS_URL}/api/user/bind`, {
       channel: "openclaw",
       sender_id: process.env.OPENCLAW_AGENT_NAME || "main",
-    }, { timeout: 5000 });
+    }, mnemosConfig({ timeout: 5000 }));
     if (resp.data?.user_id) {
       return resp.data.user_id;
     }
@@ -97,7 +106,7 @@ app.get("/health", async (_req, res) => {
     status.mcp_adapter_error = err.message;
   }
   try {
-    const graph = await axios.get(`${MNEMOS_URL}/api/graph/${encodeURIComponent(DEMO_USER_ID)}`, { timeout: 5000 });
+    const graph = await axios.get(`${MNEMOS_URL}/api/graph/${encodeURIComponent(DEMO_USER_ID)}`, mnemosConfig({ timeout: 5000 }));
     status.demo_brain = {
       beliefs: graph.data?.beliefs?.length ?? 0,
       edges: graph.data?.edges?.length ?? 0,
@@ -137,7 +146,7 @@ app.post("/chat", async (req, res) => {
     const resp = await axios.post(
       `${MNEMOS_URL}/chat`,
       { user_id, session_id, message },
-      { timeout: 120000 }
+      mnemosConfig({ timeout: 120000 })
     );
     res.json(resp.data);
   } catch (err) {
@@ -152,7 +161,7 @@ app.post("/chat", async (req, res) => {
 // ── Memory store proxy (eval + visualizer seeding) ──
 app.post("/api/memory/store", async (req, res) => {
   try {
-    const resp = await axios.post(`${MNEMOS_URL}/api/memory/store`, req.body, { timeout: 120000 });
+    const resp = await axios.post(`${MNEMOS_URL}/api/memory/store`, req.body, mnemosConfig({ timeout: 120000 }));
     res.json(resp.data);
   } catch (err) {
     res.status(err.response?.status || 503).json({ error: err.message, detail: err.response?.data });
@@ -161,7 +170,7 @@ app.post("/api/memory/store", async (req, res) => {
 
 app.post("/api/memory/store/batch", async (req, res) => {
   try {
-    const resp = await axios.post(`${MNEMOS_URL}/api/memory/store/batch`, req.body, { timeout: 120000 });
+    const resp = await axios.post(`${MNEMOS_URL}/api/memory/store/batch`, req.body, mnemosConfig({ timeout: 120000 }));
     res.json(resp.data);
   } catch (err) {
     res.status(err.response?.status || 503).json({ error: err.message, detail: err.response?.data });
@@ -172,7 +181,7 @@ app.post("/api/memory/store/batch", async (req, res) => {
 app.post("/api/demo/seed", async (req, res) => {
   try {
     const force = Boolean(req.body?.force);
-    const result = await seedDemoBrain(axios, MNEMOS_URL, { force });
+    const result = await seedDemoBrain(axios, MNEMOS_URL, { force, requestConfig: mnemosConfig() });
     res.json(result);
   } catch (err) {
     res.status(err.response?.status || 503).json({ error: err.message, detail: err.response?.data });
@@ -181,7 +190,7 @@ app.post("/api/demo/seed", async (req, res) => {
 
 app.get("/api/demo/status", async (_req, res) => {
   try {
-    const graph = await axios.get(`${MNEMOS_URL}/api/graph/${encodeURIComponent(DEMO_USER_ID)}`, { timeout: 30000 });
+    const graph = await axios.get(`${MNEMOS_URL}/api/graph/${encodeURIComponent(DEMO_USER_ID)}`, mnemosConfig({ timeout: 30000 }));
     res.json({
       user_id: DEMO_USER_ID,
       beliefs: graph.data?.beliefs?.length ?? 0,
@@ -199,7 +208,7 @@ for (const route of ["graph", "events", "metrics"]) {
     try {
       const suffix = route === "events" ? `?${new URLSearchParams(req.query)}` : "";
       const url = `${MNEMOS_URL}/api/${route}/${encodeURIComponent(req.params.uid)}${suffix}`;
-      const resp = await axios.get(url, { timeout: 30000 });
+      const resp = await axios.get(url, mnemosConfig({ timeout: 30000 }));
       res.json(resp.data);
     } catch (err) {
       res.status(503).json({ error: err.message });
@@ -230,7 +239,7 @@ async function ensureDemoBrain(retries = 12) {
   for (let i = 0; i < retries; i += 1) {
     try {
       await axios.get(`${MNEMOS_URL}/health`, { timeout: 5000 });
-      const result = await seedDemoBrain(axios, MNEMOS_URL);
+      const result = await seedDemoBrain(axios, MNEMOS_URL, { requestConfig: mnemosConfig() });
       if (result.seeded) {
         console.log(`Demo brain seeded: ${result.beliefs} beliefs, ${result.edges} edges (${DEMO_USER_ID})`);
       } else {
