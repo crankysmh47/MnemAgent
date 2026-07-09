@@ -506,8 +506,8 @@ function brainPath(cx, cy, scale) {
     C ${cx + 145*s} ${cy - 40*s}, ${cx + 120*s} ${cy - 110*s}, ${cx} ${cy - 95*s} Z`;
 }
 
-/** Left rail width — brain is centered in the remaining viewport. */
-const GRAPH_RAIL_W = 210;
+/** The observatory stage uses the full viewport; panels float visually instead. */
+const GRAPH_RAIL_W = 0;
 
 function graphLayout(width, height) {
   const railW = GRAPH_RAIL_W;
@@ -1046,7 +1046,8 @@ function renderGraph(data) {
 
   const legendW = 214;
   const legendH = 128;
-  const legend = root.append('g').attr('class', 'graph-legend').attr('transform', `translate(${railW + 18}, ${height - legendH - 14})`);
+  const legendX = Math.max(18, width - legendW - 34);
+  const legend = root.append('g').attr('class', 'graph-legend').attr('transform', `translate(${legendX}, ${height - legendH - 18})`);
   legend.append('rect')
     .attr('x', -10).attr('y', -12)
     .attr('width', legendW).attr('height', legendH)
