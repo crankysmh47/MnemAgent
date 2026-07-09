@@ -1304,6 +1304,41 @@ button.secondary:hover {
   border-color: rgba(255, 218, 150, 0.52);
 }
 
+.github-link {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: rgba(247, 232, 204, 0.88);
+  background:
+    radial-gradient(circle at 38% 20%, rgba(255, 238, 204, 0.18), transparent 42%),
+    rgba(245, 239, 229, 0.10);
+  border: 1px solid rgba(246, 205, 126, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 28px rgba(0, 0, 0, 0.22);
+  text-decoration: none;
+  transition: transform 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.github-link svg {
+  width: 20px;
+  height: 20px;
+}
+
+.github-link:hover,
+.github-link:focus-visible {
+  color: #FFEAA8;
+  border-color: rgba(255, 218, 150, 0.56);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 14px 34px rgba(0, 0, 0, 0.26),
+    0 0 22px rgba(246, 189, 47, 0.16);
+  transform: translateY(-1px);
+}
+
 .filter-chip {
   background: rgba(245, 239, 229, 0.10);
   color: rgba(247, 232, 204, 0.82);
