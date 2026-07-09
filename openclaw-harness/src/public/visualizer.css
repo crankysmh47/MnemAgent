@@ -1177,3 +1177,393 @@ canvas { max-width: 100%; border-radius: var(--squircle-sm); }
   header { display: flex; flex-direction: column; align-items: flex-start; }
   .header-controls { justify-content: flex-start; justify-self: auto; }
 }
+
+/* Observatory rewrite: quiet black, antique gold, silver instrumentation */
+.observatory-shell {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 42% 28% at 50% 16%, rgba(219, 164, 67, 0.18), transparent 72%),
+    radial-gradient(ellipse 30% 22% at 82% 18%, rgba(218, 226, 238, 0.08), transparent 70%),
+    radial-gradient(ellipse 36% 28% at 16% 84%, rgba(177, 103, 75, 0.14), transparent 68%),
+    linear-gradient(180deg, #040507 0%, #0D0E13 52%, #050608 100%);
+}
+
+.ambient-grain {
+  position: absolute;
+  inset: -40%;
+  opacity: 0.18;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.018) 0 1px, transparent 1px 5px);
+  animation: grain-drift 18s linear infinite;
+}
+
+.orbital-ring {
+  position: absolute;
+  border: 1px solid rgba(224, 178, 91, 0.16);
+  border-radius: 50%;
+  filter: blur(0.2px);
+  transform-origin: center;
+}
+
+.ring-one {
+  width: 72vw;
+  height: 72vw;
+  left: 14vw;
+  top: -28vw;
+  animation: slow-orbit 38s linear infinite;
+}
+
+.ring-two {
+  width: 58vw;
+  height: 58vw;
+  right: -19vw;
+  bottom: -20vw;
+  border-color: rgba(220, 226, 234, 0.10);
+  animation: slow-orbit 52s linear infinite reverse;
+}
+
+@keyframes slow-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes grain-drift {
+  to { transform: translate3d(3%, 2%, 0); }
+}
+
+body {
+  background: transparent;
+}
+
+header {
+  margin: 14px 18px 10px;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(12, 13, 18, 0.92), rgba(26, 22, 19, 0.88)),
+    radial-gradient(ellipse at 18% 0%, rgba(255, 210, 118, 0.18), transparent 42%);
+  border: 1px solid rgba(236, 194, 112, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 238, 204, 0.12),
+    0 26px 80px rgba(0, 0, 0, 0.42);
+}
+
+.brand {
+  color: #F7E8CC;
+}
+
+.brand-sub {
+  color: rgba(220, 226, 234, 0.72);
+}
+
+.brand-mark {
+  border-radius: 12px;
+  border-color: rgba(255, 218, 150, 0.56);
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.36),
+    0 0 22px rgba(246, 189, 47, 0.12),
+    inset 0 1px 0 rgba(255, 242, 210, 0.28);
+}
+
+.live-indicator {
+  background: linear-gradient(180deg, rgba(246, 189, 47, 0.13), rgba(246, 189, 47, 0.06));
+  border-color: rgba(246, 205, 126, 0.34);
+  color: #F7E8CC;
+}
+
+header label {
+  color: rgba(220, 226, 234, 0.72);
+}
+
+input,
+select {
+  background: rgba(245, 239, 229, 0.94);
+  border-color: rgba(246, 205, 126, 0.22);
+  color: #1B1713;
+}
+
+button {
+  background:
+    linear-gradient(180deg, #FFE6A3 0%, #D99B27 50%, #8D5A13 100%);
+  color: #1B1307;
+  border-color: rgba(255, 232, 176, 0.18);
+}
+
+button.secondary {
+  background: rgba(245, 239, 229, 0.10);
+  color: rgba(247, 232, 204, 0.86);
+  border-color: rgba(246, 205, 126, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+button.secondary:hover {
+  color: #FFEAA8;
+  border-color: rgba(255, 218, 150, 0.52);
+}
+
+.filter-chip {
+  background: rgba(245, 239, 229, 0.10);
+  color: rgba(247, 232, 204, 0.82);
+  border-color: rgba(246, 205, 126, 0.22);
+}
+
+.filter-chip.active {
+  box-shadow: 0 0 0 1px rgba(255, 218, 150, 0.18), 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.panels-row {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 18px 12px;
+}
+
+.graph-panel {
+  min-height: 0;
+  height: 100%;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(13, 15, 20, 0.96), rgba(5, 6, 9, 0.96));
+  border: 1px solid rgba(246, 205, 126, 0.30);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 238, 204, 0.10),
+    0 34px 110px rgba(0, 0, 0, 0.58);
+}
+
+.graph-panel::before {
+  background:
+    linear-gradient(90deg, rgba(255, 212, 112, 0.56), transparent 18% 82%, rgba(220, 226, 234, 0.24)),
+    linear-gradient(180deg, rgba(255, 246, 212, 0.10), transparent 18%);
+}
+
+.graph-panel > .panel-header {
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0));
+}
+
+.panel-header {
+  color: rgba(247, 232, 204, 0.74);
+}
+
+.panel-title-accent {
+  color: #F6BD2F;
+}
+
+.node-detail-hint {
+  color: rgba(220, 226, 234, 0.58);
+}
+
+.graph-viewport {
+  min-height: 520px;
+  background:
+    radial-gradient(ellipse 30% 23% at 55% 45%, rgba(255, 204, 91, 0.18), transparent 72%),
+    radial-gradient(ellipse 58% 50% at 55% 48%, rgba(164, 88, 66, 0.58), rgba(70, 34, 29, 0.25) 48%, transparent 76%),
+    radial-gradient(ellipse 80% 64% at 56% 45%, rgba(221, 226, 238, 0.06), transparent 67%),
+    linear-gradient(145deg, #111116 0%, #07080C 58%, #030405 100%);
+}
+
+.graph-viewport::before {
+  background:
+    linear-gradient(115deg, transparent 0 48%, rgba(255, 222, 150, 0.06) 49%, transparent 51% 100%),
+    repeating-linear-gradient(165deg, rgba(255, 225, 180, 0.026) 0 1px, transparent 1px 13px),
+    repeating-linear-gradient(90deg, rgba(220, 226, 234, 0.016) 0 1px, transparent 1px 24px);
+}
+
+.graph-viewport::after {
+  background:
+    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.40) 100%),
+    linear-gradient(180deg, rgba(255, 225, 150, 0.04), transparent 28%);
+}
+
+.observatory-title {
+  position: absolute;
+  top: 22px;
+  left: 236px;
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: rgba(247, 232, 204, 0.70);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+}
+
+.observatory-title strong {
+  font-size: 1.35rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: rgba(255, 246, 224, 0.92);
+  font-weight: 700;
+}
+
+.field-orbit {
+  position: absolute;
+  left: calc(50% + 76px);
+  top: 50%;
+  width: min(58vw, 680px);
+  aspect-ratio: 1.55;
+  border: 1px solid rgba(246, 205, 126, 0.12);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.field-orbit-a {
+  animation: field-precess 34s linear infinite;
+}
+
+.field-orbit-b {
+  width: min(48vw, 560px);
+  border-color: rgba(220, 226, 234, 0.08);
+  animation: field-precess 46s linear infinite reverse;
+}
+
+.field-orbit-c {
+  width: min(68vw, 780px);
+  opacity: 0.42;
+  border-style: dashed;
+  animation: field-precess 62s linear infinite;
+}
+
+@keyframes field-precess {
+  to { transform: translate(-50%, -50%) rotate(352deg); }
+}
+
+.graph-rail {
+  top: 20px;
+  left: 20px;
+  bottom: 20px;
+  width: 206px;
+  border: 1px solid rgba(246, 205, 126, 0.20);
+  border-radius: 20px;
+  background: rgba(6, 8, 12, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 238, 204, 0.08), 0 22px 60px rgba(0, 0, 0, 0.34);
+}
+
+.rail-card {
+  background: rgba(246, 241, 230, 0.06);
+  border-color: rgba(246, 205, 126, 0.14);
+}
+
+.brain-fill {
+  filter: url(#cortexShadow) drop-shadow(0 0 28px rgba(246, 189, 47, 0.10));
+}
+
+.brain-outline {
+  stroke: rgba(255, 225, 165, 0.70);
+}
+
+.sulcus {
+  stroke: rgba(40, 22, 18, 0.38);
+}
+
+.synapse {
+  stroke: rgba(255, 215, 105, 0.78);
+  filter: drop-shadow(0 0 5px rgba(255, 202, 83, 0.48));
+  animation-duration: 4.8s;
+}
+
+.synapse-concept { stroke: rgba(210, 218, 232, 0.58); }
+.synapse-bridge { stroke: rgba(211, 171, 95, 0.52); }
+.synapse-affinity { stroke: rgba(190, 114, 83, 0.44); }
+
+.memory-particle {
+  opacity: 0.98;
+  filter:
+    drop-shadow(0 0 6px rgba(255, 222, 140, 0.92))
+    drop-shadow(0 0 14px rgba(255, 190, 76, 0.22));
+}
+
+.node .neuron-glow {
+  animation-duration: 5.8s;
+}
+
+.node.node-active .neuron-body {
+  filter:
+    drop-shadow(0 0 12px rgba(255, 213, 99, 0.64))
+    drop-shadow(0 10px 18px rgba(0, 0, 0, 0.34));
+}
+
+.legend-bg {
+  fill: rgba(5, 7, 10, 0.80);
+  stroke: rgba(246, 205, 126, 0.30);
+}
+
+.metrics-panel {
+  position: absolute;
+  right: 34px;
+  top: 86px;
+  width: min(360px, calc(100vw - 80px));
+  max-height: calc(100% - 120px);
+  z-index: 8;
+  padding: 0;
+}
+
+.metrics-panel > * {
+  background:
+    linear-gradient(180deg, rgba(238, 233, 224, 0.92), rgba(190, 181, 168, 0.78));
+  border-color: rgba(246, 205, 126, 0.28);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.38);
+  backdrop-filter: blur(14px);
+}
+
+.stat-card {
+  background:
+    radial-gradient(circle at 50% -8%, rgba(255, 208, 72, 0.30), transparent 45%),
+    linear-gradient(180deg, rgba(255,255,255,0.90), rgba(220,224,232,0.72));
+}
+
+.stat-card .value {
+  color: #7C510F;
+}
+
+.insight-header,
+.mini-legend-row,
+.conf-label,
+.conf-pct,
+.top-title,
+.top-meta {
+  color: #302820;
+}
+
+.event-feed {
+  margin: 0 8px 8px;
+  border-radius: 24px;
+  background: rgba(6, 8, 12, 0.90);
+  border-color: rgba(246, 205, 126, 0.22);
+  box-shadow: 0 -18px 70px rgba(0, 0, 0, 0.36);
+}
+
+.event-feed .panel-header {
+  color: rgba(247, 232, 204, 0.82);
+}
+
+.ev {
+  border-color: rgba(246, 205, 126, 0.10);
+}
+
+.ev-time {
+  color: rgba(220, 226, 234, 0.42);
+}
+
+@media (max-width: 1100px) {
+  .metrics-panel {
+    position: static;
+    width: auto;
+    max-height: none;
+  }
+
+  .panels-row {
+    grid-template-columns: 1fr;
+  }
+
+  .observatory-title {
+    left: 24px;
+    top: auto;
+    bottom: 24px;
+  }
+}

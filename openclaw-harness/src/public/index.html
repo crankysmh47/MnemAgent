@@ -10,11 +10,17 @@
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/visualizer.css?v=20260709-atelier" />
+  <link rel="stylesheet" href="/visualizer.css?v=20260709-observatory" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
+
+<div class="observatory-shell" aria-hidden="true">
+  <div class="orbital-ring ring-one"></div>
+  <div class="orbital-ring ring-two"></div>
+  <div class="ambient-grain"></div>
+</div>
 
 <div class="scale-host" id="scaleHost">
 <header>
@@ -24,12 +30,12 @@
     </div>
     <div>
       <div>MnemAgent</div>
-      <div class="brand-sub">Memory Atlas</div>
+      <div class="brand-sub">Memory Observatory</div>
     </div>
   </div>
 
   <div class="live-indicator" id="liveLabel">
-    <span class="live-dot"></span> Synaptic stream
+    <span class="live-dot"></span> Live memory field
     <span class="build-stamp" title="UI build stamp">· v2026-07-09</span>
   </div>
 
@@ -58,10 +64,17 @@
 <div class="panels-row">
   <div class="graph-panel">
     <div class="panel-header">
-      <span><span class="panel-title-accent">Cortical</span> command map</span>
+      <span><span class="panel-title-accent">Cortical</span> field</span>
       <span id="nodeDetail" class="node-detail-hint">Select a memory node</span>
     </div>
     <div class="graph-viewport" id="graphViewport">
+      <div class="observatory-title" aria-hidden="true">
+        <span>Persistent Memory Atlas</span>
+        <strong>beliefs forming in real time</strong>
+      </div>
+      <div class="field-orbit field-orbit-a" aria-hidden="true"></div>
+      <div class="field-orbit field-orbit-b" aria-hidden="true"></div>
+      <div class="field-orbit field-orbit-c" aria-hidden="true"></div>
       <aside class="graph-rail" id="graphRail" aria-label="Map insights">
         <div class="rail-card">
           <h3 class="rail-title">Focused memory</h3>
@@ -70,7 +83,7 @@
           </div>
         </div>
         <div class="rail-card rail-about">
-          <h3 class="rail-title">About MnemAgent</h3>
+          <h3 class="rail-title">Memory rules</h3>
           <p class="rail-about-lead">Persistent memory for AI agents - beliefs earn their place through conviction, recall utility, and decay.</p>
           <ul class="rail-about-list">
             <li><strong>Nodes</strong> are stored memories: facts, preferences, and persona traits.</li>
@@ -78,7 +91,7 @@
             <li><strong>Synapses</strong> connect semantically related beliefs in the cortex.</li>
             <li><strong>Vividness</strong> fades when memories are unused; strong recalls stay bright.</li>
           </ul>
-          <p class="rail-about-tip">Scroll to zoom · drag to pan · drag a node to pin its layout. Chat with the agent to store new memories.</p>
+          <p class="rail-about-tip">Scroll to zoom · drag to pan · drag a node to pin its layout.</p>
         </div>
       </aside>
       <svg id="graphSvg" role="img" aria-label="Memory belief graph"></svg>
@@ -124,7 +137,7 @@
 
 <div class="event-feed" id="eventFeedPanel">
     <div class="panel-header event-feed-header">
-      <span>Memory stream</span>
+    <span>Memory chronicle</span>
       <div class="event-feed-actions">
         <span class="event-feed-sub">stored · updated · recalled · faded</span>
         <button type="button" id="toggleStreamBtn" class="secondary stream-toggle" aria-expanded="true" aria-controls="eventFeedBody">Collapse</button>
