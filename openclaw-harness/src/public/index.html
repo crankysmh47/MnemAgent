@@ -10,7 +10,7 @@
   <script src="/vendor/d3/d3.min.js"></script>
   <script src="/vendor/chart.js/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/visualizer.css?v=20260708-final" />
+  <link rel="stylesheet" href="/visualizer.css?v=20260709-atelier" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
@@ -30,7 +30,7 @@
 
   <div class="live-indicator" id="liveLabel">
     <span class="live-dot"></span> Synaptic stream
-    <span class="build-stamp" title="UI build stamp">· v2026-07-08</span>
+    <span class="build-stamp" title="UI build stamp">· v2026-07-09</span>
   </div>
 
   <label>User <input id="userId" placeholder="Loading…" /></label>
@@ -58,7 +58,7 @@
 <div class="panels-row">
   <div class="graph-panel">
     <div class="panel-header">
-      <span><span class="panel-title-accent">Cortical</span> belief map</span>
+      <span><span class="panel-title-accent">Cortical</span> command map</span>
       <span id="nodeDetail" class="node-detail-hint">Select a memory node</span>
     </div>
     <div class="graph-viewport" id="graphViewport">
@@ -71,7 +71,7 @@
         </div>
         <div class="rail-card rail-about">
           <h3 class="rail-title">About MnemAgent</h3>
-          <p class="rail-about-lead">Persistent memory for AI agents — beliefs earn their place through conviction, recall utility, and decay.</p>
+          <p class="rail-about-lead">Persistent memory for AI agents - beliefs earn their place through conviction, recall utility, and decay.</p>
           <ul class="rail-about-list">
             <li><strong>Nodes</strong> are stored memories: facts, preferences, and persona traits.</li>
             <li><strong>Colors</strong> show category — persona, system state, or preference.</li>
@@ -206,15 +206,15 @@ function normalizeCategory(raw) {
 }
 
 function nodeFill(w) {
-  if (w >= 0.85) return '#F0C75A';
-  if (w >= 0.65) return '#D4A86A';
-  return '#C4B09A';
+  if (w >= 0.85) return '#FFD137';
+  if (w >= 0.65) return '#D6B47A';
+  return '#9AA3AF';
 }
 
 function nodeStroke(w) {
-  if (w >= 0.85) return '#C9920A';
-  if (w >= 0.65) return '#A87848';
-  return '#9A8878';
+  if (w >= 0.85) return '#8B5B11';
+  if (w >= 0.65) return '#8D7652';
+  return '#5F6976';
 }
 
 function confLevel(beliefOrWeight) {
@@ -627,9 +627,9 @@ function nodeRadius(b, total) {
 
 function categoryHue(cat) {
   const c = normalizeCategory(cat);
-  if (c === 'persona') return { fill: '#F09D8C', stroke: '#A94F42', core: '#FFE0D4', glow: 'rgba(255, 126, 90, 0.42)' };
-  if (c === 'system_state') return { fill: '#9FC7F0', stroke: '#426E9C', core: '#E4F3FF', glow: 'rgba(119, 188, 255, 0.4)' };
-  return { fill: '#FFC400', stroke: '#8E5600', core: '#FFF7C6', glow: 'rgba(255, 199, 0, 0.58)' };
+  if (c === 'persona') return { fill: '#D98272', stroke: '#74382E', core: '#FFE2D8', glow: 'rgba(217, 130, 114, 0.46)' };
+  if (c === 'system_state') return { fill: '#DCE2EA', stroke: '#707C8D', core: '#FFFFFF', glow: 'rgba(220, 226, 234, 0.44)' };
+  return { fill: '#FFD137', stroke: '#8B5B11', core: '#FFF6C7', glow: 'rgba(255, 209, 55, 0.64)' };
 }
 
 function deriveLinks(nodes) {
@@ -830,10 +830,10 @@ function renderGraph(data) {
   const particleLayer = graphG.append('g').attr('class', 'particle-layer');
   const particles = links.slice(0, Math.min(links.length, 96)).flatMap((link, li) => {
     const kindSpeed = {
-      cluster: 0.000105,
-      concept: 0.000085,
-      bridge: 0.000095,
-      affinity: 0.000075,
+      cluster: 0.000145,
+      concept: 0.00012,
+      bridge: 0.000132,
+      affinity: 0.000105,
     };
     const speed = kindSpeed[link.kind || 'cluster'] || 0.00009;
     const primary = {
@@ -859,7 +859,7 @@ function renderGraph(data) {
     .data(particles, d => d.id)
     .join('circle')
     .attr('class', 'memory-particle')
-    .attr('r', d => 1.8 + Math.min(1.8, d.link.weight * 2));
+    .attr('r', d => 2.25 + Math.min(2.1, d.link.weight * 2.2));
 
   const nodeLayer = graphG.append('g').attr('class', 'node-layer');
   const nodeG = nodeLayer.selectAll('g.node')
@@ -895,7 +895,7 @@ function renderGraph(data) {
         .attr('cy', p.y)
         .attr('fill', hue.core)
         .attr('stroke', hue.stroke)
-        .attr('stroke-width', 0.5);
+        .attr('stroke-width', 0.65);
     });
   }
 
@@ -1035,9 +1035,9 @@ function renderGraph(data) {
     .attr('rx', 14)
     .attr('class', 'legend-bg');
   [
-    { label: 'Persona', color: '#F09D8C', stroke: '#A94F42' },
-    { label: 'System', color: '#9FC7F0', stroke: '#426E9C' },
-    { label: 'Preference', color: '#FFC400', stroke: '#8E5600' },
+    { label: 'Persona', color: '#D98272', stroke: '#74382E' },
+    { label: 'System', color: '#DCE2EA', stroke: '#707C8D' },
+    { label: 'Preference', color: '#FFD137', stroke: '#8B5B11' },
   ].forEach((item, i) => {
     const g = legend.append('g').attr('transform', `translate(0, ${i * 34})`);
     g.append('circle').attr('r', 9).attr('cx', 10).attr('cy', 10).attr('fill', item.color).attr('stroke', item.stroke).attr('stroke-width', 2.2);
@@ -1077,9 +1077,9 @@ function renderMetrics(m, graph) {
 
   const catLegend = document.getElementById('catLegend');
   const catItems = [
-    { key: 'preference', label: 'Preferences', color: '#FFC400' },
-    { key: 'persona', label: 'Persona', color: '#F09D8C' },
-    { key: 'system_state', label: 'System', color: '#9FC7F0' },
+    { key: 'preference', label: 'Preferences', color: '#FFD137' },
+    { key: 'persona', label: 'Persona', color: '#D98272' },
+    { key: 'system_state', label: 'System', color: '#DCE2EA' },
   ].filter(item => summary.cats[item.key] > 0);
   catLegend.innerHTML = catItems.map(item =>
     `<div class="mini-legend-row"><span class="swatch" style="background:${item.color}"></span>${item.label} <strong>${summary.cats[item.key]}</strong></div>`
@@ -1117,9 +1117,9 @@ function renderMetrics(m, graph) {
   const confTotal = summary.conf.high + summary.conf.mid + summary.conf.low || 1;
   const confBars = document.getElementById('confBars');
   confBars.innerHTML = [
-    { key: 'high', label: 'Vivid', color: '#FFC400', count: summary.conf.high },
-    { key: 'mid', label: 'Stable', color: '#D78A5E', count: summary.conf.mid },
-    { key: 'low', label: 'Fading', color: '#A88972', count: summary.conf.low },
+    { key: 'high', label: 'Vivid', color: '#FFD137', count: summary.conf.high },
+    { key: 'mid', label: 'Stable', color: '#D6B47A', count: summary.conf.mid },
+    { key: 'low', label: 'Fading', color: '#9AA3AF', count: summary.conf.low },
   ].map(item => {
     const pct = Math.round((item.count / confTotal) * 100);
     return `<div class="conf-row" title="${item.count} memories">
@@ -1218,7 +1218,7 @@ function prependEvents(events) {
 
 function setLiveStatus(mode, detail) {
   const label = document.getElementById('liveLabel');
-  const stamp = '<span class="build-stamp" title="UI build stamp">· v2026-07-08</span>';
+  const stamp = '<span class="build-stamp" title="UI build stamp">· v2026-07-09</span>';
   if (mode === 'ok') {
     label.innerHTML = `<span class="live-dot"></span> Synaptic stream ${stamp}`;
   } else if (mode === 'paused') {

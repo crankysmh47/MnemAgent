@@ -25,6 +25,24 @@ a no-memory baseline server on July 8, 2026.
 The strongest wins were cross-session recall, overload resistance, dormant
 retrieval, user continuity, poison resistance, learning, and prospective memory.
 
+## Latest live DeepSeek v4-flash smoke run
+
+This run was executed live on July 9, 2026 against the Postgres/pgvector
+MnemAgent runtime and a no-memory baseline server, both using the same
+OpenAI-compatible DeepSeek model configuration: `deepseek-v4-flash`.
+
+| Metric | MnemAgent | Baseline | Delta |
+| --- | ---: | ---: | ---: |
+| Average probe score | 66.7% | 27.6% | +39.1% |
+| Average composite | 0.622 | 0.414 | +0.208 |
+| Pass rate | 76.9% | 46.2% | +30.7% |
+| Scenarios improved | 8 / 13 | - | - |
+
+This is a clear win for the memory layer: changing the model did not erase the
+advantage. The memory-enabled agent retained a large margin over the stateless
+baseline on the same live model, which supports the core claim that the
+architecture is doing useful work beyond raw model capability.
+
 ## Best historical full-suite result
 
 The strongest full-suite MnemBench run remains the June 14 comparison:

@@ -280,7 +280,8 @@ Headline local result from the current docs:
 | Suite | MnemAgent | Baseline | Notes |
 |-------|--------|----------|-------|
 | Live agentic benchmark | 86.5% | 64.6% | Cross-session and project-continuity advantage |
-| MnemBench v2 smoke, Postgres runtime | 66.7% | 23.7% | +43.0 points across 13 long-running memory scenarios |
+| MnemBench v2 smoke, Qwen/Postgres runtime | 66.7% | 23.7% | +43.0 points across 13 long-running memory scenarios |
+| MnemBench v2 smoke, DeepSeek v4-flash/Postgres runtime | 66.7% | 27.6% | +39.1 points on the same 13-scenario smoke suite |
 | Dry-run architectural ceiling | 100% | 29% | Confirms deterministic memory logic when extraction is ideal |
 
 Run checks:
