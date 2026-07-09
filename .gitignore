@@ -53,8 +53,9 @@ planning/
 scratch/
 notes/
 docs/superpowers/
+docs/private/
 docs/**/*.tmp
 docs/**/*.bak
 *.docx
-MnemOS_Hackathon_Report.docx
+Mnem*_Hackathon_Report.docx
 DEPENDENCY_NOTES.md
