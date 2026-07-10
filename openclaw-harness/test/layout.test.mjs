@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeArchiveLayout, relationshipPath } from '../src/public/scripts/layout.js';
+import { createTreeSkeleton, cubicPoint, curvePath } from '../src/public/scripts/tree-geometry.js';
 
 const memories = Array.from({ length: 6 }, (_, i) => ({ id: `m${i}`, category: ['preference','persona','system_state'][i % 3], vitality: 0.4 + i / 10, confidence: 0.5 }));
 const relationships = [{ source: 'm0', target: 'm1' }, { source: 'm2', target: 'm3' }];
@@ -53,4 +54,18 @@ test('crowded layouts keep every memory form fully inside the archive stage', ()
     assert.ok(node.y - node.radius >= layout.bounds.marginY, `${node.id} escaped top`);
     assert.ok(node.y + node.radius <= layout.bounds.height - layout.bounds.marginY, `${node.id} escaped bottom`);
   }
+});
+
+test('tree skeleton is rooted and branches upward into three category families', () => {
+  const tree = createTreeSkeleton({ width: 1000, height: 720 });
+  assert.ok(tree.root.y > tree.crown.y);
+  assert.deepEqual([...new Set(tree.branches.map(branch => branch.category))].sort(), ['persona','preference','system_state']);
+  assert.ok(tree.branches.every(branch => branch.end.y < tree.root.y));
+  assert.ok(tree.branches.every(branch => /^M[-+\d.e, ]+ C[-+\d.e, ]+$/.test(curvePath(branch))));
+});
+
+test('cubic interpolation keeps branch endpoints exact', () => {
+  const curve = { start:{x:0,y:10}, control1:{x:3,y:5}, control2:{x:7,y:2}, end:{x:10,y:0} };
+  assert.deepEqual(cubicPoint(curve, 0), curve.start);
+  assert.deepEqual(cubicPoint(curve, 1), curve.end);
 });
