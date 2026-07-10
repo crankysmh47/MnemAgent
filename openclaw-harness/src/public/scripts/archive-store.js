@@ -24,6 +24,7 @@ export function archiveReducer(state = createInitialState(), action = {}) {
     case "SET_MOTION": return { ...current, motion: Boolean(action.motion) };
     case "OPENING_FINISHED": return { ...current, openingComplete: true };
     case "EVENTS_RECEIVED": return { ...current, events: Array.isArray(action.events) ? action.events : current.events };
+    case "NARRATIVE_RECEIVED": return { ...current, narrative: action.narrative || null };
     case "SET_DOCUMENT_VISIBLE": return { ...current, documentVisible: Boolean(action.visible) };
     default: return current;
   }
