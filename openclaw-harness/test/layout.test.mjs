@@ -35,3 +35,11 @@ test('missing IDs derive permutation-stable identities', () => {
   assert.deepEqual(computeArchiveLayout(m, [], {}).nodes, computeArchiveLayout([...m].reverse(), [], {}).nodes);
 });
 test('relationshipPath returns cubic path', () => assert.match(relationshipPath({x:0,y:0},{x:10,y:5}), /^M0,0 C/));
+
+test('layout paths preserve relationship styling metadata', () => {
+  const layout = computeArchiveLayout(
+    [{ id: 'a', category: 'preference', vitality: 0.9 }, { id: 'b', category: 'persona', vitality: 0.8 }],
+    [{ id: 'edge-1', source: 'a', target: 'b', kind: 'bridge', weight: 0.7 }],
+  );
+  assert.deepEqual(layout.paths[0], { ...layout.paths[0], kind: 'bridge', weight: 0.7 });
+});
