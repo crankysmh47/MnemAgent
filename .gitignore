@@ -27,6 +27,9 @@ htmlcov/
 # Node
 node_modules/
 
+# Local git worktrees
+.worktrees/
+
 # Eval outputs
 eval/results/
 

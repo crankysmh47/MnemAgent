@@ -65,7 +65,10 @@ app.use((req, res, next) => {
     (req.path === "/" ||
       req.path === "/visualizer" ||
       req.path.endsWith(".html") ||
-      req.path.endsWith(".css"))
+      req.path.endsWith(".css") ||
+      req.path.endsWith(".js") ||
+      req.path.endsWith(".svg") ||
+      req.path.endsWith(".png"))
   ) {
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.set("Pragma", "no-cache");
@@ -77,10 +80,6 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, "public"), { etag: false, lastModified: false }));
 // Bundled viz deps (avoid CDN failures → "Offline" in browser)
 app.use("/vendor/d3", express.static(path.join(__dirname, "../node_modules/d3/dist")));
-app.use(
-  "/vendor/chart.js",
-  express.static(path.join(__dirname, "../node_modules/chart.js/dist"))
-);
 
 // ── Health check ──
 app.get("/health", async (_req, res) => {

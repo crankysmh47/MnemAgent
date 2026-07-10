@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="sample-leaf" viewBox="0 0 20 20"><title>Leaf</title><path d="M2 18C3 8 10 3 18 2c-1 8-6 15-16 16z"/></symbol>
+    <symbol id="sample-pearl" viewBox="0 0 20 20"><title>Pearl</title><circle cx="10" cy="10" r="7"/></symbol>
+    <symbol id="sample-mineral" viewBox="0 0 20 20"><title>Mineral</title><path d="m10 2 7 8-7 8-7-8z"/></symbol>
+    <symbol id="sample-scar" viewBox="0 0 20 20"><title>Scar</title><path d="M3 3l14 14M17 3 3 17"/></symbol>
+    <symbol id="sample-husk" viewBox="0 0 20 20"><title>Husk</title><path d="M4 17V5c4-3 8-3 12 0v12"/></symbol>
+  </defs>
+</svg>

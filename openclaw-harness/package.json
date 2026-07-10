@@ -5,15 +5,20 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/*.test.mjs",
+    "test:visualizer": "node scripts/check-visualizer.mjs",
+    "test:all": "npm test && npm run test:visualizer"
   },
   "dependencies": {
     "axios": "^1.7.2",
-    "chart.js": "^4.5.1",
     "cors": "^2.8.5",
     "d3": "^7.9.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.53.2"
   }
 }
