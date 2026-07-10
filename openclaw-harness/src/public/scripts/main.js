@@ -48,6 +48,7 @@ export async function bootstrapArchive() {
   let lastStructure = '';
   let seenIds = new Set();
   let abortController = null;
+  store.subscribe(() => renderState());
 
   function renderState() {
     const state = store.getState();
@@ -71,7 +72,8 @@ export async function bootstrapArchive() {
       const snapshot = { ...raw, graph, status: statusFromSnapshot(raw) };
       store.dispatch({ type: graph ? 'SNAPSHOT_RECEIVED' : 'SNAPSHOT_FAILED', snapshot, failures: raw.failures });
       if (graph) {
-        const events = (raw.events || []).map(normalizeEvent);
+        const eventsPayload = Array.isArray(raw.events) ? raw.events : raw.events?.events;
+        const events = (eventsPayload || []).map(normalizeEvent);
         const decision = selectNarrative(events, seenIds); seenIds = decision.seenIds;
         store.dispatch({ type: 'EVENTS_RECEIVED', events });
         store.dispatch({ type: 'SNAPSHOT_RECEIVED', snapshot: { ...snapshot, graph, events, status: snapshot.status } });
@@ -82,7 +84,7 @@ export async function bootstrapArchive() {
         if (snapshot.status === 'ready') ambient.start();
       } else renderState();
     } catch (error) {
-      if (error.name !== 'AbortError') { store.dispatch({ type: 'SNAPSHOT_FAILED', error: error.message }); renderState(); }
+      if (error.name !== 'AbortError') { console.error('Archive refresh failed:', error); store.dispatch({ type: 'SNAPSHOT_FAILED', error: error.message }); renderState(); }
     }
     return store.getState();
   }

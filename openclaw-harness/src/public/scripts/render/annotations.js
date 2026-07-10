@@ -1,6 +1,6 @@
 const recallTypes = new Set(['injected', 'influenced']);
 
-const eventType = event => event?.eventType || event?.event_type || '';
+const eventType = event => event?.eventType || event?.event_type || event?.type || '';
 
 export function deriveVitalSigns(state = {}) {
   const memories = Array.isArray(state.memories) ? state.memories.filter(memory => memory.visible !== false).length : 0;

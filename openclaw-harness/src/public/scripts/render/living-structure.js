@@ -38,7 +38,7 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
       enter => {
         const group = enter.append('g').attr('class', d => shapeClass(d.shape));
         group.append('path').attr('class', 'memory-body');
-        group.append('circle').attr('class', 'memory-focus-ring').attr('r', d => d.radius + 5);
+        group.append('circle').attr('class', 'memory-focus-ring').attr('r', d => (nodeById.get(String(d.id))?.radius || 10) + 5);
         return group;
       },
       update => update,
@@ -61,6 +61,7 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
       .attr('stroke-width', d => d.lifecycle === 'fading' ? 0.8 : 1.4)
       .attr('opacity', d => d.lifecycle === 'dormant' ? 0.38 : 0.95);
     memoryLayer.selectAll('g.memory-form').select('circle.memory-focus-ring')
+      .attr('r', d => (nodeById.get(String(d.id))?.radius || 10) + 5)
       .attr('fill', 'none').attr('stroke', 'var(--bone-white)').attr('opacity', 0);
     world.select('g.skeleton').selectAll('*').remove();
     world.select('g.skeleton').append('path').attr('class', 'root-crown').attr('d', 'M430,620 C390,570 350,520 330,450 M430,620 C430,550 430,480 430,390 M430,620 C470,565 520,520 575,455').attr('fill', 'none').attr('stroke', 'var(--antique-brass)').attr('stroke-width', 2);
