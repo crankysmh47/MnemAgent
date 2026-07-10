@@ -30,7 +30,17 @@ export function computeArchiveLayout(memories = [], relationships = [], { width 
     const x = root.x + Math.cos(angle) * radius * sx, y = root.y + Math.sin(angle) * radius * sy;
     return { id, category, grove: category, x: Math.max(marginX, Math.min(width-marginX, x)), y: Math.max(marginY, Math.min(height-marginY, y)), vitality, radius: 14 + vitality * 10, collapsed: collapsedSet.has(id) };
   });
-  for (let it=0; it<32; it++) for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) { const a=nodes[i],b=nodes[j], dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,min=a.radius+b.radius+5; if(d<min){const q=(min-d)/d*.5; a.x=Math.max(marginX, a.x-dx*q); a.y=Math.max(marginY,a.y-dy*q); b.x=Math.min(width-marginX,b.x+dx*q); b.y=Math.min(height-marginY,b.y+dy*q);} }
+  const clampNode = node => {
+    node.x = Math.max(marginX + node.radius, Math.min(width - marginX - node.radius, node.x));
+    node.y = Math.max(marginY + node.radius, Math.min(height - marginY - node.radius, node.y));
+  };
+  nodes.forEach(clampNode);
+  for (let it=0; it<32; it++) {
+    for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) {
+      const a=nodes[i],b=nodes[j], dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,min=a.radius+b.radius+5;
+      if(d<min){ const q=(min-d)/d*.5; a.x-=dx*q; a.y-=dy*q; b.x+=dx*q; b.y+=dy*q; clampNode(a); clampNode(b); }
+    }
+  }
   const byId = new Map(nodes.map(n => [n.id,n]));
   const paths = (Array.isArray(relationships)?relationships:[]).slice().sort((a,b) => `${a.source}:${a.target}`.localeCompare(`${b.source}:${b.target}`)).map((r,i) => { const s=byId.get(String(r.source)), t=byId.get(String(r.target)); return s&&t ? { id: `${s.id}-${t.id}-${i}`, source:s.id, target:t.id, kind:r.kind, weight:r.weight, d:relationshipPath(s,t) } : null; }).filter(Boolean);
   const groves = Object.keys(ANGLES).map(category => { const members=nodes.filter(n=>n.category===category), hidden=members.filter(n=>n.collapsed), all=members.map(n=>n.id); const centroid = hidden.length ? { x:hidden.reduce((s,n)=>s+n.x,0)/hidden.length, y:hidden.reduce((s,n)=>s+n.y,0)/hidden.length } : null; return { category, members: members.filter(n=>!n.collapsed).map(n=>n.id), collapsed: hidden.length > 0, count: members.length, aggregate: hidden.length ? { centroid, representative: hidden[0].id, memberIds: hidden.map(n=>n.id), count: hidden.length } : null }; });

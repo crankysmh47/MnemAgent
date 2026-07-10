@@ -42,6 +42,8 @@ test("normalizes raw beliefs into shaped visual memories", () => {
   assert.equal(preference.confidence, 0.96);
   assert.equal(preference.vitality, 0.94);
   assert.equal(preference.injectionCount, 7);
+  assert.equal(preference.statement, "interface prefers quiet motion.");
+  assert.equal(preference.influenceCount, 4);
   assert.equal(persona.shape, "pearl");
   assert.equal(systemState.shape, "mineral");
 });

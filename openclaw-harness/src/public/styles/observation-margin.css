@@ -6,3 +6,18 @@
 #vitalSigns { display: grid; grid-template-columns: 1fr auto; gap: .35rem .75rem; margin: 0; border-top: 1px solid color-mix(in srgb, var(--bone-white) 20%, transparent); padding-top: .9rem; }
 #vitalSigns dt { color: var(--weathered-taupe); text-transform: uppercase; font: .65rem var(--font-mono); letter-spacing: .08em; }
 #vitalSigns dd { margin: 0; color: var(--bone-white); font: 1.1rem var(--font-mono); }
+.material-legend-list { display: grid; gap: .65rem; margin: .75rem 0 0; padding: 0; list-style: none; }
+.material-legend-list li { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: .65rem; }
+.material-legend-list strong, .material-legend-list small { display: block; }
+.material-legend-list strong { color: var(--warm-parchment); font-size: .78rem; }
+.material-legend-list small { color: var(--weathered-taupe); font-size: .68rem; line-height: 1.35; }
+.material-mark { width: 18px; height: 18px; border: 1px solid var(--antique-brass); background: var(--living-moss); }
+.material-leaf { border-radius: 100% 0 100% 0; background: var(--living-moss); transform: rotate(-18deg); }
+.material-pearl { border-radius: 50%; background: var(--clay-rose); }
+.material-mineral { clip-path: polygon(50% 0,100% 35%,78% 100%,20% 88%,0 28%); background: var(--mineral-blue); }
+.material-scar { width: 20px; height: 3px; border: 0; background: var(--clay-rose); transform: rotate(-24deg); }
+.material-husk { border-radius: 50% 50% 15% 15%; background: transparent; border-color: var(--weathered-taupe); opacity: .65; }
+.observation-sheet [data-observation-role] { margin-top: 1rem; }
+.observation-sheet [data-observation-role="vitals"] { display: grid; grid-template-columns: 1fr auto; gap: .3rem .75rem; }
+.observation-sheet [data-observation-role="vitals"] dt { color: var(--weathered-taupe); font: .65rem var(--font-mono); text-transform: uppercase; }
+.observation-sheet [data-observation-role="vitals"] dd { margin: 0; }

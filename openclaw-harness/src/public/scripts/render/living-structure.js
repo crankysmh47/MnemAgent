@@ -46,7 +46,11 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
     ).attr('transform', d => {
       const node = nodeById.get(String(d.id));
       return node ? `translate(${node.x},${node.y})` : null;
-    }).attr('class', d => `${shapeClass(d.shape)}${String(d.id) === selectedId ? ' is-selected' : ''}${related.has(String(d.id)) ? ' is-related' : ''}${d.collapsed ? ' is-quiet' : ''}`)
+    }).attr('class', d => {
+      const id = String(d.id);
+      const quiet = Boolean(selectedId) && id !== selectedId && !related.has(id);
+      return `${shapeClass(d.shape)}${id === selectedId ? ' is-selected' : ''}${related.has(id) ? ' is-related' : ''}${quiet ? ' is-quiet' : ''}`;
+    })
       .attr('role', 'button')
       .attr('tabindex', 0)
       .attr('aria-label', d => memoryAriaLabel(d))
@@ -55,7 +59,7 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
       .on('keydown', (event, d) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(d.id); } });
 
     memoryLayer.selectAll('g.memory-form').select('path.memory-body')
-      .attr('d', d => memoryFormPath(d.shape, d.radius))
+      .attr('d', d => memoryFormPath(d.shape, nodeById.get(String(d.id))?.radius))
       .attr('fill', d => CATEGORY_COLOR[d.category] || 'var(--weathered-taupe)')
       .attr('stroke', 'var(--antique-brass)')
       .attr('stroke-width', d => d.lifecycle === 'fading' ? 0.8 : 1.4)

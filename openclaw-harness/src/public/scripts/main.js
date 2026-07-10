@@ -4,7 +4,7 @@ import { normalizeEvent, narrativeCopy, selectNarrative } from './narrative.js';
 import { normalizeGraph } from './memory-model.js';
 import { computeArchiveLayout } from './layout.js';
 import { createLivingStructure } from './render/living-structure.js';
-import { renderCompanionList, renderObservation } from './render/annotations.js';
+import { renderCompanionList, renderMaterialLegend, renderObservation } from './render/annotations.js';
 import { createTimeline } from './render/timeline.js';
 import { createChoreographer, selectMotionEvent } from './motion/choreographer.js';
 import { createAmbientMotion } from './motion/ambient-motion.js';
@@ -29,13 +29,17 @@ export function statusFromSnapshot(snapshot = {}) {
 
 export function shouldSeedDemo(userId, status = {}) { return userId === 'demo-brain' && Number(status.beliefs) < 8; }
 
+export function relatedMemoryIds(memoryId, relationships = []) { const related=new Set(); if(memoryId==null) return related; const id=String(memoryId); for(const edge of relationships){ if(String(edge.source)===id) related.add(String(edge.target)); else if(String(edge.target)===id) related.add(String(edge.source)); } return related; }
+
+export function selectRenderableRelationships(relationships = [], focusedId = null, limit = 96) { const priority={cluster:4,concept:3,bridge:2,affinity:1,related:0}; const sorted=[...relationships].sort((a,b)=>(priority[b.kind]||0)-(priority[a.kind]||0)||(Number(b.weight)||0)-(Number(a.weight)||0)); if(focusedId==null) return sorted.slice(0,limit); const id=String(focusedId); const incident=sorted.filter(edge=>String(edge.source)===id||String(edge.target)===id); const incidentKeys=new Set(incident.map(edge=>`${edge.source}|${edge.target}|${edge.kind}`)); const context=sorted.filter(edge=>!incidentKeys.has(`${edge.source}|${edge.target}|${edge.kind}`)).slice(0,Math.max(18,limit-incident.length)); return [...incident,...context].slice(0,Math.max(limit,incident.length)); }
+
 function viewportSize(svg) { return { width: Math.max(640, svg?.clientWidth || 1000), height: Math.max(500, svg?.clientHeight || 720) }; }
 
 export async function bootstrapArchive() {
   if (typeof document === 'undefined') return null;
   const app = document.querySelector('#archiveApp');
   const svg = document.querySelector('#archiveSvg');
-  const userId = await resolveUserId(location.search, window.localStorage);
+  let currentUserId = await resolveUserId(location.search, window.localStorage);
   const store = createArchiveStore();
   store.dispatch({ type: 'LOAD_STARTED' });
   const renderer = createLivingStructure(svg, { onSelect: id => store.dispatch({ type: 'SELECT_MEMORY', memoryId: id }), onTrace: id => store.dispatch({ type: 'TRACE_MEMORY', memoryId: id }) });
@@ -44,7 +48,7 @@ export async function bootstrapArchive() {
   const ambient = createAmbientMotion(document.querySelector('#archiveStage'), store);
   const navigation = createArchiveNavigation(svg, document.querySelector('#archiveWorld'), store);
   const focus = createMemoryFocus(document.querySelector('#archiveStage'), store);
-  const menu = createArchiveMenu(document.querySelector('#archiveMenu'), store, { onReplayOpening: () => choreographer.playOpening(store.getState().graph.memories[0]?.id), onReset: () => navigation.reset(), onRetry: () => refresh(true), onExport: () => exportState(store.getState()) });
+  const menu = createArchiveMenu(document.querySelector('#archiveMenu'), store, { userId:currentUserId, onUserChange: userId => { if(!userId||userId===currentUserId) return; window.localStorage.setItem('mnemos_user_id',userId); const next=new URL(location.href); next.searchParams.set('user',userId); location.assign(next.toString()); }, onReplayOpening: () => choreographer.playOpening(store.getState().graph.memories[0]?.id), onReset: () => navigation.reset(), onRetry: () => refresh(true), onExport: () => exportState(store.getState()) });
   let lastStructure = '';
   let seenIds = new Set();
   let abortController = null;
@@ -54,30 +58,40 @@ export async function bootstrapArchive() {
     const state = store.getState();
     const size = viewportSize(svg);
     const visible = state.graph.memories.filter(memory => filterMemory(memory, { categories: state.filters.category === 'all' ? [] : [state.filters.category], lifecycles: state.filters.lifecycle === 'all' ? [] : [state.filters.lifecycle] }));
-    const layout = computeArchiveLayout(visible, state.graph.relationships, { ...size, selectedMemoryId: state.selectedMemoryId });
-    renderer.render({ memories: visible }, layout, state);
-    renderObservation(document.querySelector('#observationMargin'), { ...state, memories: visible, relationships: state.graph.relationships }, narrativeCopy(state.narrative || {}, state.graph.memories.find(memory => String(memory.id) === String(state.selectedMemoryId))));
-    renderCompanionList(document.querySelector('#memoryCompanionList'), visible, state.selectedMemoryId);
+    const focusedMemoryId=state.tracedMemoryId??state.selectedMemoryId;
+    const renderRelationships=selectRenderableRelationships(state.graph.relationships,focusedMemoryId,96);
+    const related=[...relatedMemoryIds(focusedMemoryId,state.graph.relationships)];
+    const layout = computeArchiveLayout(visible, renderRelationships, { ...size, selectedMemoryId: focusedMemoryId });
+    renderer.render({ memories: visible }, layout, { ...state, selectedMemoryId:focusedMemoryId, relatedMemoryIds:related });
+    const observationState={ ...state, memories: visible, relationships: renderRelationships };
+    const copy=narrativeCopy(state.narrative || {}, state.graph.memories.find(memory => String(memory.id) === String(focusedMemoryId)));
+    renderObservation(document.querySelector('#observationMargin'), observationState, copy);
+    renderObservation(document.querySelector('#observationSheetContent'), observationState, copy);
+    renderMaterialLegend(document.querySelector('#materialLegend'));
+    renderCompanionList(document.querySelector('#memoryCompanionList'), visible, focusedMemoryId, memoryId=>store.dispatch({type:'SELECT_MEMORY',memoryId}));
     timeline.render(state.events);
     app.dataset.status = state.status;
     document.querySelector('#liveState').textContent = state.status === 'ready' ? 'Archive alive' : state.status;
-    document.querySelector('#archiveStatus').textContent = `${visible.length} memories, ${state.graph.relationships.length} relationships, status ${state.status}`;
+    document.querySelector('#archiveStatus').textContent = `${visible.length} memories, ${renderRelationships.length} active relationships, status ${state.status}`;
   }
 
   async function refresh(structural = false) {
     abortController?.abort(); abortController = new AbortController();
     try {
-      const raw = await loadArchiveSnapshot(userId, { since: store.getState().events.at(-1)?.timestamp, signal: abortController.signal });
+      const latestTimestamp=store.getState().events.map(event=>event.timestamp).filter(Boolean).sort().at(-1);
+      const raw = await loadArchiveSnapshot(currentUserId, { since: latestTimestamp, signal: abortController.signal });
       const graph = raw.graph ? normalizeGraph(raw.graph) : null;
       const snapshot = { ...raw, graph, status: statusFromSnapshot(raw) };
       store.dispatch({ type: graph ? 'SNAPSHOT_RECEIVED' : 'SNAPSHOT_FAILED', snapshot, failures: raw.failures });
       if (graph) {
         const eventsPayload = Array.isArray(raw.events) ? raw.events : raw.events?.events;
-        const events = (eventsPayload || []).map(normalizeEvent);
-        const decision = selectNarrative(events, seenIds); seenIds = decision.seenIds;
+        const incoming = (eventsPayload || []).map(normalizeEvent);
+        const eventMap=new Map([...incoming,...store.getState().events].map(event=>[String(event.id),event]));
+        const events=[...eventMap.values()].sort((a,b)=>String(b.timestamp||'').localeCompare(String(a.timestamp||''))).slice(0,100);
+        const decision = selectNarrative(incoming, seenIds); seenIds = decision.seenIds;
         store.dispatch({ type: 'EVENTS_RECEIVED', events });
         store.dispatch({ type: 'SNAPSHOT_RECEIVED', snapshot: { ...snapshot, graph, events, status: snapshot.status } });
-        store.dispatch({ type: 'NARRATIVE_RECEIVED', narrative: decision });
+        if(decision.featured) store.dispatch({ type: 'NARRATIVE_RECEIVED', narrative: decision });
         renderState();
         if (!store.getState().openingComplete && graph.memories.length) choreographer.playOpening(graph.memories[0].id);
         else if (decision.featured) choreographer.enqueue(decision);
@@ -93,7 +107,7 @@ export async function bootstrapArchive() {
   window.addEventListener('resize', onResize);
   await refresh(true);
   const poll = window.setInterval(() => refresh(false), 15000);
-  return { store, refresh, changeUser: () => refresh(true), destroy() { window.clearInterval(poll); window.removeEventListener('resize', onResize); ambient.destroy(); choreographer.destroy(); renderer.destroy(); timeline.destroy(); navigation.destroy(); focus.destroy(); menu.destroy(); abortController?.abort(); } };
+  return { store, refresh, changeUser: userId => { if(userId) currentUserId=String(userId); return refresh(true); }, destroy() { window.clearInterval(poll); window.removeEventListener('resize', onResize); ambient.destroy(); choreographer.destroy(); renderer.destroy(); timeline.destroy(); navigation.destroy(); focus.destroy(); menu.destroy(); abortController?.abort(); } };
 }
 
 function exportState(state) { const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'mnemagent-living-archive.json'; link.click(); URL.revokeObjectURL(link.href); }

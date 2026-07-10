@@ -43,3 +43,14 @@ test('layout paths preserve relationship styling metadata', () => {
   );
   assert.deepEqual(layout.paths[0], { ...layout.paths[0], kind: 'bridge', weight: 0.7 });
 });
+
+test('crowded layouts keep every memory form fully inside the archive stage', () => {
+  const crowded = Array.from({ length: 62 }, (_, i) => ({ id: `dense-${i}`, category: ['preference','persona','system_state'][i % 3], vitality: 0.45 + (i % 6) / 12 }));
+  const layout = computeArchiveLayout(crowded, [], { width: 943, height: 620 });
+  for (const node of layout.nodes) {
+    assert.ok(node.x - node.radius >= layout.bounds.marginX, `${node.id} escaped left`);
+    assert.ok(node.x + node.radius <= layout.bounds.width - layout.bounds.marginX, `${node.id} escaped right`);
+    assert.ok(node.y - node.radius >= layout.bounds.marginY, `${node.id} escaped top`);
+    assert.ok(node.y + node.radius <= layout.bounds.height - layout.bounds.marginY, `${node.id} escaped bottom`);
+  }
+});

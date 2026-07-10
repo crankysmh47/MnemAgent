@@ -60,17 +60,25 @@ export function normalizeMemory(raw = {}) {
   const confidence = clamp01(record.conviction_score ?? record.node_weight);
   const vitality = clamp01(record.node_weight);
   const injectionCount = nonNegativeNumber(record.injection_count);
+  const influenceCount = nonNegativeNumber(record.influence_count);
+  const source = textValue(record.entity_source ?? record.source);
+  const relation = textValue(record.relation);
+  const target = textValue(record.entity_target ?? record.target);
 
   return {
     id: textValue(record.id),
     category,
     shape: SHAPES_BY_CATEGORY[category],
-    source: textValue(record.entity_source ?? record.source),
-    relation: textValue(record.relation),
-    target: textValue(record.entity_target ?? record.target),
+    source,
+    relation,
+    target,
+    statement: statementFor({ source, relation, target }),
     confidence,
     vitality,
     injectionCount,
+    influenceCount,
+    createdAt: textValue(record.created_at ?? record.createdAt),
+    lastAccessed: textValue(record.last_accessed ?? record.lastAccessed),
     lifecycle: deriveLifecycle({ nodeWeight: vitality, injectionCount }),
   };
 }

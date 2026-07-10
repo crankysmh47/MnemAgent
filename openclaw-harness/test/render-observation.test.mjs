@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveVitalSigns, eventGlyph } from '../src/public/scripts/render/annotations.js';
+import { deriveVitalSigns, eventGlyph, MATERIAL_LEGEND } from '../src/public/scripts/render/annotations.js';
 
 test('vital signs count visible memories, relationships, and recent recall events', () => {
   const signs = deriveVitalSigns({
@@ -17,4 +17,9 @@ test('lifecycle events use material glyphs', () => {
   assert.equal(eventGlyph({ eventType: 'contradiction' }), 'scar');
   assert.equal(eventGlyph({ eventType: 'pruned' }), 'husk');
   assert.equal(eventGlyph({ eventType: 'unknown' }), 'settled');
+});
+
+test('material legend explains every memory form and lifecycle scar', () => {
+  assert.deepEqual(MATERIAL_LEGEND.map(item => item.key), ['leaf', 'pearl', 'mineral', 'scar', 'husk']);
+  assert.ok(MATERIAL_LEGEND.every(item => item.label && item.description));
 });
