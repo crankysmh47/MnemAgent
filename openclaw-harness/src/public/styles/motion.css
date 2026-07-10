@@ -1,0 +1,13 @@
+.archive-stage[data-ambient="breathing"] #archiveWorld { animation: archive-breathe 8s ease-in-out infinite; transform-origin: 43% 58%; }
+.archive-stage .phase-opening-skeleton .skeleton { animation: skeleton-resolve 2s var(--ease-organic) both; }
+.archive-stage .phase-opening-branches .membranes, .archive-stage .phase-opening-root .skeleton { animation: branch-unfurl 3s var(--ease-organic) both; }
+.archive-stage .phase-opening-annotations .annotations { animation: annotation-arrive 2s var(--ease-organic) both; }
+.archive-stage .phase-recall .tendril.is-active { animation: tendril-pulse .9s var(--ease-organic) both; }
+.archive-stage .phase-revision .memory-form.is-selected { animation: revision-graft 1.4s var(--ease-organic) both; }
+@keyframes archive-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
+@keyframes skeleton-resolve { from { opacity: .1; stroke-dashoffset: 80; } to { opacity: .8; stroke-dashoffset: 0; } }
+@keyframes branch-unfurl { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes annotation-arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes tendril-pulse { 0% { stroke-width: 1; opacity: .3; } 45% { stroke-width: 3; opacity: .95; } 100% { stroke-width: 1.5; opacity: .7; } }
+@keyframes revision-graft { 0% { transform: scale(.92); opacity: .4; } 50% { transform: scale(1.16); } 100% { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .archive-stage[data-ambient="breathing"] #archiveWorld, .archive-stage [class*="phase-"], .archive-stage .tendril.is-active, .archive-stage .memory-form.is-selected { animation: none; } }
