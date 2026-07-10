@@ -18,4 +18,20 @@ test('large archives collapse low-priority distant groups', () => {
   assert.ok(layout.groves.some(g => g.collapsed));
   assert.ok(layout.nodes.some(n => n.id === 'm0' && !n.collapsed));
 });
+test('selected and high-vitality memories remain individual and groves aggregate', () => {
+  const many = Array.from({ length: 100 }, (_, i) => ({ id: `m${i}`, category: 'persona', vitality: i === 0 ? 1 : 0.1 }));
+  const layout = computeArchiveLayout(many, [], { width: 1000, height: 720, selectedMemoryId: 'm99' });
+  assert.equal(layout.nodes.find(n => n.id === 'm0').collapsed, false);
+  assert.equal(layout.nodes.find(n => n.id === 'm99').collapsed, false);
+  const grove = layout.groves.find(g => g.category === 'persona');
+  assert.ok(grove.aggregate?.memberIds.length);
+  assert.equal(grove.aggregate.count, grove.aggregate.memberIds.length);
+  assert.equal(grove.aggregate.representative, grove.aggregate.memberIds[0]);
+  assert.ok(grove.members.includes('m0'));
+  assert.ok(grove.members.includes('m99'));
+});
+test('missing IDs derive permutation-stable identities', () => {
+  const m = [{ category:'preference', source:'a', relation:'likes', target:'b' }, { category:'persona', source:'c', relation:'is', target:'d' }];
+  assert.deepEqual(computeArchiveLayout(m, [], {}).nodes, computeArchiveLayout([...m].reverse(), [], {}).nodes);
+});
 test('relationshipPath returns cubic path', () => assert.match(relationshipPath({x:0,y:0},{x:10,y:5}), /^M0,0 C/));
