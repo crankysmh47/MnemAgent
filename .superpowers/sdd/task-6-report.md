@@ -7,3 +7,5 @@ Verification:
 - `npm.cmd test` — 26 passes
 
 No Task 7 rendering or motion code was added.
+
+Review follow-up (2026-07-10): reformatted the HTML, CSS, SVG, and render-contract source into readable multi-line files without changing the contract. Re-ran focused and full suites: 1 focused pass and 26 total passes.
