@@ -79,3 +79,10 @@ test('memories grow along category branches instead of a radial cluster', () => 
   assert.ok(layout.nodes.every(node => node.y < layout.tree.root.y));
   assert.ok(Math.max(...layout.nodes.map(node => node.y)) - Math.min(...layout.nodes.map(node => node.y)) > 260);
 });
+
+test('a dominant category spreads across overlapping canopy limbs', () => {
+  const memories = Array.from({length:48}, (_,i) => ({ id:`system-${i}`, category:'system_state', vitality:.7 }));
+  const layout = computeArchiveLayout(memories, [], {width:1000,height:720});
+  const xs = layout.nodes.map(node => node.x);
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 460);
+});

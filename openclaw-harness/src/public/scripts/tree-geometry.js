@@ -54,6 +54,8 @@ export function createTreeSkeleton({ width = 1000, height = 720 } = {}) {
     ['system_state-1','system_state',[[507,450],[620,400],[750,305],[825,215]],1],
     ['system_state-2','system_state',[[504,370],[590,315],[675,205],[705,112]],2],
     ['system_state-3','system_state',[[501,305],[555,250],[610,155],[600,78]],2],
+    ['system_state-4','system_state',[[500,485],[430,420],[275,355],[145,270]],2],
+    ['system_state-5','system_state',[[501,390],[475,315],[455,190],[465,92]],2],
   ];
   const branches = specs.map(([id, category, values, level]) => curve(id, category, values, sx, sy, level));
   return { root: { ...root, paths: roots }, trunk, branches, crown, bounds: { width: safeWidth, height: safeHeight } };

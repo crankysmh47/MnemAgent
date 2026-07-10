@@ -35,17 +35,27 @@ async function run() {
       title: document.title,
       status: document.querySelector('#archiveApp')?.dataset.status,
       memories: document.querySelectorAll('.memory-form').length,
+      interactions: document.querySelectorAll('.memory-interaction').length,
       tendrils: document.querySelectorAll('.tendril').length,
+      roots: document.querySelectorAll('.root-line').length,
+      branches: document.querySelectorAll('.branch').length,
+      trunks: document.querySelectorAll('.trunk-line').length,
+      firstLabel: document.querySelector('.memory-form')?.getAttribute('aria-label') || '',
       hasOldGraph: Boolean(document.querySelector('.graph-panel, .stat-card, #eventFeed, canvas')),
       hasStage: Boolean(document.querySelector('#archiveSvg')),
     }));
     if (!report.title.includes('Living Archive')) throw new Error('wrong page title');
-    if (!report.memories || !report.tendrils || !report.hasStage || report.hasOldGraph) throw new Error(`semantic surface failed: ${JSON.stringify(report)}`);
+    if (!report.memories || report.interactions !== report.memories || !report.tendrils || report.tendrils > 96 || report.roots < 5 || report.branches < 9 || report.trunks !== 1 || !report.firstLabel || report.firstLabel.includes('Unnamed memory') || !report.hasStage || report.hasOldGraph) throw new Error(`semantic surface failed: ${JSON.stringify(report)}`);
     await page.waitForTimeout(500);
     if (process.env.VISUALIZER_SCREENSHOT) await page.screenshot({ path: process.env.VISUALIZER_SCREENSHOT, fullPage: true });
-    await page.locator('.memory-form').first().click({ force: true });
+    const firstMemory = page.locator('.memory-form').first();
+    const placementBeforeHover = await firstMemory.getAttribute('transform');
+    await firstMemory.hover({ force: true });
+    const placementAfterHover = await firstMemory.getAttribute('transform');
+    if (placementBeforeHover !== placementAfterHover) throw new Error('hover changed the memory placement transform');
+    await firstMemory.click({ force: true });
     if (!(await page.locator('#memoryDetail').textContent()).trim()) throw new Error('memory focus did not update details');
-    await page.locator('.memory-form').first().dblclick({ force: true });
+    await firstMemory.dblclick({ force: true });
     if (!(await page.locator('.memory-form.is-selected').count())) throw new Error('trace/focus did not select memory');
     await page.locator('#archiveMenuButton').click();
     if (!(await page.locator('#archiveMenu').getAttribute('open'))?.includes('')) throw new Error('archive menu did not open');

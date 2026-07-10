@@ -14,6 +14,7 @@
 .archive-stage .tendril-bridge { stroke: var(--clay-rose); stroke-dasharray: 1 6; }
 .archive-stage .tendril.is-active { opacity: .86; }
 .archive-stage .memory-form { cursor: pointer; transition: opacity 180ms var(--ease-organic); }
+.archive-stage .memory-form:focus-visible { outline: none; box-shadow: none; }
 .archive-stage .memory-hit-area { fill: transparent; pointer-events: all; }
 .archive-stage .memory-interaction { transform: rotate(var(--memory-angle, 0deg)); transform-box: fill-box; transform-origin: center; transition: transform 220ms var(--ease-organic), filter 220ms var(--ease-organic); }
 .archive-stage .memory-form:hover .memory-interaction, .archive-stage .memory-form:focus-visible .memory-interaction { transform: rotate(var(--memory-angle, 0deg)) translateY(-3px) scale(1.08); filter: saturate(1.08) brightness(1.08); }
