@@ -69,3 +69,13 @@ test('cubic interpolation keeps branch endpoints exact', () => {
   assert.deepEqual(cubicPoint(curve, 0), curve.start);
   assert.deepEqual(cubicPoint(curve, 1), curve.end);
 });
+
+test('memories grow along category branches instead of a radial cluster', () => {
+  const layout = computeArchiveLayout(Array.from({length:62}, (_,i) => ({
+    id:`tree-${i}`, category:['preference','persona','system_state'][i%3], vitality:.5 + (i%5)/10,
+  })), [], {width:1000,height:720});
+  assert.ok(layout.tree.root.y > layout.tree.crown.y);
+  assert.ok(layout.nodes.every(node => node.branchId && Number.isFinite(node.branchT)));
+  assert.ok(layout.nodes.every(node => node.y < layout.tree.root.y));
+  assert.ok(Math.max(...layout.nodes.map(node => node.y)) - Math.min(...layout.nodes.map(node => node.y)) > 260);
+});
