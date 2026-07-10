@@ -64,7 +64,7 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
       .attr('r', d => (nodeById.get(String(d.id))?.radius || 10) + 5)
       .attr('fill', 'none').attr('stroke', 'var(--bone-white)').attr('opacity', 0);
     world.select('g.skeleton').selectAll('*').remove();
-    world.select('g.skeleton').append('path').attr('class', 'root-crown').attr('d', 'M430,620 C390,570 350,520 330,450 M430,620 C430,550 430,480 430,390 M430,620 C470,565 520,520 575,455').attr('fill', 'none').attr('stroke', 'var(--antique-brass)').attr('stroke-width', 2);
+    world.select('g.skeleton').append('path').attr('class', 'root-crown').attr('d', 'M470,500 C420,450 365,400 330,320 M470,500 C470,435 470,370 470,285 M470,500 C520,450 580,400 630,325').attr('fill', 'none').attr('stroke', 'var(--antique-brass)').attr('stroke-width', 2);
   }
 
   return { render, setInteractive(enabled) { svg.attr('data-interactive', Boolean(enabled)); }, destroy() { world.selectAll('*').remove(); } };

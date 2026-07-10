@@ -41,6 +41,8 @@ async function run() {
     }));
     if (!report.title.includes('Living Archive')) throw new Error('wrong page title');
     if (!report.memories || !report.tendrils || !report.hasStage || report.hasOldGraph) throw new Error(`semantic surface failed: ${JSON.stringify(report)}`);
+    await page.waitForTimeout(500);
+    if (process.env.VISUALIZER_SCREENSHOT) await page.screenshot({ path: process.env.VISUALIZER_SCREENSHOT, fullPage: true });
     await page.locator('.memory-form').first().click({ force: true });
     if (!(await page.locator('#memoryDetail').textContent()).trim()) throw new Error('memory focus did not update details');
     await page.locator('.memory-form').first().dblclick({ force: true });

@@ -20,7 +20,7 @@ const ANGLES = { preference: -145, persona: -90, system_state: -35 };
 const rad = d => d * Math.PI / 180;
 export function computeArchiveLayout(memories = [], relationships = [], { width = 1000, height = 720, selectedMemoryId = null } = {}) {
   const sx = width / 1000, sy = height / 720, marginX = width * .06, marginY = height * .08;
-  const root = { x: 430 * sx, y: 620 * sy };
+  const root = { x: 470 * sx, y: 390 * sy };
   const withIds = (Array.isArray(memories) ? memories : []).map(m => ({ ...m, id: String(m.id || `memory-${hashString(`${m.category}|${m.source || m.entity_source}|${m.relation}|${m.target || m.entity_target}`)}`) }));
   const sorted = withIds.slice().sort((a,b) => String(a.id).localeCompare(String(b.id)));
   const collapsedSet = sorted.length > 80 ? new Set(sorted.filter(m => String(m.id) !== String(selectedMemoryId) && Number(m.vitality ?? m.node_weight) < .45).slice(20).map(m => String(m.id))) : new Set();
@@ -28,7 +28,7 @@ export function computeArchiveLayout(memories = [], relationships = [], { width 
     const id = String(m.id ?? `memory-${i}`), category = normalizeCategory(m.category), vitality = Math.max(0, Math.min(1, Number(m.vitality ?? m.node_weight) || 0));
     const r = seededRandom(id), angle = rad(ANGLES[category] + (r() - .5) * 24), radius = 120 + (1 - vitality) * 220 + r() * 65;
     const x = root.x + Math.cos(angle) * radius * sx, y = root.y + Math.sin(angle) * radius * sy;
-    return { id, category, grove: category, x: Math.max(marginX, Math.min(width-marginX, x)), y: Math.max(marginY, Math.min(height-marginY, y)), vitality, radius: 10 + vitality * 8, collapsed: collapsedSet.has(id) };
+    return { id, category, grove: category, x: Math.max(marginX, Math.min(width-marginX, x)), y: Math.max(marginY, Math.min(height-marginY, y)), vitality, radius: 14 + vitality * 10, collapsed: collapsedSet.has(id) };
   });
   for (let it=0; it<32; it++) for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) { const a=nodes[i],b=nodes[j], dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,min=a.radius+b.radius+5; if(d<min){const q=(min-d)/d*.5; a.x=Math.max(marginX, a.x-dx*q); a.y=Math.max(marginY,a.y-dy*q); b.x=Math.min(width-marginX,b.x+dx*q); b.y=Math.min(height-marginY,b.y+dy*q);} }
   const byId = new Map(nodes.map(n => [n.id,n]));
