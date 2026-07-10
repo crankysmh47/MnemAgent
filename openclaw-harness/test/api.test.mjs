@@ -12,6 +12,12 @@ test('requestJson encodes paths and reports API error payloads', async () => {
   assert.equal(calls[0], '/api/graph/a/b');
 });
 
+test('requestJson falls back to HTTP status for primitive error payloads', async () => {
+  globalThis.fetch = async () => response(null, false, 502);
+  const { requestJson } = await load();
+  await assert.rejects(requestJson('/broken'), /Request failed with HTTP 502/);
+});
+
 test('resolveUserId prioritizes query, storage, whoami, then setup', async () => {
   globalThis.fetch = async (url) => response(url.includes('whoami') ? { user_id: 'who' } : { user_id: 'setup' });
   const { resolveUserId } = await load();
@@ -20,6 +26,12 @@ test('resolveUserId prioritizes query, storage, whoami, then setup', async () =>
   assert.equal(await resolveUserId('', { getItem: () => '' }), 'who');
   globalThis.fetch = async () => response({}, false, 503);
   assert.equal(await resolveUserId('', { getItem: () => '' }), '');
+});
+
+test('resolveUserId ignores malformed non-string identity payloads', async () => {
+  globalThis.fetch = async (url) => response(url.includes('whoami') ? { user_id: 42 } : { user_id: 'setup-user' });
+  const { resolveUserId } = await load();
+  assert.equal(await resolveUserId('', { getItem: () => 99 }), 'setup-user');
 });
 
 test('loadArchiveSnapshot encodes user and since, recovering partial failures', async () => {

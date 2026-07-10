@@ -1,19 +1,20 @@
 export async function requestJson(path, { signal } = {}) {
   const response = await fetch(path, { signal });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || `Request failed with HTTP ${response.status}`);
+  if (!response.ok) throw new Error(data?.error || `Request failed with HTTP ${response.status}`);
   return data;
 }
 
 export async function resolveUserId(locationSearch = '', storage) {
   const query = new URLSearchParams(locationSearch).get('user')?.trim();
   if (query) return query;
-  const stored = storage?.getItem?.('mnemos_user_id')?.trim();
+  const storedValue = storage?.getItem?.('mnemos_user_id');
+  const stored = typeof storedValue === 'string' ? storedValue.trim() : '';
   if (stored) return stored;
   for (const path of ['/api/user/whoami', '/api/setup/default-user-id']) {
     try {
       const data = await requestJson(path);
-      if (data.user_id?.trim()) return data.user_id.trim();
+      if (typeof data?.user_id === 'string' && data.user_id.trim()) return data.user_id.trim();
     } catch { /* try next identity source */ }
   }
   return '';
