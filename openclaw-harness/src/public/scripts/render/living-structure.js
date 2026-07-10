@@ -1,5 +1,6 @@
-import { memoryAriaLabel, memoryFormPath, shapeClass } from './memory-form.js';
+import { memoryAriaLabel, memoryFormPath, memoryVeinPath, shapeClass } from './memory-form.js';
 import { tendrilClass, tendrilStrokeWidth } from './tendril.js';
+import { curvePath } from '../tree-geometry.js';
 
 const CATEGORY_COLOR = Object.freeze({ preference: 'var(--living-moss)', persona: 'var(--clay-rose)', system_state: 'var(--mineral-blue)' });
 
@@ -12,7 +13,7 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
   const d3 = d3Global();
   const svg = d3.select(svgElement);
   const world = svg.select('#archiveWorld');
-  const layers = ['skeleton', 'membranes', 'tendrils', 'memories', 'effects', 'annotations'];
+  const layers = ['roots', 'trunk', 'branches', 'tendrils', 'memories', 'effects', 'annotations'];
   for (const name of layers) if (world.select(`g.${name}`).empty()) world.append('g').attr('class', name);
 
   function render(snapshot = {}, layout = { nodes: [], paths: [] }, viewState = {}) {
@@ -21,6 +22,15 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
     const nodeById = new Map(layout.nodes.map(node => [String(node.id), node]));
     const selectedId = viewState.selectedMemoryId == null ? null : String(viewState.selectedMemoryId);
     const related = new Set((viewState.relatedMemoryIds || []).map(String));
+
+    const tree = layout.tree || { root: { paths: [] }, trunk: null, branches: [] };
+    world.select('g.roots').selectAll('path.root-line').data(tree.root?.paths || [], d => d.id).join('path')
+      .attr('class', 'root-line').attr('d', curvePath).attr('aria-hidden', 'true');
+    world.select('g.trunk').selectAll('path.trunk-line').data(tree.trunk ? [tree.trunk] : [], d => d.id).join('path')
+      .attr('class', 'trunk-line').attr('d', curvePath).attr('aria-hidden', 'true');
+    world.select('g.branches').selectAll('path.branch').data(tree.branches || [], d => d.id).join('path')
+      .attr('class', d => `branch branch-${d.category} branch-level-${d.level || 1}`)
+      .attr('data-branch-id', d => d.id).attr('d', curvePath).attr('aria-hidden', 'true');
 
     const tendrilLayer = world.select('g.tendrils');
     tendrilLayer.selectAll('path.tendril').data(relationships, d => d.id).join(
@@ -37,8 +47,11 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
     memoryLayer.selectAll('g.memory-form').data(memories, d => String(d.id)).join(
       enter => {
         const group = enter.append('g').attr('class', d => shapeClass(d.shape));
-        group.append('path').attr('class', 'memory-body');
-        group.append('circle').attr('class', 'memory-focus-ring').attr('r', d => (nodeById.get(String(d.id))?.radius || 10) + 5);
+        group.append('circle').attr('class', 'memory-hit-area').attr('r', 22);
+        const interaction = group.append('g').attr('class', 'memory-interaction');
+        interaction.append('path').attr('class', 'memory-body');
+        interaction.append('path').attr('class', 'memory-vein');
+        interaction.append('circle').attr('class', 'memory-focus-ring').attr('r', d => (nodeById.get(String(d.id))?.radius || 10) + 5);
         return group;
       },
       update => update,
@@ -58,17 +71,24 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
       .on('dblclick', (_event, d) => onTrace(d.id))
       .on('keydown', (event, d) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(d.id); } });
 
-    memoryLayer.selectAll('g.memory-form').select('path.memory-body')
+    const forms = memoryLayer.selectAll('g.memory-form');
+    forms.select('g.memory-interaction').style('--memory-angle', d => {
+      const angle = nodeById.get(String(d.id))?.angle || 0;
+      return `${d.shape === 'leaf' ? angle - 90 : angle * .08}deg`;
+    });
+    forms.select('circle.memory-hit-area').attr('r', d => Math.max(22, (nodeById.get(String(d.id))?.radius || 10) + 5));
+    forms.select('path.memory-body')
       .attr('d', d => memoryFormPath(d.shape, nodeById.get(String(d.id))?.radius))
       .attr('fill', d => CATEGORY_COLOR[d.category] || 'var(--weathered-taupe)')
       .attr('stroke', 'var(--antique-brass)')
       .attr('stroke-width', d => d.lifecycle === 'fading' ? 0.8 : 1.4)
       .attr('opacity', d => d.lifecycle === 'dormant' ? 0.38 : 0.95);
-    memoryLayer.selectAll('g.memory-form').select('circle.memory-focus-ring')
+    forms.select('path.memory-vein')
+      .attr('d', d => memoryVeinPath(d.shape, nodeById.get(String(d.id))?.radius))
+      .attr('fill', 'none').attr('aria-hidden', 'true');
+    forms.select('circle.memory-focus-ring')
       .attr('r', d => (nodeById.get(String(d.id))?.radius || 10) + 5)
       .attr('fill', 'none').attr('stroke', 'var(--bone-white)').attr('opacity', 0);
-    world.select('g.skeleton').selectAll('*').remove();
-    world.select('g.skeleton').append('path').attr('class', 'root-crown').attr('d', 'M470,500 C420,450 365,400 330,320 M470,500 C470,435 470,370 470,285 M470,500 C520,450 580,400 630,325').attr('fill', 'none').attr('stroke', 'var(--antique-brass)').attr('stroke-width', 2);
   }
 
   return { render, setInteractive(enabled) { svg.attr('data-interactive', Boolean(enabled)); }, destroy() { world.selectAll('*').remove(); } };

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { memoryFormPath, memoryAriaLabel } from '../src/public/scripts/render/memory-form.js';
+import { memoryFormPath, memoryAriaLabel, memoryVeinPath } from '../src/public/scripts/render/memory-form.js';
 import { tendrilClass } from '../src/public/scripts/render/tendril.js';
 
 test('memory form paths are closed for living forms and finite', () => {
@@ -25,4 +25,12 @@ test('husk geometry remains open and memory labels expose lifecycle details', ()
 test('tendril classes encode relationship kind and quiet state', () => {
   assert.equal(tendrilClass({ kind: 'cluster' }, 'active'), 'tendril tendril-cluster is-active');
   assert.equal(tendrilClass({ kind: 'bridge' }, 'quiet'), 'tendril tendril-bridge is-quiet');
+});
+
+test('botanical memory forms expose internal organic markings', () => {
+  for (const shape of ['leaf', 'pearl', 'mineral']) {
+    const path = memoryVeinPath(shape, 14);
+    assert.match(path, /^M/);
+    assert.ok([...path.matchAll(/-?\d+(?:\.\d+)?/g)].every(match => Number.isFinite(Number(match[0]))));
+  }
 });

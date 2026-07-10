@@ -7,6 +7,8 @@ const html = fs.readFileSync(new URL('index.html', root), 'utf8');
 const tokens = fs.readFileSync(new URL('styles/tokens.css', root), 'utf8');
 const responsive = fs.readFileSync(new URL('styles/responsive.css', root), 'utf8');
 const motion = fs.readFileSync(new URL('styles/motion.css', root), 'utf8');
+const stageCss = fs.readFileSync(new URL('styles/archive-stage.css', root), 'utf8');
+const rendererSource = fs.readFileSync(new URL('scripts/render/living-structure.js', root), 'utf8');
 
 test('living archive static contract', () => {
   for (const id of [
@@ -37,4 +39,14 @@ test('living archive static contract', () => {
   assert.match(responsive, /max-width:\s*700px/);
   assert.match(responsive, /min-width:\s*44px/);
   assert.match(motion, /prefers-reduced-motion/);
+});
+
+test('memory interaction motion is isolated from placement transforms', () => {
+  assert.match(rendererSource, /memory-interaction/);
+  assert.match(stageCss, /\.memory-form:hover \.memory-interaction/);
+  assert.doesNotMatch(stageCss, /\.memory-form:hover\s*,/);
+});
+
+test('renderer exposes botanical structure layers', () => {
+  for (const layer of ['roots','trunk','branches']) assert.match(rendererSource, new RegExp(`['"]${layer}['"]`));
 });

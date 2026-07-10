@@ -16,4 +16,11 @@ export function memoryAriaLabel(memory = {}) {
   return `${memory.statement || 'Unnamed memory'}; ${memory.category || 'system state'}; ${memory.lifecycle || 'settled'}; ${confidence}% confidence; ${recalls} recalls`;
 }
 
+export function memoryVeinPath(shape = 'pearl', size = 12) {
+  const s = Number.isFinite(Number(size)) ? Math.max(2, Number(size)) : 12;
+  if (shape === 'leaf') return `M0,${s * .82} C${s * .05},${s * .3} ${s * .03},${-s * .35} 0,${-s * .82} M0,${s * .18} L${s * .42},${-s * .18} M0,${-s * .12} L${-s * .38},${-s * .42}`;
+  if (shape === 'mineral') return `M${-s * .42},${s * .46} L${-s * .08},${s * .05} L${-s * .28},${-s * .36} M${-s * .08},${s * .05} L${s * .38},${-s * .2} M${-s * .08},${s * .05} L${s * .24},${s * .48}`;
+  return `M0,${s * .72} C${-s * .16},${s * .25} ${s * .14},${-s * .2} 0,${-s * .72} M${-s * .48},${s * .05} C${-s * .15},${-s * .1} ${s * .14},${s * .12} ${s * .48},${-s * .08}`;
+}
+
 export const shapeClass = shape => `memory-form memory-form-${SHAPE_PATHS[shape] ? shape : 'pearl'}`;

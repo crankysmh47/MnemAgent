@@ -1,15 +1,27 @@
-.archive-stage { overflow: hidden; background: radial-gradient(circle at 42% 48%, rgba(105,118,90,.22), transparent 48%), var(--midnight-charcoal); }
+.archive-stage { overflow: hidden; background: radial-gradient(ellipse at 50% 92%, rgba(105,118,90,.19), transparent 42%), radial-gradient(circle at 50% 42%, rgba(148,166,124,.08), transparent 48%), var(--midnight-charcoal); }
 .archive-stage svg { min-height: 500px; }
-.archive-stage .root-crown { opacity: .75; }
-.archive-stage .tendril { stroke: var(--antique-brass); opacity: .32; transition: opacity 180ms var(--ease-organic), stroke-width 180ms var(--ease-organic); }
+.archive-stage .root-line, .archive-stage .trunk-line, .archive-stage .branch { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.archive-stage .root-line { stroke: color-mix(in srgb, var(--antique-brass) 58%, var(--living-moss)); stroke-width: 7; opacity: .48; }
+.archive-stage .trunk-line { stroke: color-mix(in srgb, var(--antique-brass) 62%, var(--living-moss)); stroke-width: 17; opacity: .72; }
+.archive-stage .branch { stroke-width: 6; opacity: .58; }
+.archive-stage .branch-level-2 { stroke-width: 3.5; opacity: .48; }
+.archive-stage .branch-preference { stroke: var(--living-moss); }
+.archive-stage .branch-persona { stroke: color-mix(in srgb, var(--clay-rose) 55%, var(--living-moss)); }
+.archive-stage .branch-system_state { stroke: color-mix(in srgb, var(--mineral-blue) 60%, var(--living-moss)); }
+.archive-stage .tendril { stroke: var(--antique-brass); opacity: .18; transition: opacity 180ms var(--ease-organic), stroke-width 180ms var(--ease-organic); }
 .archive-stage .tendril-cluster { stroke: var(--living-moss); }
 .archive-stage .tendril-concept { stroke: var(--lichen-green); stroke-dasharray: 3 5; }
 .archive-stage .tendril-bridge { stroke: var(--clay-rose); stroke-dasharray: 1 6; }
 .archive-stage .tendril.is-active { opacity: .86; }
-.archive-stage .memory-form { cursor: pointer; transform-box: fill-box; transform-origin: center; transition: opacity 180ms var(--ease-organic), transform 180ms var(--ease-organic); }
-.archive-stage .memory-form:hover, .archive-stage .memory-form:focus-visible, .archive-stage .memory-form.is-selected { transform: scale(1.12); }
+.archive-stage .memory-form { cursor: pointer; transition: opacity 180ms var(--ease-organic); }
+.archive-stage .memory-hit-area { fill: transparent; pointer-events: all; }
+.archive-stage .memory-interaction { transform: rotate(var(--memory-angle, 0deg)); transform-box: fill-box; transform-origin: center; transition: transform 220ms var(--ease-organic), filter 220ms var(--ease-organic); }
+.archive-stage .memory-form:hover .memory-interaction, .archive-stage .memory-form:focus-visible .memory-interaction { transform: rotate(var(--memory-angle, 0deg)) translateY(-3px) scale(1.08); filter: saturate(1.08) brightness(1.08); }
+.archive-stage .memory-form.is-selected .memory-interaction { transform: rotate(var(--memory-angle, 0deg)) scale(1.1); }
 .archive-stage .memory-form.is-quiet { opacity: .22; }
 .archive-stage .memory-form.is-related { opacity: 1; }
+.archive-stage .memory-body { filter: drop-shadow(0 3px 4px rgba(0,0,0,.24)); }
+.archive-stage .memory-vein { stroke: color-mix(in srgb, var(--warm-parchment) 42%, var(--antique-brass)); stroke-width: .8; opacity: .55; pointer-events: none; }
 .archive-stage .memory-focus-ring { pointer-events: none; }
 .archive-stage .memory-form.is-selected .memory-focus-ring { opacity: .85; stroke-width: 1.5; stroke-dasharray: 2 4; }
-@media (prefers-reduced-motion: reduce) { .archive-stage .memory-form, .archive-stage .tendril { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .archive-stage .memory-form, .archive-stage .memory-interaction, .archive-stage .tendril { transition: none; } .archive-stage .memory-form:hover .memory-interaction, .archive-stage .memory-form:focus-visible .memory-interaction { transform: rotate(var(--memory-angle, 0deg)); } }
