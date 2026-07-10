@@ -5,6 +5,8 @@ import fs from 'node:fs';
 const root = new URL('../src/public/', import.meta.url);
 const html = fs.readFileSync(new URL('index.html', root), 'utf8');
 const tokens = fs.readFileSync(new URL('styles/tokens.css', root), 'utf8');
+const responsive = fs.readFileSync(new URL('styles/responsive.css', root), 'utf8');
+const motion = fs.readFileSync(new URL('styles/motion.css', root), 'utf8');
 
 test('living archive static contract', () => {
   for (const id of [
@@ -29,4 +31,10 @@ test('living archive static contract', () => {
   for (const label of ['Leaf', 'Pearl', 'Mineral', 'Scar', 'Husk']) {
     assert.match(samples, new RegExp(`<title>${label}</title>`));
   }
+  assert.match(html, /class="skip-link"/);
+  assert.match(html, /id="memoryCompanionList"/);
+  assert.match(responsive, /max-width:\s*1099px/);
+  assert.match(responsive, /max-width:\s*700px/);
+  assert.match(responsive, /min-width:\s*44px/);
+  assert.match(motion, /prefers-reduced-motion/);
 });
