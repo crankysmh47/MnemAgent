@@ -1,0 +1,15 @@
+.archive-stage { overflow: hidden; background: radial-gradient(circle at 42% 48%, rgba(105,118,90,.22), transparent 48%), var(--midnight-charcoal); }
+.archive-stage svg { min-height: 500px; }
+.archive-stage .root-crown { opacity: .75; }
+.archive-stage .tendril { stroke: var(--antique-brass); opacity: .32; transition: opacity 180ms var(--ease-organic), stroke-width 180ms var(--ease-organic); }
+.archive-stage .tendril-cluster { stroke: var(--living-moss); }
+.archive-stage .tendril-concept { stroke: var(--lichen-green); stroke-dasharray: 3 5; }
+.archive-stage .tendril-bridge { stroke: var(--clay-rose); stroke-dasharray: 1 6; }
+.archive-stage .tendril.is-active { opacity: .86; }
+.archive-stage .memory-form { cursor: pointer; transform-box: fill-box; transform-origin: center; transition: opacity 180ms var(--ease-organic), transform 180ms var(--ease-organic); }
+.archive-stage .memory-form:hover, .archive-stage .memory-form:focus-visible, .archive-stage .memory-form.is-selected { transform: scale(1.12); }
+.archive-stage .memory-form.is-quiet { opacity: .22; }
+.archive-stage .memory-form.is-related { opacity: 1; }
+.archive-stage .memory-focus-ring { pointer-events: none; }
+.archive-stage .memory-form.is-selected .memory-focus-ring { opacity: .85; stroke-width: 1.5; stroke-dasharray: 2 4; }
+@media (prefers-reduced-motion: reduce) { .archive-stage .memory-form, .archive-stage .tendril { transition: none; } }
