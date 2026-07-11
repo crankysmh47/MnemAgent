@@ -10,12 +10,14 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 const { DEMO_USER_ID, seedDemoBrain } = require("./demo-seed");
+const { canReadArchive, canMutateThroughHarness } = require("./cloud-policy");
 
 const PORT = process.env.PORT || 3000;
 const MNEMOS_URL = (process.env.MNEMOS_URL || process.env.MCP_SERVER_URL || "http://localhost:8000").replace(/\/$/, "");
 const MCP_ADAPTER_URL = (process.env.MCP_ADAPTER_URL || "http://localhost:8001").replace(/\/$/, "");
 const AUTO_SEED_DEMO = process.env.AUTO_SEED_DEMO !== "false";
 const MNEMAGENT_API_TOKEN = (process.env.MNEMAGENT_API_TOKEN || "").trim();
+const CLOUD_MODE = process.env.MNEMAGENT_ENV === "cloud";
 
 function mnemosConfig(config = {}) {
   const headers = { ...(config.headers || {}) };
@@ -66,6 +68,12 @@ async function resolveCanonicalUserId() {
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  if (!canMutateThroughHarness(req.method, CLOUD_MODE)) {
+    return res.status(403).json({ error: "Browser mutations are disabled in cloud mode; use the protected OpenClaw/MCP path." });
+  }
+  next();
+});
 
 // Prevent stale HTML/CSS in browsers during active development
 app.use((req, res, next) => {
@@ -112,6 +120,12 @@ app.get("/health", async (_req, res) => {
     };
   } catch (err) {
     status.demo_brain_error = err.message;
+  }
+  if (CLOUD_MODE) {
+    return res.status(status.status === "ok" ? 200 : 503).json({
+      status: status.status,
+      services: { memory: Boolean(status.mnemos), mcp: Boolean(status.mcp_adapter), demo: Boolean(status.demo_brain) },
+    });
   }
   res.status(status.status === "ok" ? 200 : 503).json(status);
 });
@@ -205,7 +219,11 @@ app.get("/api/demo/status", async (_req, res) => {
 for (const route of ["graph", "events", "metrics"]) {
   app.get(`/api/${route}/:uid`, async (req, res) => {
     try {
-      const suffix = route === "events" ? `?${new URLSearchParams(req.query)}` : "";
+      if (CLOUD_MODE && !canReadArchive(req.params.uid, resolveSetupUserId())) {
+        return res.status(403).json({ error: "Archive namespace is not available." });
+      }
+      const query = new URLSearchParams(req.query).toString();
+      const suffix = query ? `?${query}` : "";
       const url = `${MNEMOS_URL}/api/${route}/${encodeURIComponent(req.params.uid)}${suffix}`;
       const resp = await axios.get(url, mnemosConfig({ timeout: 30000 }));
       res.json(resp.data);

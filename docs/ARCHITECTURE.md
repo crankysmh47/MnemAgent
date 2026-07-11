@@ -212,3 +212,26 @@ Security controls for cloud mode:
 - token forwarding from the OpenClaw MCP server and visualizer harness;
 - Postgres schema with row-level security policies keyed by `mnemagent.user_id`;
 - prompt-injection memory firewall that rejects extracted writes from obvious memory-rule override attempts.
+## Bounded archive reads
+
+The graph endpoint is bounded independently of archive size. It returns at most 150 individual beliefs and 120 ambient relationships, plus total counts and category summaries. Archives use three presentation modes: individual through 120 memories, hybrid from 121 through 500, and summary-first above 500. Search and focused-node requests can reveal a memory outside the initial page without loading the whole archive into Python or the browser.
+
+The visualizer mirrors that contract. It lays out only returned memories, reports rendered and total counts separately, and sends debounced search text to the server. This removes the old end-to-end quadratic path where both edge construction and collision resolution operated over every stored belief.
+
+## Alibaba deployment boundary
+
+```mermaid
+flowchart LR
+  J["Judge browser"] -->|"HTTPS :443"| C["Caddy on Alibaba ECS"]
+  T["OpenClaw terminal"] --> O["OpenClaw gateway"]
+  C --> V["Read-only visualizer"]
+  C -->|"basic auth"| O
+  O --> M["MnemAgent MCP"]
+  M --> A["Memory API"]
+  V --> A
+  A --> P[("Postgres + pgvector")]
+  A --> Q["DashScope / Qwen"]
+  A -. "optional snapshot" .-> S[("Alibaba OSS")]
+```
+
+Only Caddy publishes ports. API, MCP, PostgreSQL, and OpenClaw control traffic stay on the Compose network. The cloud harness permits read-only access to `demo-brain` and the configured judge namespace; memory mutations travel through the protected OpenClaw/MCP path.

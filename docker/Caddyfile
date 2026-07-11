@@ -1,0 +1,34 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$MEMORY_DOMAIN} {
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    X-Frame-Options DENY
+    Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  }
+  request_body {
+    max_size 2MB
+  }
+  reverse_proxy openclaw-harness:3000
+}
+
+{$AGENT_DOMAIN} {
+  basic_auth {
+    judge {$OPENCLAW_BASIC_AUTH_HASH}
+  }
+  encode zstd gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options nosniff
+    Referrer-Policy no-referrer
+  }
+  request_body {
+    max_size 2MB
+  }
+  reverse_proxy openclaw:18789
+}

@@ -1,33 +1,35 @@
 # MnemAgent
 
-![MnemAgent logo](docs/assets/logo.jpg)
+<p align="center"><img src="docs/assets/logo.jpg" alt="MnemAgent logo" width="160"></p>
 
-Persistent memory for OpenClaw agents.
+MnemAgent is a persistent memory layer for OpenClaw agents. It decides what is worth remembering, recalls a small useful set, replaces contradicted beliefs, and lets stale memories fade instead of treating every chat line as permanent truth.
 
-MnemAgent gives an agent a long-term memory layer that is selective, inspectable, and user-scoped. It does not simply dump chat logs into a vector store. It decides what deserves storage, retrieves a bounded set of useful beliefs, resolves contradictions, and lets stale memories fade.
+**Qwen Global AI Hackathon submission — Track 1: MemoryAgent**
 
-Submission: Qwen Global AI Hackathon, Track 1: MemoryAgent
+| Judge resource | Link |
+| --- | --- |
+| Three-minute walkthrough | Pending owner upload after Alibaba deployment |
+| Live Alibaba Cloud demo | Pending owner deployment |
+| Architecture | [System design and trust boundaries](docs/ARCHITECTURE.md) |
+| Alibaba Cloud proof | [`cloud_sync.py`](mcp-memory-server/src/storage/cloud_sync.py) and [deployment proof steps](docs/DEPLOY_ALIBABA.md#submission-proof) |
+| Benchmark evidence | [Live benchmark results and limitations](docs/BENCHMARKS.md) |
+| Judge instructions | [Deployed and local walkthrough](docs/JUDGE_GUIDE.md) |
+| License | [MIT](LICENSE) |
 
-Repository: https://github.com/crankysmh47/MnemAgent
+## What judges should try
 
-License: MIT
+1. Teach the agent a preference and a project fact through OpenClaw.
+2. Start a fresh OpenClaw session and ask for both facts.
+3. Correct one fact, then verify that the old value no longer appears.
+4. Open the visualizer and search for the surviving memory.
 
-## Table of contents
+The terminal path is the clearest proof because it exposes OpenClaw's real MCP tool calls. The browser archive is the explanation layer: it shows what the agent retained and how those memories relate. See [the exact three-minute path](docs/JUDGE_GUIDE.md).
 
-- [Quick start](#quick-start)
-- [Visualizer snapshot](#visualizer-snapshot)
-- [What MnemAgent does](#what-mnemagent-does)
-- [Architecture](#architecture)
-- [Memory engine](#memory-engine)
-- [OpenClaw integration](#openclaw-integration)
-- [Evaluation](#evaluation)
-- [MnemBench](#mnembench)
-- [Demo video plan](#demo-video-plan)
-- [Repository layout](#repository-layout)
-- [Configuration](#configuration)
-- [Verification](#verification)
-- [Deployment notes](#deployment-notes)
-- [License](#license)
+## Submission snapshot
+
+![MnemAgent living memory archive populated with demo-brain memories](docs/assets/visualizer-snapshot.png)
+
+The archive automatically switches from individual leaves to bounded aggregate groups as it grows. Search can reveal memories outside the initial 150-node view, so a user with thousands of memories does not create thousands of DOM nodes or quadratic graph work.
 
 ## Quick start
 
@@ -48,10 +50,9 @@ cp config/env.template .env
 docker compose up -d --build
 ```
 
-On Windows, the one-command local path is:
+On Windows, run from the cloned repository:
 
 ```powershell
-cd C:\sem4\MnemAgent
 .\scripts\launch.ps1
 .\scripts\onboard-openclaw.ps1
 ```
@@ -67,12 +68,6 @@ Useful URLs and commands:
 | OpenClaw dashboard | `openclaw dashboard` |
 | MCP proof | `openclaw mcp probe mnemos` |
 | Local memory proof | `powershell -File scripts/prove-memory.ps1` |
-
-## Visualizer snapshot
-
-![MnemAgent living memory archive for the demo-brain user](docs/assets/visualizer-snapshot.png)
-
-This is the live, light-theme `demo-brain` archive: a memory tree that makes preferences, personas, system state, revisions, and fading memories legible at a glance. The visualizer is intentionally not another chat UI; it lets judges and users see what the agent remembers and how those memories relate.
 
 ## What MnemAgent does
 
@@ -269,17 +264,13 @@ The evaluation story has two layers.
 
 The product repo keeps the hackathon-facing proof: live agentic tests, OpenClaw MCP checks, visualizer checks, and deployment preflight.
 
-MnemBench is maintained separately from the product repository. The original v1 suite is available at:
+The original public MnemBench suite is available at:
 
 ```text
 https://github.com/crankysmh47/MnemBench
 ```
 
-The research-scale v2 suite is available at:
-
-```text
-https://github.com/crankysmh47/MnemBench-v2
-```
+The v2 evaluation code currently lives in this repository under `eval/`. There is no separate public MnemBench v2 repository, so the submission does not link or imply one.
 
 ### Real MnemBench v2 result
 
@@ -297,23 +288,22 @@ probe score, compared with **23.7%** for the baseline: a **+43.0 point** gap.
 
 This is a live run, not a dry run. The complete run notes, provider
 configuration, and the second live run are in
-[docs/MNEMBENCH_RESULTS.md](docs/MNEMBENCH_RESULTS.md).
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 Run checks:
 
 ```bash
 python -m eval.run_benchmark --dry-run --mode both
-mnembench --suite v2 --profile smoke --dry-run --no-baseline --judge-report
+python -m eval.run_eval_v2 --help
 ```
 
 Read more:
 
-- [docs/REPORT.md](docs/REPORT.md)
-- [docs/LIVE_EVAL_RESULTS.md](docs/LIVE_EVAL_RESULTS.md)
-- [docs/MNEMBENCH_RESULTS.md](docs/MNEMBENCH_RESULTS.md)
-- [docs/VERIFICATION.md](docs/VERIFICATION.md)
+- [Benchmark evidence](docs/BENCHMARKS.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Judge guide](docs/JUDGE_GUIDE.md)
 
-## MnemBench repositories
+## MnemBench
 
 MnemBench v1 is the original compact benchmark:
 
@@ -321,34 +311,14 @@ MnemBench v1 is the original compact benchmark:
 https://github.com/crankysmh47/MnemBench
 ```
 
-MnemBench v2 is the research-scale benchmark with smoke, standard, and paper profiles:
-
-```text
-https://github.com/crankysmh47/MnemBench-v2
-```
-
-Install and run v2 from its own repository:
-
-```bash
-git clone https://github.com/crankysmh47/MnemBench-v2
-cd MnemBench-v2
-python -m pip install -e .
-mnembench --suite v2 --profile smoke --dry-run --no-baseline --judge-report
-```
-
-The split is intentional:
-
-- this repository stays focused on the submitted MnemAgent product;
-- MnemBench v1 remains a compact compatibility suite;
-- MnemBench v2 owns the generated research catalog and benchmark reports;
-- external benchmark comparisons belong in the benchmark repositories, not in the MnemAgent runtime.
+MnemBench v1 is the standalone compact benchmark. The larger v2 scenarios in this repository test longer memory-agent behavior but have not been published as a separate repository. [Benchmark evidence](docs/BENCHMARKS.md) distinguishes the two and records the limitations of each run.
 
 ## Demo video plan
 
 The video script is stored here:
 
 ```text
-docs/SUBMISSION_VIDEO_PLAN.md
+docs/JUDGE_GUIDE.md
 ```
 
 The current script is built around a 3-minute flow:
@@ -451,15 +421,12 @@ The final deployment target is Alibaba Cloud ECS running the MnemAgent backend, 
 
 For deployment and judge reset instructions, use:
 
-- [docs/CLOUD.md](docs/CLOUD.md)
-- [docs/CLOUD_PROOF.md](docs/CLOUD_PROOF.md)
-- [docs/JUDGE_DEPLOYMENT.md](docs/JUDGE_DEPLOYMENT.md)
-- [docs/SUBMISSION_VIDEO_PLAN.md](docs/SUBMISSION_VIDEO_PLAN.md)
+- [Alibaba deployment](docs/DEPLOY_ALIBABA.md)
+- [Judge guide](docs/JUDGE_GUIDE.md)
+- [Security boundary](docs/SECURITY.md)
+- [Submission checklist](docs/SUBMISSION_CHECKLIST.md)
 
-Cloud proof is handled through ECS deployment evidence, the deployment preflight
-script, and the optional OSS backup code path. The public README intentionally
-keeps those details brief; the exact recording workflow lives in
-`docs/CLOUD_PROOF.md` and `docs/SUBMISSION_VIDEO_PLAN.md`.
+Cloud proof uses ECS deployment evidence, the verification script, and the OSS backup code path. The exact evidence to capture is in [the Alibaba deployment guide](docs/DEPLOY_ALIBABA.md#submission-proof).
 
 ## License
 
