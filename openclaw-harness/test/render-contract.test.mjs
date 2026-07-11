@@ -63,3 +63,14 @@ test('memory interaction motion is isolated from placement transforms', () => {
 test('renderer exposes botanical structure layers', () => {
   for (const layer of ['roots','trunk','branches']) assert.match(rendererSource, new RegExp(`['"]${layer}['"]`));
 });
+
+test('renderer exposes quiet botanical environment layers', () => {
+  for (const layer of ['groundcover', 'vines']) {
+    assert.match(rendererSource, new RegExp(`['"]${layer}['"]`));
+  }
+  for (const className of ['ground-grass', 'ground-moss', 'garden-vine', 'vine-leaf']) {
+    assert.match(rendererSource, new RegExp(className));
+    assert.match(stageCss, new RegExp(`\\.${className}`));
+  }
+  assert.match(stageCss, /pointer-events:\s*none/);
+});

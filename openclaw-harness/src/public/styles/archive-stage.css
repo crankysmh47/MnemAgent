@@ -8,6 +8,12 @@
 .archive-stage .branch-preference { stroke: var(--living-moss); }
 .archive-stage .branch-persona { stroke: color-mix(in srgb, var(--clay-rose) 55%, var(--living-moss)); }
 .archive-stage .branch-system_state { stroke: color-mix(in srgb, var(--mineral-blue) 60%, var(--living-moss)); }
+.archive-stage .ground-grass, .archive-stage .ground-moss, .archive-stage .seed-head, .archive-stage .garden-vine, .archive-stage .vine-leaf { pointer-events: none; }
+.archive-stage .ground-grass { stroke: var(--living-moss); stroke-width: 2.2; stroke-linecap: round; opacity: .42; }
+.archive-stage .ground-moss { fill: color-mix(in srgb, var(--living-moss) 40%, transparent); opacity: .24; }
+.archive-stage .seed-head { fill: var(--antique-brass); opacity: .56; }
+.archive-stage .garden-vine { stroke: color-mix(in srgb, var(--lichen-green) 74%, var(--living-moss)); stroke-width: 2.15; stroke-linecap: round; opacity: .62; }
+.archive-stage .vine-leaf { fill: color-mix(in srgb, var(--lichen-green) 74%, var(--bone-white)); stroke: var(--living-moss); stroke-width: .7; opacity: .68; }
 .archive-stage .tendril { stroke: var(--antique-brass); opacity: .3; transition: opacity 180ms var(--ease-organic), stroke-width 180ms var(--ease-organic); }
 .archive-stage .tendril-cluster { stroke: var(--living-moss); }
 .archive-stage .tendril-concept { stroke: var(--lichen-green); stroke-dasharray: 3 5; }
