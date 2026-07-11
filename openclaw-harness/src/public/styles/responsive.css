@@ -9,7 +9,9 @@
   :root { --header-h: 54px; --timeline-h: 64px; }
   .archive-header { padding: 0 .75rem; }
   .archive-brand { font-size: 1.25rem; }
-  .archive-brand img { width: 28px; height: 28px; }
+  .archive-brand img { width: 32px; height: 32px; }
+  .archive-actions { gap: .35rem; }
+  .github-link { width: 44px; min-width: 44px; height: 44px; }
   .archive-composition { display: block; min-height: calc(100vh - var(--header-h) - var(--timeline-h)); }
   .archive-stage { min-height: calc(100svh - var(--header-h) - var(--timeline-h)); }
   .archive-stage svg { min-height: calc(100svh - var(--header-h) - var(--timeline-h)); }

@@ -1,6 +1,6 @@
 # MnemAgent
 
-![MnemAgent logo](docs/assets/mnemagent-logo-wide.png)
+![MnemAgent logo](docs/assets/logo.jpg)
 
 Persistent memory for OpenClaw agents.
 
@@ -72,7 +72,7 @@ Useful URLs and commands:
 
 ![MnemAgent living memory archive for the demo-brain user](docs/assets/visualizer-snapshot.png)
 
-This is the live `demo-brain` archive: a memory tree that makes preferences, personas, system state, revisions, and fading memories legible at a glance. The visualizer is intentionally not another chat UI; it lets judges and users see what the agent remembers and how those memories relate.
+This is the live, light-theme `demo-brain` archive: a memory tree that makes preferences, personas, system state, revisions, and fading memories legible at a glance. The visualizer is intentionally not another chat UI; it lets judges and users see what the agent remembers and how those memories relate.
 
 ## What MnemAgent does
 

@@ -1,6 +1,6 @@
-.sediment-timeline { display: flex; gap: .5rem; align-items: center; overflow-x: auto; background: color-mix(in srgb, var(--midnight-charcoal) 86%, var(--warm-parchment)); }
-.sediment-event { display: inline-flex; align-items: center; gap: .4rem; flex: 0 0 auto; min-height: 40px; border: 1px solid color-mix(in srgb, var(--antique-brass) 35%, transparent); border-radius: 999px; padding: .35rem .65rem; background: transparent; color: var(--warm-parchment); cursor: pointer; }
-.sediment-event:hover, .sediment-event:focus-visible { border-color: var(--antique-brass); background: color-mix(in srgb, var(--antique-brass) 14%, transparent); }
+.sediment-timeline { display: flex; gap: .5rem; align-items: center; overflow-x: auto; background: color-mix(in srgb, var(--warm-parchment) 82%, white); }
+.sediment-event { display: inline-flex; align-items: center; gap: .4rem; flex: 0 0 auto; min-height: 40px; border: 1px solid color-mix(in srgb, var(--antique-brass) 48%, transparent); border-radius: 999px; padding: .35rem .65rem; background: color-mix(in srgb, var(--bone) 82%, white); color: var(--ink); cursor: pointer; }
+.sediment-event:hover, .sediment-event:focus-visible { border-color: var(--moss); background: color-mix(in srgb, var(--leaf) 22%, var(--bone)); }
 .sediment-glyph { color: var(--antique-brass); font-size: 1.1rem; }
 .sediment-scar .sediment-glyph { color: var(--clay-rose); }
 .sediment-label { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; }

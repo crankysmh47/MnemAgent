@@ -71,7 +71,6 @@ export async function bootstrapArchive() {
     renderCompanionList(document.querySelector('#memoryCompanionList'), visible, focusedMemoryId, memoryId=>store.dispatch({type:'SELECT_MEMORY',memoryId}));
     timeline.render(state.events);
     app.dataset.status = state.status;
-    document.querySelector('#liveState').textContent = state.status === 'ready' ? 'Archive alive' : state.status;
     document.querySelector('#archiveStatus').textContent = `${visible.length} memories, ${renderRelationships.length} active relationships, status ${state.status}`;
   }
 

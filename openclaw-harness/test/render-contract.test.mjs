@@ -9,6 +9,7 @@ const responsive = fs.readFileSync(new URL('styles/responsive.css', root), 'utf8
 const motion = fs.readFileSync(new URL('styles/motion.css', root), 'utf8');
 const stageCss = fs.readFileSync(new URL('styles/archive-stage.css', root), 'utf8');
 const rendererSource = fs.readFileSync(new URL('scripts/render/living-structure.js', root), 'utf8');
+const mainSource = fs.readFileSync(new URL('scripts/main.js', root), 'utf8');
 
 test('living archive static contract', () => {
   for (const id of [
@@ -39,6 +40,18 @@ test('living archive static contract', () => {
   assert.match(responsive, /max-width:\s*700px/);
   assert.match(responsive, /min-width:\s*44px/);
   assert.match(motion, /prefers-reduced-motion/);
+});
+
+test('archive header uses the official logo and exposes the repository', () => {
+  assert.equal(fs.existsSync(new URL('assets/logo.jpg', root)), true);
+  assert.match(html, /src="\/assets\/logo\.jpg"/);
+  assert.match(html, /alt="MnemAgent logo"/);
+  assert.match(html, /href="https:\/\/github\.com\/crankysmh47\/MnemAgent"/);
+  assert.match(html, /aria-label="Open MnemAgent on GitHub"/);
+  assert.match(html, /target="_blank"/);
+  assert.match(html, /rel="noopener noreferrer"/);
+  assert.doesNotMatch(html, /id="liveState"/);
+  assert.doesNotMatch(mainSource, /liveState/);
 });
 
 test('memory interaction motion is isolated from placement transforms', () => {
