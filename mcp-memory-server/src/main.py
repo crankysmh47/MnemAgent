@@ -363,9 +363,21 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 
 @app.get("/api/graph/{user_id}", dependencies=[Depends(require_api_token)])
-async def api_graph(user_id: str) -> dict:
+async def api_graph(
+    user_id: str,
+    q: str = Query(default="", max_length=200),
+    category: str | None = Query(default=None),
+    lifecycle: str | None = Query(default=None),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=150, ge=1, le=150),
+    focus_id: int | None = Query(default=None, ge=1),
+    include_summary: bool = Query(default=True),
+) -> dict:
     """Return belief graph data for the memory visualizer."""
-    return get_graph_data(user_id)
+    return get_graph_data(
+        user_id, query=q, category=category, lifecycle=lifecycle, cursor=cursor,
+        limit=limit, focus_id=focus_id, include_summary=include_summary,
+    )
 
 
 @app.get("/api/events/{user_id}", dependencies=[Depends(require_api_token)])

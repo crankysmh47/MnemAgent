@@ -170,7 +170,18 @@ def _belief_row(row: sqlite3.Row, total_turns: int) -> dict[str, Any]:
     }
 
 
-def get_graph_data(user_id: str, db_path: Path | None = None) -> dict[str, Any]:
+def get_graph_data(
+    user_id: str,
+    db_path: Path | None = None,
+    *,
+    query: str = "",
+    category: str | None = None,
+    lifecycle: str | None = None,
+    cursor: str | None = None,
+    limit: int = 150,
+    focus_id: int | None = None,
+    include_summary: bool = True,
+) -> dict[str, Any]:
     """
     Return beliefs, graph edges, and turn count for the visualizer.
 
@@ -184,17 +195,77 @@ def get_graph_data(user_id: str, db_path: Path | None = None) -> dict[str, Any]:
     total_turns = get_total_turns(user_id, db_path)
     conn = get_db_connection(db_path)
     try:
-        rows = conn.execute(
-            """
-            SELECT * FROM semantic_graph
-            WHERE user_id = ? AND node_weight > ?
-            ORDER BY base_utility_q DESC
-            """,
+        limit = max(1, min(int(limit), 150))
+        predicates = ["user_id = ?", "node_weight > ?"]
+        base_params: list[Any] = [user_id, settings.PRUNE_THRESHOLD]
+        if category:
+            predicates.append("category = ?")
+            base_params.append(category)
+        if lifecycle == "fading":
+            predicates.append("node_weight < 0.35")
+        elif lifecycle == "vivid":
+            predicates.append("node_weight >= 0.65")
+        terms = _search_terms(query)
+        for term in terms:
+            predicates.append(
+                "(LOWER(entity_source) LIKE ? OR LOWER(relation) LIKE ? "
+                "OR LOWER(entity_target) LIKE ? OR LOWER(category) LIKE ?)"
+            )
+            pattern = f"%{term}%"
+            base_params.extend([pattern, pattern, pattern, pattern])
+        where = " AND ".join(predicates)
+
+        total_row = conn.execute(
+            "SELECT COUNT(*) AS count FROM semantic_graph WHERE user_id = ? AND node_weight > ?",
             (user_id, settings.PRUNE_THRESHOLD),
+        ).fetchone()
+        total_beliefs = int(total_row["count"] if total_row else 0)
+        filtered_row = conn.execute(
+            f"SELECT COUNT(*) AS count FROM semantic_graph WHERE {where}", base_params
+        ).fetchone()
+        filtered_total = int(filtered_row["count"] if filtered_row else 0)
+
+        rows = conn.execute(
+            f"SELECT * FROM semantic_graph WHERE {where} "
+            "ORDER BY base_utility_q DESC, node_weight DESC, id DESC LIMIT ?",
+            [*base_params, limit],
         ).fetchall()
+        if focus_id is not None and all(int(row["id"]) != focus_id for row in rows):
+            focus = conn.execute(
+                "SELECT * FROM semantic_graph WHERE user_id = ? AND id = ? AND node_weight > ?",
+                (user_id, focus_id, settings.PRUNE_THRESHOLD),
+            ).fetchone()
+            if focus:
+                rows = [focus, *rows[: max(0, limit - 1)]]
         beliefs = [_belief_row(row, total_turns) for row in rows]
-        edges = _build_graph_edges(beliefs)
-        return {"beliefs": beliefs, "edges": edges, "total_turns": total_turns}
+        edges = _build_graph_edges(beliefs)[:120]
+        summary: dict[str, Any] = {"categories": {}, "average_vitality": 0.0}
+        if include_summary:
+            category_rows = conn.execute(
+                """SELECT category, COUNT(*) AS count FROM semantic_graph
+                WHERE user_id = ? AND node_weight > ? GROUP BY category""",
+                (user_id, settings.PRUNE_THRESHOLD),
+            ).fetchall()
+            summary["categories"] = {row["category"]: int(row["count"]) for row in category_rows}
+            vitality = conn.execute(
+                """SELECT AVG(node_weight) AS average FROM semantic_graph
+                WHERE user_id = ? AND node_weight > ?""",
+                (user_id, settings.PRUNE_THRESHOLD),
+            ).fetchone()
+            summary["average_vitality"] = round(float(vitality["average"] or 0), 3)
+        render_mode = "individual" if total_beliefs <= 120 else "hybrid" if total_beliefs <= 500 else "summary"
+        return {
+            "beliefs": beliefs,
+            "edges": edges,
+            "total_turns": total_turns,
+            "total_beliefs": total_beliefs,
+            "returned_beliefs": len(beliefs),
+            "next_cursor": str(beliefs[-1]["id"]) if filtered_total > len(beliefs) and beliefs else None,
+            "archive_revision": f"{total_beliefs}:{max((b['id'] for b in beliefs), default=0)}",
+            "summary": summary,
+            "render_mode": render_mode,
+            "truncated": filtered_total > len(beliefs),
+        }
     finally:
         conn.close()
 

@@ -9,6 +9,11 @@ body { background-image: url('/assets/paper-grain.svg'); line-height: 1.5; }
 .archive-brand { display: flex; align-items: center; gap: .6rem; color: var(--ink); text-decoration: none; font-family: var(--font-display); font-size: 1.5rem; }
 .archive-brand img { width: 46px; height: 46px; object-fit: cover; object-position: 50% 42%; border: 1px solid color-mix(in srgb, var(--moss) 48%, var(--brass)); border-radius: 50%; box-shadow: 0 3px 10px rgba(49,47,37,.18); }
 .archive-actions { display: flex; align-items: center; gap: .55rem; }
+.archive-search { width: clamp(11rem, 20vw, 18rem); height: 40px; display: flex; align-items: center; gap: .45rem; padding: 0 .7rem; border: 1px solid color-mix(in srgb, var(--moss) 32%, transparent); border-radius: 999px; background: color-mix(in srgb, white 54%, var(--bone)); color: var(--moss); }
+.archive-search:focus-within { border-color: var(--brass); box-shadow: 0 0 0 3px color-mix(in srgb, var(--leaf) 20%, transparent); }
+.archive-search svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; flex: 0 0 auto; }
+.archive-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); }
+.archive-search kbd { font: 500 .65rem var(--font-mono); color: var(--weathered-taupe); border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); border-radius: .3rem; padding: .05rem .3rem; }
 .github-link { display: inline-grid; place-items: center; width: 40px; min-width: 40px; height: 40px; color: var(--moss); border: 1px solid color-mix(in srgb, var(--moss) 42%, transparent); border-radius: 50%; transition: color 180ms var(--ease-organic), background 180ms var(--ease-organic), border-color 180ms var(--ease-organic); }
 .github-link svg { width: 20px; height: 20px; fill: currentColor; }
 .github-link:hover { color: var(--ink); border-color: var(--brass); background: color-mix(in srgb, var(--leaf) 24%, var(--bone)); }

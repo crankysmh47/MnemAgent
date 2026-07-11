@@ -4,6 +4,11 @@ import assert from 'node:assert/strict';
 const load = () => import(`../src/public/scripts/api.js?${Date.now()}`);
 const response = (body, ok = true, status = 200) => ({ ok, status, async json() { return body; } });
 
+test('graphPath encodes bounded archive search options', async () => {
+  const { graphPath } = await load();
+  assert.equal(graphPath('a/b', { query: 'green cloud', limit: 20, focusId: 8 }), '/api/graph/a%2Fb?q=green+cloud&limit=20&focus_id=8');
+});
+
 test('requestJson encodes paths and reports API error payloads', async () => {
   const calls = [];
   globalThis.fetch = async (url) => { calls.push(url); return response({ error: 'bad news' }, false, 503); };

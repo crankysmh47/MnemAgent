@@ -66,6 +66,8 @@ export async function bootstrapArchive() {
   let lastStructure = '';
   let seenIds = new Set();
   let abortController = null;
+  let searchQuery = '';
+  let searchTimer = null;
   store.subscribe(() => renderState());
 
   function renderState() {
@@ -85,7 +87,10 @@ export async function bootstrapArchive() {
     renderCompanionList(document.querySelector('#memoryCompanionList'), visible, focusedMemoryId, memoryId=>store.dispatch({type:'SELECT_MEMORY',memoryId}));
     timeline.render(state.events);
     app.dataset.status = state.status;
-    document.querySelector('#archiveStatus').textContent = `${visible.length} memories, ${renderRelationships.length} active relationships, status ${state.status}`;
+    const total = state.graph.totalBeliefs ?? visible.length;
+    const countText = total > visible.length ? `Showing ${visible.length} of ${total} memories` : `${visible.length} memories`;
+    document.querySelector('#archiveStatus').textContent = `${countText}, ${renderRelationships.length} active relationships, status ${state.status}`;
+    document.querySelector('#archiveSearchStatus').textContent = searchQuery ? `${visible.length} matches for ${searchQuery}` : countText;
   }
 
   async function awaken(graph) {
@@ -103,7 +108,7 @@ export async function bootstrapArchive() {
     abortController?.abort(); abortController = new AbortController();
     try {
       const latestTimestamp=store.getState().events.map(event=>event.timestamp).filter(Boolean).sort().at(-1);
-      const raw = await loadArchiveSnapshot(currentUserId, { since: latestTimestamp, signal: abortController.signal });
+      const raw = await loadArchiveSnapshot(currentUserId, { since: latestTimestamp, signal: abortController.signal, query: searchQuery, limit: 150 });
       const graph = raw.graph ? normalizeGraph(raw.graph) : null;
       const snapshot = { ...raw, graph, status: statusFromSnapshot(raw) };
       store.dispatch({ type: graph ? 'SNAPSHOT_RECEIVED' : 'SNAPSHOT_FAILED', snapshot, failures: raw.failures });
@@ -132,9 +137,20 @@ export async function bootstrapArchive() {
 
   const onResize = () => renderState();
   window.addEventListener('resize', onResize);
+  const searchInput = document.querySelector('#archiveSearch');
+  searchInput?.addEventListener('input', () => {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => { searchQuery = searchInput.value.trim(); refresh(true); }, 250);
+  });
+  searchInput?.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { searchInput.value = ''; searchQuery = ''; refresh(true); searchInput.blur(); }
+  });
+  window.addEventListener('keydown', event => {
+    if (event.key === '/' && !/input|textarea|select/i.test(document.activeElement?.tagName || '')) { event.preventDefault(); searchInput?.focus(); }
+  });
   await refresh(true);
   const poll = window.setInterval(() => refresh(false), 15000);
-  return { store, refresh, changeUser: userId => { if(userId) currentUserId=String(userId); return refresh(true); }, destroy() { window.clearInterval(poll); window.removeEventListener('resize', onResize); fallingLeaves.destroy(); ambient.destroy(); choreographer.destroy(); renderer.destroy(); timeline.destroy(); navigation.destroy(); focus.destroy(); menu.destroy(); abortController?.abort(); } };
+  return { store, refresh, changeUser: userId => { if(userId) currentUserId=String(userId); return refresh(true); }, destroy() { window.clearInterval(poll); window.clearTimeout(searchTimer); window.removeEventListener('resize', onResize); fallingLeaves.destroy(); ambient.destroy(); choreographer.destroy(); renderer.destroy(); timeline.destroy(); navigation.destroy(); focus.destroy(); menu.destroy(); abortController?.abort(); } };
 }
 
 function exportState(state) { const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'mnemagent-living-archive.json'; link.click(); URL.revokeObjectURL(link.href); }

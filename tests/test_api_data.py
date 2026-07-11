@@ -31,6 +31,51 @@ def test_graph_api_shape(initialized_db) -> None:
     assert len(graph["beliefs"]) >= 1
 
 
+def test_graph_api_bounds_large_archives_and_reports_summary(initialized_db) -> None:
+    conn = __import__("sqlite3").connect(initialized_db)
+    conn.executemany(
+        """INSERT INTO semantic_graph
+        (user_id, category, entity_source, relation, entity_target, base_utility_q,
+         node_weight, conviction_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        [
+            ("large", "preference" if i % 2 else "system_state", f"entity-{i}",
+             "uses", f"value-{i}", 1 - i / 10000, 0.9, 0.9)
+            for i in range(501)
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    graph = get_graph_data("large", initialized_db)
+
+    assert graph["total_beliefs"] == 501
+    assert graph["returned_beliefs"] == 150
+    assert graph["render_mode"] == "summary"
+    assert graph["truncated"] is True
+    assert len(graph["edges"]) <= 120
+    assert sum(graph["summary"]["categories"].values()) == 501
+
+
+def test_graph_api_search_reveals_memory_outside_initial_page(initialized_db) -> None:
+    conn = __import__("sqlite3").connect(initialized_db)
+    conn.executemany(
+        """INSERT INTO semantic_graph
+        (user_id, category, entity_source, relation, entity_target, base_utility_q,
+         node_weight, conviction_score) VALUES (?, 'system_state', ?, 'uses', ?, ?, .9, .9)""",
+        [("search-large", f"entity-{i}", "needle-cloud" if i == 200 else f"value-{i}", 1 - i / 1000)
+         for i in range(220)],
+    )
+    conn.commit()
+    conn.close()
+
+    graph = get_graph_data("search-large", initialized_db, query="needle cloud", limit=20)
+
+    assert graph["total_beliefs"] == 220
+    assert graph["returned_beliefs"] == 1
+    assert graph["beliefs"][0]["entity_target"] == "needle-cloud"
+    assert graph["render_mode"] == "hybrid"
+
+
 def test_metrics_api(initialized_db) -> None:
     metrics = get_metrics_data("u1", initialized_db)
     assert "total_beliefs" in metrics

@@ -108,11 +108,20 @@ export function normalizeGraph(raw = {}) {
     .map(edge => normalizeRelationship(edge, validIds))
     .filter(Boolean);
 
-  return {
+  const graph = {
     memories,
     relationships,
     totalTurns: nonNegativeNumber(payload.total_turns ?? payload.totalTurns),
   };
+  if ('total_beliefs' in payload || 'totalBeliefs' in payload) {
+    graph.totalBeliefs = nonNegativeNumber(payload.total_beliefs ?? payload.totalBeliefs);
+    graph.returnedBeliefs = nonNegativeNumber(payload.returned_beliefs ?? payload.returnedBeliefs);
+    graph.nextCursor = payload.next_cursor ?? payload.nextCursor ?? null;
+    graph.renderMode = textValue(payload.render_mode ?? payload.renderMode) || 'individual';
+    graph.truncated = Boolean(payload.truncated);
+    graph.summary = asRecord(payload.summary);
+  }
+  return graph;
 }
 
 export function statementFor(memory = {}) {

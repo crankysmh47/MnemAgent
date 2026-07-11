@@ -114,3 +114,12 @@ test("normalizes graph payloads and safely ignores non-array collections", () =>
     totalTurns: 0,
   });
 });
+
+test('normalizes scalable archive metadata', () => {
+  const graph = normalizeGraph({ beliefs: [], edges: [], total_beliefs: 4812, returned_beliefs: 150, render_mode: 'summary', truncated: true, summary: { categories: { preference: 40 } } });
+  assert.equal(graph.totalBeliefs, 4812);
+  assert.equal(graph.returnedBeliefs, 150);
+  assert.equal(graph.renderMode, 'summary');
+  assert.equal(graph.truncated, true);
+  assert.deepEqual(graph.summary, { categories: { preference: 40 } });
+});
