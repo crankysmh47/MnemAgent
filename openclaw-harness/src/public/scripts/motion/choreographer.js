@@ -8,7 +8,7 @@ export function selectMotionEvent(events = [], seenIds = new Set()) {
   return { featured: ordered[0] || null, quiet: ordered.slice(1), pulseLimit: 3 };
 }
 
-export function createChoreographer({ root = null, store = null, reducedMotion = false } = {}) {
+export function createChoreographer({ root = null, store = null, reducedMotion = false, onOpeningComplete = () => {} } = {}) {
   let openingComplete = false;
   let currentAbort = null;
   const timers = new Set();
@@ -23,11 +23,16 @@ export function createChoreographer({ root = null, store = null, reducedMotion =
       this.cancel();
       currentAbort = new AbortController();
       openingComplete = false;
-      play('opening-ground', () => play('opening-tree', () => play('opening-bloom', () => play('opening-settle', () => {
+      if (root) root.dataset.opening = 'true';
+      const phases = ['opening-ground','opening-roots','opening-trunk','opening-branches','opening-bloom','opening-connections','opening-settle'];
+      const advance = index => {
+        if (index < phases.length) { play(phases[index], () => advance(index + 1)); return; }
         openingComplete = true;
-        if (root) applyLifecycleTransition(root, 'settled', reducedMotion);
+        if (root) { root.dataset.opening = 'false'; applyLifecycleTransition(root, 'settled', reducedMotion); }
         store?.dispatch({ type: 'OPENING_FINISHED', memoryId });
-      }))));
+        onOpeningComplete(memoryId);
+      };
+      advance(0);
       return memoryId;
     },
     enqueue(decision) { if (decision?.featured) play(decision.featured.eventType || decision.featured.event_type); },

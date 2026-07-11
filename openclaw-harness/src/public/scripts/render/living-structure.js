@@ -2,6 +2,7 @@ import { memoryAriaLabel, memoryFormPath, memoryVeinPath, shapeClass } from './m
 import { renderForestScene } from './forest-scene.js';
 import { relationshipFocusState, tendrilClass, tendrilStrokeWidth } from './tendril.js';
 import { curvePath } from '../tree-geometry.js';
+import { memoryLabelPosition, shortMemoryStatement } from './memory-label.js';
 
 const CATEGORY_COLOR = Object.freeze({ preference: 'var(--living-moss)', persona: 'var(--clay-rose)', system_state: 'var(--mineral-blue)' });
 
@@ -10,7 +11,7 @@ function d3Global() {
   return globalThis.d3;
 }
 
-export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace = () => {} } = {}) {
+export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace = () => {}, onHover = () => {} } = {}) {
   const d3 = d3Global();
   const svg = d3.select(svgElement);
   const world = svg.select('#archiveWorld');
@@ -23,6 +24,16 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
     const nodeById = new Map(layout.nodes.map(node => [String(node.id), node]));
     const selectedId = viewState.selectedMemoryId == null ? null : String(viewState.selectedMemoryId);
     const related = new Set((viewState.relatedMemoryIds || []).map(String));
+    const annotationLayer = world.select('g.annotations');
+    const clearLabel = () => annotationLayer.selectAll('g.memory-hover-label').remove();
+    const showLabel = memory => {
+      const node=nodeById.get(String(memory.id)); if(!node) return;
+      const text=shortMemoryStatement(memory), labelWidth=Math.min(250,Math.max(112,text.length*6.5+24)), labelHeight=38;
+      const at=memoryLabelPosition(node,layout.bounds||{width:1000,height:720},{width:labelWidth,height:labelHeight});
+      const x=at.anchor==='start'?0:at.anchor==='end'?-labelWidth:-labelWidth/2;
+      const label=annotationLayer.selectAll('g.memory-hover-label').data([{...at,text,labelWidth,labelHeight}],()=> 'active').join(enter=>{const g=enter.append('g').attr('class','memory-hover-label').attr('aria-hidden','true');g.append('rect');g.append('text');return g;});
+      label.attr('transform',d=>`translate(${d.x},${d.y})`); label.select('rect').attr('x',x).attr('y',0).attr('width',labelWidth).attr('height',labelHeight).attr('rx',10); label.select('text').attr('x',x+12).attr('y',24).text(text);
+    };
     svg.classed('has-memory-focus', Boolean(selectedId));
 
     const tree = layout.tree || { root: { paths: [] }, trunk: null, branches: [] };
@@ -72,6 +83,10 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
       .attr('aria-label', d => memoryAriaLabel(d))
       .on('click', (_event, d) => onSelect(d.id))
       .on('dblclick', (_event, d) => onTrace(d.id))
+      .on('mouseenter', (_event, d) => { showLabel(d); onHover(d.id); })
+      .on('mouseleave', () => { clearLabel(); onHover(null); })
+      .on('focus', (_event, d) => { showLabel(d); onHover(d.id); })
+      .on('blur', () => { clearLabel(); onHover(null); })
       .on('keydown', (event, d) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(d.id); } });
 
     const forms = memoryLayer.selectAll('g.memory-form');

@@ -29,8 +29,14 @@ async function run() {
   page.on('console', message => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
   page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
   try {
-    await page.goto(baseUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    const loadingStarted=Date.now();
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(900);
+    if ((await page.locator('#archiveStage').getAttribute('data-loading')) !== 'true') throw new Error('loader left before one full spinner turn');
+    await page.waitForFunction(() => document.querySelector('#archiveStage')?.dataset.loading === 'false', null, { timeout: 10000 });
+    if (Date.now()-loadingStarted < 1400) throw new Error('loader minimum hold was shorter than 1400ms');
     await page.waitForSelector('.memory-form', { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelector('#archiveStage')?.dataset.opening === 'false', null, { timeout: 10000 });
     const report = await page.evaluate(() => ({
       title: document.title,
       status: document.querySelector('#archiveApp')?.dataset.status,
@@ -43,12 +49,13 @@ async function run() {
       hangingVines: document.querySelectorAll('.hanging-vine').length,
       waterBodies: document.querySelectorAll('.forest-water').length,
       grassBlades: document.querySelectorAll('.grass-blade').length,
+      waterWashes: document.querySelectorAll('.forest-water-wash').length,
       firstLabel: document.querySelector('.memory-form')?.getAttribute('aria-label') || '',
       hasOldGraph: Boolean(document.querySelector('.graph-panel, .stat-card, #eventFeed, canvas')),
       hasStage: Boolean(document.querySelector('#archiveSvg')),
     }));
     if (!report.title.includes('Living Archive')) throw new Error('wrong page title');
-    if (!report.memories || report.interactions !== report.memories || !report.tendrils || report.tendrils > 96 || report.roots < 5 || report.branches < 9 || report.trunks !== 1 || report.hangingVines !== 4 || report.waterBodies !== 1 || report.grassBlades < 18 || !report.firstLabel || report.firstLabel.includes('Unnamed memory') || !report.hasStage || report.hasOldGraph) throw new Error(`semantic surface failed: ${JSON.stringify(report)}`);
+    if (!report.memories || report.interactions !== report.memories || !report.tendrils || report.tendrils > 96 || report.roots < 5 || report.branches < 9 || report.trunks !== 1 || report.hangingVines !== 4 || report.waterBodies !== 1 || report.waterWashes !== 2 || report.grassBlades < 18 || !report.firstLabel || report.firstLabel.includes('Unnamed memory') || !report.hasStage || report.hasOldGraph) throw new Error(`semantic surface failed: ${JSON.stringify(report)}`);
     await page.waitForTimeout(500);
     if (process.env.VISUALIZER_SCREENSHOT) await page.screenshot({ path: process.env.VISUALIZER_SCREENSHOT, fullPage: true });
     const firstVine = page.locator('.hanging-vine').first();
@@ -63,6 +70,9 @@ async function run() {
     const firstMemory = page.locator('.memory-form').first();
     const placementBeforeHover = await firstMemory.getAttribute('transform');
     await firstMemory.hover({ force: true });
+    await page.waitForTimeout(220);
+    const hoverLabels=page.locator('.memory-hover-label');
+    if(await hoverLabels.count()!==1 || !(await hoverLabels.textContent()).trim()) throw new Error('memory hover note did not appear');
     const placementAfterHover = await firstMemory.getAttribute('transform');
     if (placementBeforeHover !== placementAfterHover) throw new Error('hover changed the memory placement transform');
     await firstMemory.click({ force: true });

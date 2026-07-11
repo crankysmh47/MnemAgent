@@ -58,6 +58,7 @@ test('crowded layouts keep every memory form fully inside the archive stage', ()
 
 test('tree skeleton is rooted and branches upward into three category families', () => {
   const tree = createTreeSkeleton({ width: 1000, height: 720 });
+  assert.ok(tree.root.x >= 540 && tree.root.x <= 560);
   assert.ok(tree.root.y > tree.crown.y);
   assert.deepEqual([...new Set(tree.branches.map(branch => branch.category))].sort(), ['persona','preference','system_state']);
   assert.ok(tree.branches.every(branch => branch.end.y < tree.root.y));

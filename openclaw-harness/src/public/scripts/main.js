@@ -1,6 +1,6 @@
 import { loadArchiveSnapshot, resolveUserId } from './api.js';
 import { createArchiveStore } from './archive-store.js';
-import { normalizeEvent, narrativeCopy, selectNarrative } from './narrative.js';
+import { normalizeEvent, archiveStory, selectNarrative } from './narrative.js';
 import { normalizeGraph } from './memory-model.js';
 import { computeArchiveLayout } from './layout.js';
 import { createLivingStructure } from './render/living-structure.js';
@@ -12,6 +12,8 @@ import { applyLifecycleTransition } from './motion/lifecycle-transitions.js';
 import { createArchiveNavigation } from './interactions/archive-navigation.js';
 import { createMemoryFocus, filterMemory } from './interactions/memory-focus.js';
 import { createArchiveMenu } from './interactions/archive-menu.js';
+import { createLoadingGate } from './motion/loading-gate.js';
+import { createFallingLeaves } from './motion/falling-leaves.js';
 
 export function structuralKey(snapshot = {}) {
   const memories = snapshot.memories || snapshot.beliefs || [];
@@ -33,7 +35,10 @@ export function relatedMemoryIds(memoryId, relationships = []) { const related=n
 
 export function selectRenderableRelationships(relationships = [], focusedId = null, limit = 96) { const priority={cluster:4,concept:3,bridge:2,affinity:1,related:0}; const sorted=[...relationships].sort((a,b)=>(priority[b.kind]||0)-(priority[a.kind]||0)||(Number(b.weight)||0)-(Number(a.weight)||0)); if(focusedId==null) return sorted.slice(0,limit); const id=String(focusedId); const incident=sorted.filter(edge=>String(edge.source)===id||String(edge.target)===id); const incidentKeys=new Set(incident.map(edge=>`${edge.source}|${edge.target}|${edge.kind}`)); const context=sorted.filter(edge=>!incidentKeys.has(`${edge.source}|${edge.target}|${edge.kind}`)).slice(0,Math.max(18,limit-incident.length)); return [...incident,...context].slice(0,Math.max(limit,incident.length)); }
 
-function viewportSize(svg) { return { width: Math.max(640, svg?.clientWidth || 1000), height: Math.max(500, svg?.clientHeight || 720) }; }
+export function viewportSize(svg) {
+  const viewBox=svg?.viewBox?.baseVal;
+  return { width:Math.max(640,Number(viewBox?.width)||svg?.clientWidth||1000), height:Math.max(500,Number(viewBox?.height)||svg?.clientHeight||720) };
+}
 
 export async function bootstrapArchive() {
   if (typeof document === 'undefined') return null;
@@ -42,12 +47,18 @@ export async function bootstrapArchive() {
   const stage = document.querySelector('#archiveStage');
   const loader = document.querySelector('#archiveLoader');
   stage.setAttribute('data-loading', 'true');
+  stage.setAttribute('data-opening', 'false');
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false;
+  const loadingGate = createLoadingGate({ minimumMs: 1400 });
+  let openingStarted = false;
+  let hoveredMemoryId = null;
   let currentUserId = await resolveUserId(location.search, window.localStorage);
   const store = createArchiveStore();
   store.dispatch({ type: 'LOAD_STARTED' });
-  const renderer = createLivingStructure(svg, { onSelect: id => store.dispatch({ type: 'SELECT_MEMORY', memoryId: id }), onTrace: id => store.dispatch({ type: 'TRACE_MEMORY', memoryId: id }) });
+  const renderer = createLivingStructure(svg, { onSelect: id => store.dispatch({ type: 'SELECT_MEMORY', memoryId: id }), onTrace: id => store.dispatch({ type: 'TRACE_MEMORY', memoryId: id }), onHover: id => { hoveredMemoryId=id; renderState(); } });
   const timeline = createTimeline(document.querySelector('#sedimentTimeline'), { onReplay: event => choreographer.replay(event) });
-  const choreographer = createChoreographer({ root: stage, store, reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false });
+  const fallingLeaves = createFallingLeaves({ root: svg.querySelector('g.effects'), reducedMotion });
+  const choreographer = createChoreographer({ root: stage, store, reducedMotion, onOpeningComplete: () => fallingLeaves.start() });
   const ambient = createAmbientMotion(stage, store);
   const navigation = createArchiveNavigation(svg, document.querySelector('#archiveWorld'), store);
   const focus = createMemoryFocus(document.querySelector('#archiveStage'), store);
@@ -67,7 +78,7 @@ export async function bootstrapArchive() {
     const layout = computeArchiveLayout(visible, renderRelationships, { ...size, selectedMemoryId: focusedMemoryId });
     renderer.render({ memories: visible }, layout, { ...state, selectedMemoryId:focusedMemoryId, relatedMemoryIds:related });
     const observationState={ ...state, memories: visible, relationships: renderRelationships };
-    const copy=narrativeCopy(state.narrative || {}, state.graph.memories.find(memory => String(memory.id) === String(focusedMemoryId)));
+    const copy=archiveStory({ memories:visible, relationships:renderRelationships, events:state.events, selectedMemory:state.graph.memories.find(memory=>String(memory.id)===String(focusedMemoryId)), hoveredMemory:state.graph.memories.find(memory=>String(memory.id)===String(hoveredMemoryId)) });
     renderObservation(document.querySelector('#observationMargin'), observationState, copy);
     renderObservation(document.querySelector('#observationSheetContent'), observationState, copy);
     renderMaterialLegend(document.querySelector('#materialLegend'));
@@ -75,6 +86,17 @@ export async function bootstrapArchive() {
     timeline.render(state.events);
     app.dataset.status = state.status;
     document.querySelector('#archiveStatus').textContent = `${visible.length} memories, ${renderRelationships.length} active relationships, status ${state.status}`;
+  }
+
+  async function awaken(graph) {
+    if (openingStarted) return;
+    openingStarted = true;
+    loadingGate.ready();
+    await loadingGate.release();
+    stage.setAttribute('data-loading', 'false');
+    loader?.setAttribute('aria-hidden', 'true');
+    if (graph?.memories?.length) choreographer.playOpening(graph.memories[0].id);
+    else stage.setAttribute('data-opening', 'false');
   }
 
   async function refresh(structural = false) {
@@ -95,20 +117,15 @@ export async function bootstrapArchive() {
         store.dispatch({ type: 'SNAPSHOT_RECEIVED', snapshot: { ...snapshot, graph, events, status: snapshot.status } });
         if(decision.featured) store.dispatch({ type: 'NARRATIVE_RECEIVED', narrative: decision });
         renderState();
-        if (!store.getState().openingComplete && graph.memories.length) {
-          stage.setAttribute('data-loading', 'false');
-          loader?.setAttribute('aria-hidden', 'true');
-          choreographer.playOpening(graph.memories[0].id);
-        }
+        if (!store.getState().openingComplete && graph.memories.length) await awaken(graph);
         else if (decision.featured) choreographer.enqueue(decision);
         if (snapshot.status === 'ready') ambient.start();
       } else {
-        stage.setAttribute('data-loading', 'false');
-        loader?.setAttribute('aria-hidden', 'true');
+        await awaken(null);
         renderState();
       }
     } catch (error) {
-      if (error.name !== 'AbortError') { console.error('Archive refresh failed:', error); stage.setAttribute('data-loading', 'false'); loader?.setAttribute('aria-hidden', 'true'); store.dispatch({ type: 'SNAPSHOT_FAILED', error: error.message }); renderState(); }
+      if (error.name !== 'AbortError') { console.error('Archive refresh failed:', error); await awaken(null); store.dispatch({ type: 'SNAPSHOT_FAILED', error: error.message }); renderState(); }
     }
     return store.getState();
   }
@@ -117,7 +134,7 @@ export async function bootstrapArchive() {
   window.addEventListener('resize', onResize);
   await refresh(true);
   const poll = window.setInterval(() => refresh(false), 15000);
-  return { store, refresh, changeUser: userId => { if(userId) currentUserId=String(userId); return refresh(true); }, destroy() { window.clearInterval(poll); window.removeEventListener('resize', onResize); ambient.destroy(); choreographer.destroy(); renderer.destroy(); timeline.destroy(); navigation.destroy(); focus.destroy(); menu.destroy(); abortController?.abort(); } };
+  return { store, refresh, changeUser: userId => { if(userId) currentUserId=String(userId); return refresh(true); }, destroy() { window.clearInterval(poll); window.removeEventListener('resize', onResize); fallingLeaves.destroy(); ambient.destroy(); choreographer.destroy(); renderer.destroy(); timeline.destroy(); navigation.destroy(); focus.destroy(); menu.destroy(); abortController?.abort(); } };
 }
 
 function exportState(state) { const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'mnemagent-living-archive.json'; link.click(); URL.revokeObjectURL(link.href); }

@@ -1,7 +1,9 @@
-.observation-margin { display: flex; flex-direction: column; gap: 1.25rem; }
+.observation-margin { display: flex; flex-direction: column; gap: 1.25rem; position: relative; overflow: hidden; }
+.observation-margin::before { content: ''; position: absolute; left: -18px; top: 12%; width: 38px; height: 72%; border-left: 1px solid color-mix(in srgb, var(--living-moss) 28%, transparent); border-radius: 50%; transform: rotate(-3deg); pointer-events: none; }
 .observation-margin h2 { margin: 0; font: 400 clamp(1.7rem, 3vw, 3rem)/.95 var(--font-display); color: var(--ink); }
 .observation-margin h3 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--ink); }
 .observation-margin p { color: color-mix(in srgb, var(--ink) 72%, transparent); }
+.observation-margin .observation-guidance { padding-left: .75rem; border-left: 2px solid color-mix(in srgb, var(--living-moss) 38%, transparent); color: color-mix(in srgb, var(--living-moss) 76%, var(--ink)); font-size: .84rem; }
 .memory-detail-meta { font: .7rem var(--font-mono); letter-spacing: .04em; color: var(--lichen-green) !important; }
 #vitalSigns { display: grid; grid-template-columns: 1fr auto; gap: .35rem .75rem; margin: 0; border-top: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); padding-top: .9rem; }
 #vitalSigns dt { color: var(--weathered-taupe); text-transform: uppercase; font: .65rem var(--font-mono); letter-spacing: .08em; }

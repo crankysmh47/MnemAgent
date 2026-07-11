@@ -1,4 +1,4 @@
-const point = (x, y, sx, sy) => ({ x: x * sx, y: y * sy });
+const point = (x, y, sx, sy) => ({ x: (x + 50) * sx, y: y * sy });
 
 function curve(id, category, values, sx, sy, level = 1) {
   const [start, control1, control2, end] = values;
@@ -32,8 +32,8 @@ export function createTreeSkeleton({ width = 1000, height = 720 } = {}) {
   const safeHeight = Math.max(480, Number(height) || 720);
   const sx = safeWidth / 1000;
   const sy = safeHeight / 720;
-  const root = { x: 500 * sx, y: 650 * sy };
-  const crown = { x: 500 * sx, y: 82 * sy };
+  const root = point(500, 650, sx, sy);
+  const crown = point(500, 82, sx, sy);
   const trunk = curve('trunk', 'trunk', [[500,650],[470,535],[535,400],[500,245]], sx, sy, 0);
   const roots = [
     curve('root-left-far','root',[[500,650],[410,635],[255,670],[100,690]],sx,sy,0),

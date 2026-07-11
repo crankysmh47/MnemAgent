@@ -24,6 +24,7 @@ function sceneBounds(tree = {}) {
 }
 
 function point(x, y, bounds) { return { x: x * bounds.width / 1000, y: y * bounds.height / 720 }; }
+function groundPoint(x, y, bounds) { return point(x + 50, y, bounds); }
 
 function curvePath(points, bounds) {
   const [start, control1, control2, end] = points.map(([x, y]) => point(x, y, bounds));
@@ -67,9 +68,14 @@ export function renderForestScene(world, tree = {}) {
     .attr('transform', d => leafTransform(d, bounds));
 
   const water = world.select('g.water');
-  const waterPath = `M${point(82,662,bounds).x},${point(82,662,bounds).y} C${point(265,610,bounds).x},${point(265,610,bounds).y} ${point(730,610,bounds).x},${point(730,610,bounds).y} ${point(920,662,bounds).x},${point(920,662,bounds).y} C${point(748,700,bounds).x},${point(748,700,bounds).y} ${point(252,700,bounds).x},${point(252,700,bounds).y} ${point(82,662,bounds).x},${point(82,662,bounds).y}Z`;
+  const waterPath = `M${groundPoint(82,662,bounds).x},${groundPoint(82,662,bounds).y} C${groundPoint(265,610,bounds).x},${groundPoint(265,610,bounds).y} ${groundPoint(730,610,bounds).x},${groundPoint(730,610,bounds).y} ${groundPoint(920,662,bounds).x},${groundPoint(920,662,bounds).y} C${groundPoint(748,700,bounds).x},${groundPoint(748,700,bounds).y} ${groundPoint(252,700,bounds).x},${groundPoint(252,700,bounds).y} ${groundPoint(82,662,bounds).x},${groundPoint(82,662,bounds).y}Z`;
   water.selectAll('path.forest-water').data([{ id:'reflecting-pool', d:waterPath }], d => d.id).join('path')
     .attr('class', 'forest-water').attr('d', d => d.d).attr('aria-hidden', 'true');
+  const washes=[
+    {id:'water-wash-left',d:`M${point(-80,664,bounds).x},${point(-80,664,bounds).y} Q${point(40,642,bounds).x},${point(40,642,bounds).y} ${groundPoint(150,652,bounds).x},${groundPoint(150,652,bounds).y} L${groundPoint(170,690,bounds).x},${groundPoint(170,690,bounds).y} L${point(-80,700,bounds).x},${point(-80,700,bounds).y}Z`},
+    {id:'water-wash-right',d:`M${groundPoint(850,652,bounds).x},${groundPoint(850,652,bounds).y} Q${point(980,642,bounds).x},${point(980,642,bounds).y} ${point(1080,664,bounds).x},${point(1080,664,bounds).y} L${point(1080,700,bounds).x},${point(1080,700,bounds).y} L${groundPoint(830,690,bounds).x},${groundPoint(830,690,bounds).y}Z`},
+  ];
+  water.selectAll('path.forest-water-wash').data(washes,d=>d.id).join('path').attr('class','forest-water-wash').attr('d',d=>d.d).attr('aria-hidden','true');
   const ripples = [
     { id:'ripple-left', d:`M${point(170,650,bounds).x},${point(170,650,bounds).y} Q${point(330,636,bounds).x},${point(330,636,bounds).y} ${point(470,650,bounds).x},${point(470,650,bounds).y}` },
     { id:'ripple-right', d:`M${point(530,665,bounds).x},${point(530,665,bounds).y} Q${point(680,650,bounds).x},${point(680,650,bounds).y} ${point(830,665,bounds).x},${point(830,665,bounds).y}` },

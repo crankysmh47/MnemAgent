@@ -3,13 +3,16 @@ import assert from 'node:assert/strict';
 import { transitionForPhase } from '../src/public/scripts/motion/lifecycle-transitions.js';
 import { selectMotionEvent } from '../src/public/scripts/motion/choreographer.js';
 
-test('lifecycle transition specs use a brief four-part forest awakening', () => {
+test('lifecycle transition specs reveal the forest from ground to canopy', () => {
   assert.deepEqual(transitionForPhase('arrival', false), { className: 'phase-arrival', duration: 1200 });
-  assert.equal(transitionForPhase('opening-ground', false).duration, 500);
-  assert.equal(transitionForPhase('opening-tree', false).duration, 700);
+  assert.equal(transitionForPhase('opening-ground', false).duration, 420);
+  assert.equal(transitionForPhase('opening-roots', false).duration, 360);
+  assert.equal(transitionForPhase('opening-trunk', false).duration, 420);
+  assert.equal(transitionForPhase('opening-branches', false).duration, 520);
   assert.equal(transitionForPhase('opening-bloom', false).duration, 1200);
-  assert.equal(transitionForPhase('opening-settle', false).duration, 500);
-  for (const phase of ['opening-ground', 'opening-tree', 'opening-bloom', 'opening-settle', 'recall']) {
+  assert.equal(transitionForPhase('opening-connections', false).duration, 360);
+  assert.equal(transitionForPhase('opening-settle', false).duration, 480);
+  for (const phase of ['opening-ground', 'opening-roots', 'opening-trunk', 'opening-branches', 'opening-bloom', 'opening-connections', 'opening-settle', 'recall']) {
     assert.ok(transitionForPhase(phase, true).duration <= 180);
   }
 });

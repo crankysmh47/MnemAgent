@@ -54,8 +54,8 @@ test('initial loading state is accessible and choreographs current forest layers
   }
   assert.match(rendererSource, /--memory-index/);
   assert.match(motion, /var\(--memory-index/);
-  assert.match(motion, /phase-opening-bloom[\s\S]*\.memory-interaction/);
-  assert.doesNotMatch(motion, /phase-opening-bloom[^\n]*\.memory-form\s*\{/);
+  assert.match(motion, /data-opening="true"[\s\S]*g\.memories \.memory-interaction/);
+  assert.doesNotMatch(motion, /data-opening="true"[^\n]*\.memory-form\s*\{/);
   assert.match(motion, /prefers-reduced-motion[\s\S]*archive-loader/);
 });
 
@@ -91,6 +91,16 @@ test('renderer exposes a restrained interactive forest frame', () => {
   assert.match(motion, /vine-sway/);
   assert.match(stageCss, /hanging-vine:hover/);
   assert.match(motion, /prefers-reduced-motion[\s\S]*hanging-vine/);
+});
+
+test('forest observatory polish stays subordinate to the centered tree', () => {
+  assert.equal((html.match(/class="dappled-light /g) || []).length, 2);
+  for (const token of ['forest-water-wash','memory-hover-label']) assert.match(rendererSource + forestSceneSource, new RegExp(token));
+  assert.match(stageCss, /\.forest-water-wash/);
+  assert.match(stageCss, /\.memory-hover-label/);
+  assert.match(motion, /seed-turn 1\.4s/);
+  assert.match(motion, /leaf-fall/);
+  assert.doesNotMatch(stageCss + motion, /#archiveWorld\s*\{[^}]*transform:\s*translate/s);
 });
 
 test('vine interaction keeps a stable hit area and never replaces the ambient animation', () => {

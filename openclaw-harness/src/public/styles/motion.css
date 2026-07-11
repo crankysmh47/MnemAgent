@@ -1,20 +1,30 @@
 .archive-stage[data-ambient="breathing"] #archiveWorld { animation: archive-breathe 8s ease-in-out infinite; transform-origin: 43% 58%; }
+.archive-stage[data-loading="true"] #archiveSvg { opacity: 0; }
+.archive-stage #archiveSvg { transition: opacity 300ms var(--ease-organic); }
 .archive-loader { position: absolute; inset: 0; z-index: 4; display: grid; place-content: center; justify-items: center; gap: .55rem; color: var(--living-moss); background: radial-gradient(circle at 50% 52%, color-mix(in srgb, var(--lichen-green) 18%, var(--bone-white)), var(--bone-white) 52%, color-mix(in srgb, var(--warm-parchment) 72%, var(--bone-white))); transition: opacity 360ms var(--ease-organic), visibility 360ms; }
 .archive-loader span { font: 500 .72rem var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
-.awakening-seed { width: 92px; height: 92px; overflow: visible; }
+.awakening-seed { width: 92px; height: 92px; overflow: visible; animation: seed-turn 1.4s linear infinite; }
 .seed-ring { fill: none; stroke: var(--lichen-green); transform-origin: 60px 60px; opacity: .28; animation: seed-breathe 2.2s ease-in-out infinite; }
 .seed-ring-inner { animation-delay: -1.1s; }
 .seed-leaf { fill: color-mix(in srgb, var(--lichen-green) 58%, var(--bone-white)); stroke: var(--living-moss); stroke-width: 2; transform-origin: 60px 68px; animation: seed-unfurl 1.8s var(--ease-organic) infinite alternate; }
 .seed-root { fill: none; stroke: var(--antique-brass); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 55; animation: root-search 1.8s var(--ease-organic) infinite alternate; }
 .archive-stage[data-loading="false"] .archive-loader { opacity: 0; visibility: hidden; pointer-events: none; }
-.archive-stage.phase-opening-ground g.water, .archive-stage.phase-opening-ground g.groundcover, .archive-stage.phase-opening-ground g.roots { animation: forest-ground-rise .5s var(--ease-organic) both; transform-origin: 50% 100%; }
-.archive-stage.phase-opening-tree g.trunk, .archive-stage.phase-opening-tree g.branches { animation: forest-tree-grow .7s var(--ease-organic) both; transform-origin: 50% 92%; }
-.archive-stage.phase-opening-bloom g.memories .memory-interaction { animation: memory-bloom .42s var(--ease-organic) both; animation-delay: calc(var(--memory-index, 0) * 12ms); }
-.archive-stage.phase-opening-settle g.tendrils, .archive-stage.phase-opening-settle g.canopy, .archive-stage.phase-opening-settle g.annotations { animation: forest-settle .5s var(--ease-organic) both; }
+.archive-stage[data-opening="true"] g.water, .archive-stage[data-opening="true"] g.groundcover { animation: forest-ground-rise .42s var(--ease-organic) both; transform-origin: 55% 100%; }
+.archive-stage[data-opening="true"] g.roots { animation: forest-ground-rise .36s var(--ease-organic) .42s both; transform-origin: 55% 100%; }
+.archive-stage[data-opening="true"] g.trunk { animation: forest-tree-grow .42s var(--ease-organic) .78s both; transform-origin: 55% 92%; }
+.archive-stage[data-opening="true"] g.branches { animation: forest-tree-grow .52s var(--ease-organic) 1.2s both; transform-origin: 55% 92%; }
+.archive-stage[data-opening="true"] g.memories .memory-interaction { animation: memory-bloom .42s var(--ease-organic) both; animation-delay: calc(1.72s + var(--memory-index, 0) * 16ms); }
+.archive-stage[data-opening="true"] g.tendrils { animation: forest-settle .36s var(--ease-organic) 2.92s both; }
+.archive-stage[data-opening="true"] g.canopy, .archive-stage[data-opening="true"] g.annotations { animation: forest-settle .48s var(--ease-organic) 3.28s both; }
 .archive-stage.phase-recall .tendril.is-active { animation: tendril-pulse .9s var(--ease-organic) both; }
 .archive-stage.phase-revision .memory-form.is-selected .memory-interaction { animation: revision-graft 1.4s var(--ease-organic) both; }
 .archive-stage .hanging-vine-motion { animation: vine-sway var(--vine-duration, 9s) ease-in-out var(--vine-delay, 0s) infinite alternate; }
+.dappled-light { position: absolute; z-index: 0; width: 34%; aspect-ratio: 1; border-radius: 50%; background: rgba(255,244,198,.2); filter: blur(34px); pointer-events: none; animation: dapple-drift 18s ease-in-out infinite alternate; }
+.dappled-light-one { left: 8%; top: 8%; }
+.dappled-light-two { right: -4%; top: 30%; animation-delay: -9s; opacity: .62; }
+.falling-leaf { fill: var(--lichen-green); opacity: 0; pointer-events: none; animation: leaf-fall 6s ease-in both; }
 @keyframes archive-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
+@keyframes seed-turn { to { transform: rotate(360deg); } }
 @keyframes seed-breathe { 0%,100% { opacity: .18; transform: scale(.88); } 50% { opacity: .48; transform: scale(1.06); } }
 @keyframes seed-unfurl { from { transform: rotate(-3deg) scale(.94); } to { transform: rotate(3deg) scale(1.04); } }
 @keyframes root-search { from { stroke-dashoffset: 55; opacity: .3; } to { stroke-dashoffset: 0; opacity: .85; } }
@@ -25,4 +35,6 @@
 @keyframes tendril-pulse { 0% { stroke-width: 1; opacity: .3; } 45% { stroke-width: 3; opacity: .95; } 100% { stroke-width: 1.5; opacity: .7; } }
 @keyframes revision-graft { 0% { transform: scale(.92); opacity: .4; } 50% { transform: scale(1.16); } 100% { transform: scale(1); opacity: 1; } }
 @keyframes vine-sway { from { transform: rotate(-2deg); } to { transform: rotate(2.5deg); } }
-@media (prefers-reduced-motion: reduce) { .archive-loader, .archive-stage[data-ambient="breathing"] #archiveWorld, .archive-stage[class*="phase-"] g, .archive-stage .tendril.is-active, .archive-stage .memory-interaction, .archive-stage .hanging-vine-motion, .archive-stage .hanging-vine-response, .archive-stage .seed-ring, .archive-stage .seed-leaf, .archive-stage .seed-root { animation: none; transition-duration: 120ms; } }
+@keyframes dapple-drift { from { transform: translate3d(-2%,1%,0) scale(.96); } to { transform: translate3d(5%,-3%,0) scale(1.08); } }
+@keyframes leaf-fall { 0% { opacity: 0; transform: translate(var(--leaf-x),-20px) rotate(0); } 12% { opacity: .65; } 88% { opacity: .42; } 100% { opacity: 0; transform: translate(calc(var(--leaf-x) + var(--leaf-drift)),590px) rotate(320deg); } }
+@media (prefers-reduced-motion: reduce) { .archive-loader, .awakening-seed, .dappled-light, .falling-leaf, .archive-stage[data-ambient="breathing"] #archiveWorld, .archive-stage[class*="phase-"] g, .archive-stage .tendril.is-active, .archive-stage .memory-interaction, .archive-stage .hanging-vine-motion, .archive-stage .hanging-vine-response, .archive-stage .seed-ring, .archive-stage .seed-leaf, .archive-stage .seed-root { animation: none; transition-duration: 120ms; } }

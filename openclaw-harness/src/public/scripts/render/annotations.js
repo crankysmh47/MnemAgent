@@ -49,6 +49,7 @@ export function renderObservation(root, state = {}, narrative = {}) {
     const title = document.createElement('h2'); title.textContent = narrative.title || 'A living record of what endures.';
     const body = document.createElement('p'); body.textContent = narrative.body || 'Memories settle into related branches as they become useful.';
     narrativeRoot.append(eyebrow, title, body);
+    if(narrative.guidance){ const guidance=document.createElement('p'); guidance.className='observation-guidance'; guidance.textContent=narrative.guidance; narrativeRoot.append(guidance); }
   }
   const detail = observationRegion(root,'memoryDetail','detail');
   if (detail) {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { relatedMemoryIds, selectRenderableRelationships, structuralKey, statusFromSnapshot, shouldSeedDemo } from '../src/public/scripts/main.js';
+import { relatedMemoryIds, selectRenderableRelationships, structuralKey, statusFromSnapshot, shouldSeedDemo, viewportSize } from '../src/public/scripts/main.js';
 
 test('structural key ignores metric-only changes and is order-independent', () => {
   const a = { memories: [{ id: 'b' }, { id: 'a' }], relationships: [{ source: 'b', target: 'a' }] };
@@ -19,6 +19,11 @@ test('only the explicit demo user may request demo seeding', () => {
   assert.equal(shouldSeedDemo('demo-brain', { beliefs: 2 }), true);
   assert.equal(shouldSeedDemo('demo-brain', { beliefs: 8 }), false);
   assert.equal(shouldSeedDemo('real-user', { beliefs: 0 }), false);
+});
+
+test('visualizer geometry uses SVG viewBox coordinates without double scaling', () => {
+  const svg={viewBox:{baseVal:{width:1000,height:720}},clientWidth:878,clientHeight:828};
+  assert.deepEqual(viewportSize(svg),{width:1000,height:720});
 });
 
 test('dense archives limit ambient tendrils while focus keeps every incident relationship', () => {
