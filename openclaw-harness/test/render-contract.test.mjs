@@ -89,6 +89,15 @@ test('renderer exposes a restrained interactive forest frame', () => {
   }
   assert.doesNotMatch(rendererSource, /garden-vine|vine-leaf/);
   assert.match(motion, /vine-sway/);
-  assert.match(motion, /hanging-vine:hover/);
+  assert.match(stageCss, /hanging-vine:hover/);
   assert.match(motion, /prefers-reduced-motion[\s\S]*hanging-vine/);
+});
+
+test('vine interaction keeps a stable hit area and never replaces the ambient animation', () => {
+  assert.match(forestSceneSource, /hanging-vine-motion/);
+  assert.match(forestSceneSource, /hanging-vine-response/);
+  assert.match(motion, /\.hanging-vine-motion\s*\{[^}]*animation:\s*vine-sway/s);
+  assert.match(stageCss, /\.hanging-vine:hover\s+\.hanging-vine-response/);
+  assert.doesNotMatch(motion, /\.hanging-vine:hover\s*\{[^}]*animation(?:-name|-duration)?:/s);
+  assert.match(stageCss, /\.hanging-vine-hit\s*\{[^}]*pointer-events:\s*stroke/s);
 });

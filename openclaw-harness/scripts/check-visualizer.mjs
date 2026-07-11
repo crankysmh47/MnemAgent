@@ -52,10 +52,14 @@ async function run() {
     await page.waitForTimeout(500);
     if (process.env.VISUALIZER_SCREENSHOT) await page.screenshot({ path: process.env.VISUALIZER_SCREENSHOT, fullPage: true });
     const firstVine = page.locator('.hanging-vine').first();
-    if (!(await firstVine.evaluate(node => getComputedStyle(node).animationName)).includes('vine-sway')) throw new Error('hanging vine is not gently animated');
+    const firstVineMotion = firstVine.locator('.hanging-vine-motion');
+    const firstVineResponse = firstVine.locator('.hanging-vine-response');
+    if (!(await firstVineMotion.evaluate(node => getComputedStyle(node).animationName)).includes('vine-sway')) throw new Error('hanging vine is not gently animated');
+    const responseBeforeHover = await firstVineResponse.evaluate(node => getComputedStyle(node).transform);
     await page.locator('.hanging-leaf').first().hover({ force: true });
-    const vineHoverState = await firstVine.evaluate(node => ({ groupHovered: node.matches(':hover'), hitHovered: node.querySelector('.hanging-vine-hit')?.matches(':hover'), animationName: getComputedStyle(node).animationName }));
-    if (vineHoverState.animationName !== 'vine-sway-hover') throw new Error(`hanging vine did not react to hover: ${JSON.stringify(vineHoverState)}`);
+    await page.waitForTimeout(700);
+    const vineHoverState = await firstVine.evaluate(node => ({ groupHovered: node.matches(':hover'), animationName: getComputedStyle(node.querySelector('.hanging-vine-motion')).animationName, responseTransform: getComputedStyle(node.querySelector('.hanging-vine-response')).transform }));
+    if (!vineHoverState.groupHovered || vineHoverState.animationName !== 'vine-sway' || vineHoverState.responseTransform === responseBeforeHover) throw new Error(`hanging vine did not react smoothly to hover: ${JSON.stringify(vineHoverState)}`);
     const firstMemory = page.locator('.memory-form').first();
     const placementBeforeHover = await firstMemory.getAttribute('transform');
     await firstMemory.hover({ force: true });
@@ -78,7 +82,7 @@ async function run() {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const reduced = await page.locator('#archiveStage').evaluate(node => getComputedStyle(node.querySelector('#archiveWorld')).animationName);
     if (reduced !== 'none') throw new Error(`reduced motion still animates: ${reduced}`);
-    if ((await firstVine.evaluate(node => getComputedStyle(node).animationName)) !== 'none') throw new Error('reduced motion did not stop hanging vines');
+    if ((await firstVineMotion.evaluate(node => getComputedStyle(node).animationName)) !== 'none') throw new Error('reduced motion did not stop hanging vines');
     console.log(JSON.stringify({ url: baseUrl, report, consoleErrors: errors }, null, 2));
     if (errors.length) process.exitCode = 1;
   } finally {

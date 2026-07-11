@@ -13,8 +13,7 @@
 .archive-stage.phase-opening-settle g.tendrils, .archive-stage.phase-opening-settle g.canopy, .archive-stage.phase-opening-settle g.annotations { animation: forest-settle .5s var(--ease-organic) both; }
 .archive-stage.phase-recall .tendril.is-active { animation: tendril-pulse .9s var(--ease-organic) both; }
 .archive-stage.phase-revision .memory-form.is-selected .memory-interaction { animation: revision-graft 1.4s var(--ease-organic) both; }
-.archive-stage .hanging-vine { animation: vine-sway var(--vine-duration, 9s) ease-in-out var(--vine-delay, 0s) infinite alternate; }
-.archive-stage .hanging-vine:hover { animation-name: vine-sway-hover; animation-duration: 3.8s; }
+.archive-stage .hanging-vine-motion { animation: vine-sway var(--vine-duration, 9s) ease-in-out var(--vine-delay, 0s) infinite alternate; }
 @keyframes archive-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
 @keyframes seed-breathe { 0%,100% { opacity: .18; transform: scale(.88); } 50% { opacity: .48; transform: scale(1.06); } }
 @keyframes seed-unfurl { from { transform: rotate(-3deg) scale(.94); } to { transform: rotate(3deg) scale(1.04); } }
@@ -26,5 +25,4 @@
 @keyframes tendril-pulse { 0% { stroke-width: 1; opacity: .3; } 45% { stroke-width: 3; opacity: .95; } 100% { stroke-width: 1.5; opacity: .7; } }
 @keyframes revision-graft { 0% { transform: scale(.92); opacity: .4; } 50% { transform: scale(1.16); } 100% { transform: scale(1); opacity: 1; } }
 @keyframes vine-sway { from { transform: rotate(-2deg); } to { transform: rotate(2.5deg); } }
-@keyframes vine-sway-hover { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
-@media (prefers-reduced-motion: reduce) { .archive-loader, .archive-stage[data-ambient="breathing"] #archiveWorld, .archive-stage[class*="phase-"] g, .archive-stage .tendril.is-active, .archive-stage .memory-interaction, .archive-stage .hanging-vine, .archive-stage .seed-ring, .archive-stage .seed-leaf, .archive-stage .seed-root { animation: none; transition-duration: 120ms; } }
+@media (prefers-reduced-motion: reduce) { .archive-loader, .archive-stage[data-ambient="breathing"] #archiveWorld, .archive-stage[class*="phase-"] g, .archive-stage .tendril.is-active, .archive-stage .memory-interaction, .archive-stage .hanging-vine-motion, .archive-stage .hanging-vine-response, .archive-stage .seed-ring, .archive-stage .seed-leaf, .archive-stage .seed-root { animation: none; transition-duration: 120ms; } }

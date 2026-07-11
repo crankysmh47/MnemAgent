@@ -14,7 +14,9 @@
 .archive-stage .grass-bank { fill: color-mix(in srgb, var(--living-moss) 68%, var(--lichen-green)); opacity: .58; }
 .archive-stage .grass-blade { stroke: color-mix(in srgb, var(--living-moss) 82%, var(--lichen-green)); stroke-width: 2.15; stroke-linecap: round; opacity: .68; }
 .archive-stage .forest-moss { fill: color-mix(in srgb, var(--living-moss) 58%, var(--lichen-green)); opacity: .36; }
-.archive-stage .hanging-vine { transform-box: fill-box; transform-origin: top center; }
+.archive-stage .hanging-vine-motion, .archive-stage .hanging-vine-response { transform-box: fill-box; transform-origin: top center; }
+.archive-stage .hanging-vine-response { transition: transform 620ms var(--ease-organic), filter 620ms var(--ease-organic); }
+.archive-stage .hanging-vine:hover .hanging-vine-response { transform: rotate(var(--vine-response-angle, 3deg)) translateY(2px); filter: saturate(1.08); }
 .archive-stage .hanging-vine-hit { fill: none; stroke: transparent; stroke-width: 26; pointer-events: stroke; cursor: grab; }
 .archive-stage .hanging-vine-stem { stroke: color-mix(in srgb, var(--living-moss) 76%, var(--lichen-green)); stroke-width: 2.6; stroke-linecap: round; pointer-events: none; opacity: .72; }
 .archive-stage .hanging-leaf { fill: color-mix(in srgb, var(--lichen-green) 76%, var(--bone-white)); stroke: var(--living-moss); stroke-width: .8; pointer-events: none; opacity: .78; }
@@ -42,4 +44,4 @@
 .archive-stage svg.has-memory-focus .tendril.is-active { opacity: .92; }
 .archive-stage svg.has-memory-focus .memory-form.is-selected .memory-focus-ring { stroke: var(--antique-brass); }
 .archive-stage g.canopy, .archive-stage g.water, .archive-stage g.groundcover, .archive-stage g.roots, .archive-stage g.trunk, .archive-stage g.branches { transition: opacity 220ms var(--ease-organic); }
-@media (prefers-reduced-motion: reduce) { .archive-stage .memory-form, .archive-stage .memory-interaction, .archive-stage .tendril { transition: none; } .archive-stage .memory-form:hover .memory-interaction, .archive-stage .memory-form:focus-visible .memory-interaction { transform: rotate(var(--memory-angle, 0deg)); } }
+@media (prefers-reduced-motion: reduce) { .archive-stage .memory-form, .archive-stage .memory-interaction, .archive-stage .tendril, .archive-stage .hanging-vine-response { transition: none; } .archive-stage .memory-form:hover .memory-interaction, .archive-stage .memory-form:focus-visible .memory-interaction { transform: rotate(var(--memory-angle, 0deg)); } .archive-stage .hanging-vine:hover .hanging-vine-response { transform: none; filter: none; } }

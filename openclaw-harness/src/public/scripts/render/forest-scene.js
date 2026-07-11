@@ -1,8 +1,8 @@
 const HANGING_VINES = Object.freeze([
-  { id: 'canopy-left-outer', duration: 10.5, delay: -3.2, points: [[18,0],[28,72],[76,138],[58,226]], leaves: [{id:'lo-1',x:35,y:76,angle:28,scale:1.15},{id:'lo-2',x:62,y:142,angle:-34,scale:1.04},{id:'lo-3',x:57,y:201,angle:31,scale:.94}] },
-  { id: 'canopy-left-inner', duration: 8.7, delay: -5.1, points: [[118,0],[104,56],[128,112],[102,174]], leaves: [{id:'li-1',x:108,y:58,angle:-30,scale:1.04},{id:'li-2',x:119,y:111,angle:32,scale:.96},{id:'li-3',x:106,y:160,angle:-28,scale:.88}] },
-  { id: 'canopy-right-inner', duration: 9.4, delay: -1.8, points: [[882,0],[896,58],[870,112],[898,178]], leaves: [{id:'ri-1',x:892,y:61,angle:28,scale:1.04},{id:'ri-2',x:878,y:114,angle:-32,scale:.96},{id:'ri-3',x:894,y:163,angle:28,scale:.88}] },
-  { id: 'canopy-right-outer', duration: 11.2, delay: -6.4, points: [[982,0],[968,78],[924,145],[946,238]], leaves: [{id:'ro-1',x:963,y:80,angle:-28,scale:1.15},{id:'ro-2',x:935,y:148,angle:34,scale:1.04},{id:'ro-3',x:944,y:211,angle:-31,scale:.94}] },
+  { id: 'canopy-left-outer', duration: 10.5, delay: -3.2, response: 3.2, points: [[18,0],[28,72],[76,138],[58,226]], leaves: [{id:'lo-1',x:35,y:76,angle:28,scale:1.15},{id:'lo-2',x:62,y:142,angle:-34,scale:1.04},{id:'lo-3',x:57,y:201,angle:31,scale:.94}] },
+  { id: 'canopy-left-inner', duration: 8.7, delay: -5.1, response: 2.6, points: [[118,0],[104,56],[128,112],[102,174]], leaves: [{id:'li-1',x:108,y:58,angle:-30,scale:1.04},{id:'li-2',x:119,y:111,angle:32,scale:.96},{id:'li-3',x:106,y:160,angle:-28,scale:.88}] },
+  { id: 'canopy-right-inner', duration: 9.4, delay: -1.8, response: -2.6, points: [[882,0],[896,58],[870,112],[898,178]], leaves: [{id:'ri-1',x:892,y:61,angle:28,scale:1.04},{id:'ri-2',x:878,y:114,angle:-32,scale:.96},{id:'ri-3',x:894,y:163,angle:28,scale:.88}] },
+  { id: 'canopy-right-outer', duration: 11.2, delay: -6.4, response: -3.2, points: [[982,0],[968,78],[924,145],[946,238]], leaves: [{id:'ro-1',x:963,y:80,angle:-28,scale:1.15},{id:'ro-2',x:935,y:148,angle:34,scale:1.04},{id:'ro-3',x:944,y:211,angle:-31,scale:.94}] },
 ]);
 
 const GRASS_BLADES = Object.freeze(Array.from({ length: 24 }, (_, index) => ({
@@ -49,16 +49,20 @@ export function renderForestScene(world, tree = {}) {
     enter => {
       const group = enter.append('g').attr('class', 'hanging-vine');
       group.append('path').attr('class', 'hanging-vine-hit');
-      group.append('path').attr('class', 'hanging-vine-stem');
+      const motion = group.append('g').attr('class', 'hanging-vine-motion');
+      const response = motion.append('g').attr('class', 'hanging-vine-response');
+      response.append('path').attr('class', 'hanging-vine-stem');
       return group;
     },
     update => update,
     exit => exit.remove(),
   ).attr('data-vine-id', d => d.id).attr('aria-hidden', 'true')
-    .style('--vine-duration', d => `${d.duration}s`).style('--vine-delay', d => `${d.delay}s`);
+    .style('--vine-duration', d => `${d.duration}s`).style('--vine-delay', d => `${d.delay}s`)
+    .style('--vine-response-angle', d => `${d.response}deg`);
   vines.select('path.hanging-vine-hit').attr('d', d => curvePath(d.points, bounds)).attr('fill', 'none');
-  vines.select('path.hanging-vine-stem').attr('d', d => curvePath(d.points, bounds)).attr('fill', 'none');
-  vines.selectAll('path.hanging-leaf').data(d => d.leaves, d => d.id).join('path')
+  const vineResponses = vines.select('g.hanging-vine-response');
+  vineResponses.select('path.hanging-vine-stem').attr('d', d => curvePath(d.points, bounds)).attr('fill', 'none');
+  vineResponses.selectAll('path.hanging-leaf').data(d => d.leaves, d => d.id).join('path')
     .attr('class', 'hanging-leaf').attr('d', 'M0,0 C5,-8 14,-8 16,0 C11,8 4,8 0,0Z')
     .attr('transform', d => leafTransform(d, bounds));
 
