@@ -19,6 +19,8 @@ The palette becomes warmer and creamier. Bone white remains the foundation, but 
 
 The panel must remain readable and restrained. It must not become a separate illustration. A subtle botanical contour may cross only the first few pixels of its left edge to connect observation to the archive.
 
+The water must not end as a visibly cut-off central shape. Its main pool remains shallow beneath the tree, while low-opacity reflection washes continue horizontally beyond the stage edges. These extensions fade before the observation-panel boundary, never sit above panel content, and remain lighter than the roots, trunk, grass bank, and memory forms.
+
 ## Opening sequence
 
 ### Loader hold
