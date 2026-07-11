@@ -1,5 +1,5 @@
 .archive-stage { overflow: hidden; background: radial-gradient(ellipse at 55% 92%, rgba(105,118,90,.22), transparent 43%), radial-gradient(circle at 55% 42%, rgba(148,166,124,.16), transparent 49%), color-mix(in srgb, var(--bone-white) 80%, #fff5d9); }
-.archive-stage svg { min-height: 500px; }
+.archive-stage svg { min-height: 0; }
 .archive-stage .root-line, .archive-stage .trunk-line, .archive-stage .branch { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .archive-stage .root-line { stroke: color-mix(in srgb, var(--antique-brass) 64%, var(--living-moss)); stroke-width: 7; opacity: .66; }
 .archive-stage .trunk-line { stroke: color-mix(in srgb, var(--antique-brass) 68%, var(--living-moss)); stroke-width: 17; opacity: .82; }

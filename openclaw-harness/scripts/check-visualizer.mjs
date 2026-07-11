@@ -87,6 +87,17 @@ async function run() {
     if (!(await page.locator('.memory-form.is-selected').count())) throw new Error('trace/focus did not select memory');
     await page.locator('#archiveMenuButton').click();
     if (!(await page.locator('#archiveMenu').getAttribute('open'))?.includes('')) throw new Error('archive menu did not open');
+    await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 1920, height: 997 });
+    const desktopFit=await page.evaluate(()=>({innerHeight:window.innerHeight,documentHeight:document.documentElement.scrollHeight,timelineBottom:document.querySelector('#sedimentTimeline')?.getBoundingClientRect().bottom,stageHeight:document.querySelector('#archiveStage')?.getBoundingClientRect().height}));
+    if(desktopFit.documentHeight>desktopFit.innerHeight+1 || desktopFit.timelineBottom>desktopFit.innerHeight+1 || desktopFit.stageHeight<420) throw new Error(`desktop archive escaped viewport: ${JSON.stringify(desktopFit)}`);
+    await page.setViewportSize({ width: 1920, height: 700 });
+    const observation=page.locator('#observationMargin');
+    await observation.hover(); await page.mouse.wheel(0,500); await page.waitForTimeout(80);
+    const panelScroll=await observation.evaluate(node=>({top:node.scrollTop,max:node.scrollHeight-node.clientHeight,pageTop:window.scrollY}));
+    if(panelScroll.max>0 && panelScroll.top===0 || panelScroll.pageTop!==0) throw new Error(`observation scroll was not contained: ${JSON.stringify(panelScroll)}`);
+    await page.locator('#archiveStage').hover(); await page.mouse.wheel(0,400); await page.waitForTimeout(80);
+    if(await page.evaluate(()=>window.scrollY)!==0) throw new Error('stage wheel moved the whole document');
     await page.setViewportSize({ width: 390, height: 844 });
     if (await page.locator('.observation-sheet').count() !== 1) throw new Error('mobile observation sheet missing');
     await page.emulateMedia({ reducedMotion: 'reduce' });

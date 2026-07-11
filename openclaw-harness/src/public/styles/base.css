@@ -1,10 +1,10 @@
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; background: color-mix(in srgb, var(--bone) 88%, #fff7df); color: var(--ink); font-family: var(--font-body); }
+html, body { margin: 0; width: 100%; height: 100%; min-height: 100%; overflow: hidden; background: color-mix(in srgb, var(--bone) 88%, #fff7df); color: var(--ink); font-family: var(--font-body); }
 body { background-image: url('/assets/paper-grain.svg'); line-height: 1.5; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .skip-link { position: absolute; left: 1rem; top: -3rem; background: var(--bone); color: var(--ink); padding: .5rem 1rem; z-index: var(--z-dialog); }
 .skip-link:focus { top: 1rem; }
-.archive-app { min-height: 100vh; }
+.archive-app { display: grid; grid-template-rows: var(--header-h) minmax(0, 1fr) var(--timeline-h); width: 100%; height: 100dvh; min-height: 0; overflow: hidden; }
 .archive-header { height: var(--header-h); display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; background: color-mix(in srgb, var(--bone) 92%, white); border-bottom: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); position: relative; z-index: var(--z-header); }
 .archive-brand { display: flex; align-items: center; gap: .6rem; color: var(--ink); text-decoration: none; font-family: var(--font-display); font-size: 1.5rem; }
 .archive-brand img { width: 46px; height: 46px; object-fit: cover; object-position: 50% 42%; border: 1px solid color-mix(in srgb, var(--moss) 48%, var(--brass)); border-radius: 50%; box-shadow: 0 3px 10px rgba(49,47,37,.18); }
@@ -13,12 +13,12 @@ body { background-image: url('/assets/paper-grain.svg'); line-height: 1.5; }
 .github-link svg { width: 20px; height: 20px; fill: currentColor; }
 .github-link:hover { color: var(--ink); border-color: var(--brass); background: color-mix(in srgb, var(--leaf) 24%, var(--bone)); }
 button, input { font: inherit; }
-.archive-composition { display: grid; grid-template-columns: minmax(0, 1fr) var(--observation-w); min-height: calc(100vh - var(--header-h) - var(--timeline-h)); }
-.archive-stage { position: relative; z-index: var(--z-stage); min-height: 500px; }
+.archive-composition { display: grid; grid-template-columns: minmax(0, 1fr) var(--observation-w); min-width: 0; min-height: 0; overflow: hidden; }
+.archive-stage { position: relative; z-index: var(--z-stage); min-width: 0; min-height: 0; }
 .archive-stage svg { width: 100%; height: 100%; display: block; }
 .observation-margin { padding: 2rem 1.5rem; background: color-mix(in srgb, var(--lichen-green) 20%, #fff8e8); border-left: 1px solid color-mix(in srgb, var(--living-moss) 28%, transparent); z-index: var(--z-annotation); }
 .observation-eyebrow { font: 500 .7rem var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
-.sediment-timeline { min-height: var(--timeline-h); border-top: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); padding: 1rem; }
+.sediment-timeline { width: 100%; height: 100%; min-height: 0; border-top: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); padding: .75rem 1rem; }
 .archive-header button { border: 1px solid color-mix(in srgb, var(--brass) 74%, transparent); border-radius: 999px; padding: .45rem .85rem; background: transparent; color: var(--ink); cursor: pointer; }
 .archive-header button:hover { background: color-mix(in srgb, var(--leaf) 24%, var(--bone)); border-color: var(--moss); }
 .archive-menu { width: min(92vw, 560px); max-height: 88vh; padding: 0; z-index: var(--z-dialog); background: var(--bone); color: var(--ink); border: 1px solid var(--brass); border-radius: 1.2rem; box-shadow: 0 28px 90px rgba(49,47,37,.26); }

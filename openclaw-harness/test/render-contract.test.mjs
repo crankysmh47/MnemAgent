@@ -10,6 +10,9 @@ const motion = fs.readFileSync(new URL('styles/motion.css', root), 'utf8');
 const stageCss = fs.readFileSync(new URL('styles/archive-stage.css', root), 'utf8');
 const rendererSource = fs.readFileSync(new URL('scripts/render/living-structure.js', root), 'utf8');
 const mainSource = fs.readFileSync(new URL('scripts/main.js', root), 'utf8');
+const navigationSource = fs.readFileSync(new URL('scripts/interactions/archive-navigation.js', root), 'utf8');
+const baseCss = fs.readFileSync(new URL('styles/base.css', root), 'utf8');
+const observationCss = fs.readFileSync(new URL('styles/observation-margin.css', root), 'utf8');
 const forestScenePath = new URL('scripts/render/forest-scene.js', root);
 const forestSceneSource = fs.existsSync(forestScenePath) ? fs.readFileSync(forestScenePath, 'utf8') : '';
 
@@ -113,4 +116,13 @@ test('vine interaction keeps a stable hit area and never replaces the ambient an
   assert.match(stageCss, /\.hanging-vine:hover\s+\.hanging-vine-response/);
   assert.doesNotMatch(motion, /\.hanging-vine:hover\s*\{[^}]*animation(?:-name|-duration)?:/s);
   assert.match(stageCss, /\.hanging-vine-hit\s*\{[^}]*pointer-events:\s*stroke/s);
+});
+
+test('desktop archive is viewport-contained with intentional panel scrolling', () => {
+  assert.match(baseCss, /html, body\s*\{[^}]*height:\s*100%[^}]*overflow:\s*hidden/s);
+  assert.match(baseCss, /\.archive-app\s*\{[^}]*grid-template-rows:\s*var\(--header-h\) minmax\(0,\s*1fr\) var\(--timeline-h\)[^}]*height:\s*100dvh/s);
+  assert.match(baseCss, /\.archive-composition\s*\{[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
+  assert.match(observationCss, /\.observation-margin\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s);
+  assert.match(navigationSource, /\.filter\([^)]*event\.type\s*!==\s*['"]wheel['"]/s);
+  assert.match(responsive, /max-width:\s*1099px[\s\S]*\.archive-app\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/s);
 });
