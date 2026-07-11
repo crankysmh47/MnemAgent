@@ -10,6 +10,8 @@ const motion = fs.readFileSync(new URL('styles/motion.css', root), 'utf8');
 const stageCss = fs.readFileSync(new URL('styles/archive-stage.css', root), 'utf8');
 const rendererSource = fs.readFileSync(new URL('scripts/render/living-structure.js', root), 'utf8');
 const mainSource = fs.readFileSync(new URL('scripts/main.js', root), 'utf8');
+const forestScenePath = new URL('scripts/render/forest-scene.js', root);
+const forestSceneSource = fs.existsSync(forestScenePath) ? fs.readFileSync(forestScenePath, 'utf8') : '';
 
 test('living archive static contract', () => {
   for (const id of [
@@ -64,13 +66,14 @@ test('renderer exposes botanical structure layers', () => {
   for (const layer of ['roots','trunk','branches']) assert.match(rendererSource, new RegExp(`['"]${layer}['"]`));
 });
 
-test('renderer exposes quiet botanical environment layers', () => {
-  for (const layer of ['groundcover', 'vines']) {
-    assert.match(rendererSource, new RegExp(`['"]${layer}['"]`));
-  }
-  for (const className of ['ground-grass', 'ground-moss', 'garden-vine', 'vine-leaf']) {
-    assert.match(rendererSource, new RegExp(className));
+test('renderer exposes a restrained interactive forest frame', () => {
+  assert.match(rendererSource, /\['canopy', 'water', 'groundcover', 'roots', 'trunk', 'branches', 'tendrils', 'memories', 'effects', 'annotations'\]/);
+  for (const className of ['hanging-vine', 'hanging-vine-hit', 'forest-water', 'forest-ripple', 'grass-bank', 'grass-blade']) {
+    assert.match(forestSceneSource, new RegExp(className));
     assert.match(stageCss, new RegExp(`\\.${className}`));
   }
-  assert.match(stageCss, /pointer-events:\s*none/);
+  assert.doesNotMatch(rendererSource, /garden-vine|vine-leaf/);
+  assert.match(motion, /vine-sway/);
+  assert.match(motion, /hanging-vine:hover/);
+  assert.match(motion, /prefers-reduced-motion[\s\S]*hanging-vine/);
 });

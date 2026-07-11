@@ -4,10 +4,14 @@
 .archive-stage.phase-opening-annotations .annotations { animation: annotation-arrive 2s var(--ease-organic) both; }
 .archive-stage.phase-recall .tendril.is-active { animation: tendril-pulse .9s var(--ease-organic) both; }
 .archive-stage.phase-revision .memory-form.is-selected .memory-interaction { animation: revision-graft 1.4s var(--ease-organic) both; }
+.archive-stage .hanging-vine { animation: vine-sway var(--vine-duration, 9s) ease-in-out var(--vine-delay, 0s) infinite alternate; }
+.archive-stage .hanging-vine:hover { animation-name: vine-sway-hover; animation-duration: 3.8s; }
 @keyframes archive-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
 @keyframes skeleton-resolve { from { opacity: .1; stroke-dashoffset: 80; } to { opacity: .8; stroke-dashoffset: 0; } }
 @keyframes branch-unfurl { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 @keyframes annotation-arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes tendril-pulse { 0% { stroke-width: 1; opacity: .3; } 45% { stroke-width: 3; opacity: .95; } 100% { stroke-width: 1.5; opacity: .7; } }
 @keyframes revision-graft { 0% { transform: scale(.92); opacity: .4; } 50% { transform: scale(1.16); } 100% { transform: scale(1); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .archive-stage[data-ambient="breathing"] #archiveWorld, .archive-stage[class*="phase-"], .archive-stage .tendril.is-active, .archive-stage .memory-interaction { animation: none; } }
+@keyframes vine-sway { from { transform: rotate(-2deg); } to { transform: rotate(2.5deg); } }
+@keyframes vine-sway-hover { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+@media (prefers-reduced-motion: reduce) { .archive-stage[data-ambient="breathing"] #archiveWorld, .archive-stage[class*="phase-"], .archive-stage .tendril.is-active, .archive-stage .memory-interaction, .archive-stage .hanging-vine { animation: none; } }

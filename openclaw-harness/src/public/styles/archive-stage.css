@@ -8,12 +8,16 @@
 .archive-stage .branch-preference { stroke: var(--living-moss); }
 .archive-stage .branch-persona { stroke: color-mix(in srgb, var(--clay-rose) 55%, var(--living-moss)); }
 .archive-stage .branch-system_state { stroke: color-mix(in srgb, var(--mineral-blue) 60%, var(--living-moss)); }
-.archive-stage .ground-grass, .archive-stage .ground-moss, .archive-stage .seed-head, .archive-stage .garden-vine, .archive-stage .vine-leaf { pointer-events: none; }
-.archive-stage .ground-grass { stroke: var(--living-moss); stroke-width: 2.2; stroke-linecap: round; opacity: .42; }
-.archive-stage .ground-moss { fill: color-mix(in srgb, var(--living-moss) 40%, transparent); opacity: .24; }
-.archive-stage .seed-head { fill: var(--antique-brass); opacity: .56; }
-.archive-stage .garden-vine { stroke: color-mix(in srgb, var(--lichen-green) 74%, var(--living-moss)); stroke-width: 2.15; stroke-linecap: round; opacity: .62; }
-.archive-stage .vine-leaf { fill: color-mix(in srgb, var(--lichen-green) 74%, var(--bone-white)); stroke: var(--living-moss); stroke-width: .7; opacity: .68; }
+.archive-stage .forest-water, .archive-stage .forest-ripple, .archive-stage .grass-bank, .archive-stage .grass-blade, .archive-stage .forest-moss { pointer-events: none; }
+.archive-stage .forest-water { fill: color-mix(in srgb, var(--mineral-blue) 38%, var(--bone-white)); opacity: .4; }
+.archive-stage .forest-ripple { stroke: color-mix(in srgb, var(--mineral-blue) 54%, var(--bone-white)); stroke-width: 1.15; stroke-linecap: round; opacity: .38; }
+.archive-stage .grass-bank { fill: color-mix(in srgb, var(--living-moss) 68%, var(--lichen-green)); opacity: .58; }
+.archive-stage .grass-blade { stroke: color-mix(in srgb, var(--living-moss) 82%, var(--lichen-green)); stroke-width: 2.15; stroke-linecap: round; opacity: .68; }
+.archive-stage .forest-moss { fill: color-mix(in srgb, var(--living-moss) 58%, var(--lichen-green)); opacity: .36; }
+.archive-stage .hanging-vine { transform-box: fill-box; transform-origin: top center; }
+.archive-stage .hanging-vine-hit { fill: none; stroke: transparent; stroke-width: 26; pointer-events: stroke; cursor: grab; }
+.archive-stage .hanging-vine-stem { stroke: color-mix(in srgb, var(--living-moss) 76%, var(--lichen-green)); stroke-width: 2.6; stroke-linecap: round; pointer-events: none; opacity: .72; }
+.archive-stage .hanging-leaf { fill: color-mix(in srgb, var(--lichen-green) 76%, var(--bone-white)); stroke: var(--living-moss); stroke-width: .8; pointer-events: none; opacity: .78; }
 .archive-stage .tendril { stroke: var(--antique-brass); opacity: .3; transition: opacity 180ms var(--ease-organic), stroke-width 180ms var(--ease-organic); }
 .archive-stage .tendril-cluster { stroke: var(--living-moss); }
 .archive-stage .tendril-concept { stroke: var(--lichen-green); stroke-dasharray: 3 5; }
@@ -31,4 +35,11 @@
 .archive-stage .memory-vein { stroke: color-mix(in srgb, var(--warm-parchment) 42%, var(--antique-brass)); stroke-width: .8; opacity: .55; pointer-events: none; }
 .archive-stage .memory-focus-ring { pointer-events: none; }
 .archive-stage .memory-form.is-selected .memory-focus-ring { opacity: .85; stroke-width: 1.5; stroke-dasharray: 2 4; }
+.archive-stage svg.has-memory-focus g.canopy, .archive-stage svg.has-memory-focus g.water, .archive-stage svg.has-memory-focus g.groundcover, .archive-stage svg.has-memory-focus g.roots, .archive-stage svg.has-memory-focus g.trunk, .archive-stage svg.has-memory-focus g.branches { opacity: .18; }
+.archive-stage svg.has-memory-focus .memory-form.is-quiet { opacity: .06; }
+.archive-stage svg.has-memory-focus .memory-form.is-selected, .archive-stage svg.has-memory-focus .memory-form.is-related { opacity: 1; }
+.archive-stage svg.has-memory-focus .tendril.is-quiet { opacity: .03; }
+.archive-stage svg.has-memory-focus .tendril.is-active { opacity: .92; }
+.archive-stage svg.has-memory-focus .memory-form.is-selected .memory-focus-ring { stroke: var(--antique-brass); }
+.archive-stage g.canopy, .archive-stage g.water, .archive-stage g.groundcover, .archive-stage g.roots, .archive-stage g.trunk, .archive-stage g.branches { transition: opacity 220ms var(--ease-organic); }
 @media (prefers-reduced-motion: reduce) { .archive-stage .memory-form, .archive-stage .memory-interaction, .archive-stage .tendril { transition: none; } .archive-stage .memory-form:hover .memory-interaction, .archive-stage .memory-form:focus-visible .memory-interaction { transform: rotate(var(--memory-angle, 0deg)); } }

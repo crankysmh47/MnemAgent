@@ -40,14 +40,22 @@ async function run() {
       roots: document.querySelectorAll('.root-line').length,
       branches: document.querySelectorAll('.branch').length,
       trunks: document.querySelectorAll('.trunk-line').length,
+      hangingVines: document.querySelectorAll('.hanging-vine').length,
+      waterBodies: document.querySelectorAll('.forest-water').length,
+      grassBlades: document.querySelectorAll('.grass-blade').length,
       firstLabel: document.querySelector('.memory-form')?.getAttribute('aria-label') || '',
       hasOldGraph: Boolean(document.querySelector('.graph-panel, .stat-card, #eventFeed, canvas')),
       hasStage: Boolean(document.querySelector('#archiveSvg')),
     }));
     if (!report.title.includes('Living Archive')) throw new Error('wrong page title');
-    if (!report.memories || report.interactions !== report.memories || !report.tendrils || report.tendrils > 96 || report.roots < 5 || report.branches < 9 || report.trunks !== 1 || !report.firstLabel || report.firstLabel.includes('Unnamed memory') || !report.hasStage || report.hasOldGraph) throw new Error(`semantic surface failed: ${JSON.stringify(report)}`);
+    if (!report.memories || report.interactions !== report.memories || !report.tendrils || report.tendrils > 96 || report.roots < 5 || report.branches < 9 || report.trunks !== 1 || report.hangingVines !== 4 || report.waterBodies !== 1 || report.grassBlades < 18 || !report.firstLabel || report.firstLabel.includes('Unnamed memory') || !report.hasStage || report.hasOldGraph) throw new Error(`semantic surface failed: ${JSON.stringify(report)}`);
     await page.waitForTimeout(500);
     if (process.env.VISUALIZER_SCREENSHOT) await page.screenshot({ path: process.env.VISUALIZER_SCREENSHOT, fullPage: true });
+    const firstVine = page.locator('.hanging-vine').first();
+    if (!(await firstVine.evaluate(node => getComputedStyle(node).animationName)).includes('vine-sway')) throw new Error('hanging vine is not gently animated');
+    await page.locator('.hanging-leaf').first().hover({ force: true });
+    const vineHoverState = await firstVine.evaluate(node => ({ groupHovered: node.matches(':hover'), hitHovered: node.querySelector('.hanging-vine-hit')?.matches(':hover'), animationName: getComputedStyle(node).animationName }));
+    if (vineHoverState.animationName !== 'vine-sway-hover') throw new Error(`hanging vine did not react to hover: ${JSON.stringify(vineHoverState)}`);
     const firstMemory = page.locator('.memory-form').first();
     const placementBeforeHover = await firstMemory.getAttribute('transform');
     await firstMemory.hover({ force: true });
@@ -55,6 +63,12 @@ async function run() {
     if (placementBeforeHover !== placementAfterHover) throw new Error('hover changed the memory placement transform');
     await firstMemory.click({ force: true });
     if (!(await page.locator('#memoryDetail').textContent()).trim()) throw new Error('memory focus did not update details');
+    await page.waitForTimeout(240);
+    if (!(await page.locator('#archiveSvg').getAttribute('class'))?.includes('has-memory-focus')) throw new Error('memory focus did not enter focus mode');
+    const quietMemoryOpacity = Number(await page.locator('.memory-form.is-quiet').first().evaluate(node => getComputedStyle(node).opacity));
+    const quietTendrilOpacity = Number(await page.locator('.tendril.is-quiet').first().evaluate(node => getComputedStyle(node).opacity));
+    if (quietMemoryOpacity > 0.08 || quietTendrilOpacity > 0.04) throw new Error(`memory chain background remained too dense: memories ${quietMemoryOpacity}, tendrils ${quietTendrilOpacity}`);
+    if (process.env.VISUALIZER_FOCUS_SCREENSHOT) await page.screenshot({ path: process.env.VISUALIZER_FOCUS_SCREENSHOT, fullPage: true });
     await firstMemory.dblclick({ force: true });
     if (!(await page.locator('.memory-form.is-selected').count())) throw new Error('trace/focus did not select memory');
     await page.locator('#archiveMenuButton').click();
@@ -64,6 +78,7 @@ async function run() {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const reduced = await page.locator('#archiveStage').evaluate(node => getComputedStyle(node.querySelector('#archiveWorld')).animationName);
     if (reduced !== 'none') throw new Error(`reduced motion still animates: ${reduced}`);
+    if ((await firstVine.evaluate(node => getComputedStyle(node).animationName)) !== 'none') throw new Error('reduced motion did not stop hanging vines');
     console.log(JSON.stringify({ url: baseUrl, report, consoleErrors: errors }, null, 2));
     if (errors.length) process.exitCode = 1;
   } finally {

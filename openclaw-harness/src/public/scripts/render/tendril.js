@@ -9,3 +9,9 @@ export function tendrilClass(relationship = {}, state = 'quiet') {
 export function tendrilStrokeWidth(weight = 0.5) {
   return 0.8 + Math.max(0, Math.min(1, Number(weight) || 0)) * 1.8;
 }
+
+export function relationshipFocusState(relationship = {}, focusedId = null) {
+  if (focusedId == null) return 'quiet';
+  const id = String(focusedId);
+  return String(relationship.source) === id || String(relationship.target) === id ? 'active' : 'quiet';
+}

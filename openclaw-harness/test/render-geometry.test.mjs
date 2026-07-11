@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { memoryFormPath, memoryAriaLabel, memoryVeinPath } from '../src/public/scripts/render/memory-form.js';
-import { tendrilClass } from '../src/public/scripts/render/tendril.js';
+import * as tendril from '../src/public/scripts/render/tendril.js';
+
+const { tendrilClass } = tendril;
 
 test('memory form paths are closed for living forms and finite', () => {
   for (const shape of ['leaf', 'pearl', 'mineral']) {
@@ -25,6 +27,14 @@ test('husk geometry remains open and memory labels expose lifecycle details', ()
 test('tendril classes encode relationship kind and quiet state', () => {
   assert.equal(tendrilClass({ kind: 'cluster' }, 'active'), 'tendril tendril-cluster is-active');
   assert.equal(tendrilClass({ kind: 'bridge' }, 'quiet'), 'tendril tendril-bridge is-quiet');
+});
+
+test('only relationships incident to the focused memory become active', () => {
+  assert.equal(typeof tendril.relationshipFocusState, 'function');
+  assert.equal(tendril.relationshipFocusState({ source: 'a', target: 'b' }, 'a'), 'active');
+  assert.equal(tendril.relationshipFocusState({ source: 'a', target: 'b' }, 'b'), 'active');
+  assert.equal(tendril.relationshipFocusState({ source: 'b', target: 'c' }, 'a'), 'quiet');
+  assert.equal(tendril.relationshipFocusState({ source: 'b', target: 'c' }, null), 'quiet');
 });
 
 test('botanical memory forms expose internal organic markings', () => {
