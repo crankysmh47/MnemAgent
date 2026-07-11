@@ -269,10 +269,16 @@ The evaluation story has two layers.
 
 The product repo keeps the hackathon-facing proof: live agentic tests, OpenClaw MCP checks, visualizer checks, and deployment preflight.
 
-MnemBench is the companion benchmark suite for long-running memory behavior. It now has its own public repository:
+MnemBench is maintained separately from the product repository. The original v1 suite is available at:
 
 ```text
 https://github.com/crankysmh47/MnemBench
+```
+
+The research-scale v2 suite is available at:
+
+```text
+https://github.com/crankysmh47/MnemBench-v2
 ```
 
 Headline local result from the current docs:
@@ -288,7 +294,7 @@ Run checks:
 
 ```bash
 python -m eval.run_benchmark --dry-run --mode both
-python -m eval.mnembench --dry-run --scenario contradiction_chain --judge-report
+mnembench --suite v2 --profile smoke --dry-run --no-baseline --judge-report
 ```
 
 Read more:
@@ -298,25 +304,35 @@ Read more:
 - [docs/MNEMBENCH_RESULTS.md](docs/MNEMBENCH_RESULTS.md)
 - [docs/VERIFICATION.md](docs/VERIFICATION.md)
 
-## MnemBench
+## MnemBench repositories
 
-MnemBench is the standalone benchmark repo for memory-agent evaluation:
+MnemBench v1 is the original compact benchmark:
 
 ```text
 https://github.com/crankysmh47/MnemBench
 ```
 
-This product repo still keeps a copy of the runner under:
+MnemBench v2 is the research-scale benchmark with smoke, standard, and paper profiles:
 
 ```text
-eval/mnembench/
+https://github.com/crankysmh47/MnemBench-v2
+```
+
+Install and run v2 from its own repository:
+
+```bash
+git clone https://github.com/crankysmh47/MnemBench-v2
+cd MnemBench-v2
+python -m pip install -e .
+mnembench --suite v2 --profile smoke --dry-run --no-baseline --judge-report
 ```
 
 The split is intentional:
 
 - this repository stays focused on the submitted MnemAgent product;
-- the standalone MnemBench repository can target any memory agent, not only MnemAgent;
-- external benchmark comparisons belong in the MnemBench repo, not in the MnemAgent submission README.
+- MnemBench v1 remains a compact compatibility suite;
+- MnemBench v2 owns the generated research catalog and benchmark reports;
+- external benchmark comparisons belong in the benchmark repositories, not in the MnemAgent runtime.
 
 ## Demo video plan
 
@@ -351,7 +367,7 @@ MnemAgent/
 ├── docker/                Dockerfile for the memory API
 ├── requirements/          Python dependency pins
 ├── scripts/               Launch, reset, onboarding, deployment, verification
-├── eval/                  Product benchmarks and bundled MnemBench runner
+├── eval/                  Product benchmark runners
 ├── tests/                 pytest suite
 └── docs/                  Architecture, deployment, evaluation, video plan
 ```

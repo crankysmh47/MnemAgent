@@ -1,14 +1,21 @@
 # MnemBench results
 
-MnemBench is the companion benchmark suite for long-running memory-agent
-behavior. The standalone repository is:
+MnemBench v2 is the research-scale companion benchmark for long-running
+memory-agent behavior. Its standalone repository is:
+
+```text
+https://github.com/crankysmh47/MnemBench-v2
+```
+
+The original compact v1 suite remains at:
 
 ```text
 https://github.com/crankysmh47/MnemBench
 ```
 
-This product repository keeps a runnable copy under `eval/mnembench/` so judges
-can reproduce the submission without cloning another project.
+This document records the live v2 runs used by the MnemAgent submission. Raw
+Markdown and JSON outputs belong in the MnemBench-v2 repository; this file is
+the product-facing summary.
 
 ## Latest live Postgres-backed v2 smoke run
 
@@ -86,15 +93,14 @@ OpenAI-compatible model.
 Dry-run sanity check:
 
 ```bash
-python -m eval.mnembench --dry-run --scenario contradiction_chain --judge-report
+mnembench --suite v2 --profile smoke --dry-run --no-baseline --judge-report
 ```
 
 Live run with a local MnemAgent server and baseline:
 
 ```bash
-python -m eval.mnembench \
+mnembench --suite v2 --profile smoke \
   --server http://localhost:8000 \
   --baseline http://localhost:8002 \
-  --scenario all \
   --judge-report
 ```

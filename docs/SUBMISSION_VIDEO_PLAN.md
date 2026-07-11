@@ -225,7 +225,7 @@ MnemBench contradiction-chain sample: 89.6% probe score
 For a clean screenshot, generate:
 
 ```powershell
-python -m eval.mnembench --dry-run --scenario contradiction_chain --judge-report
+mnembench --suite v2 --profile smoke --dry-run --no-baseline --judge-report
 ```
 
 ### 2:55-3:15 — Alibaba Cloud Proof + Close

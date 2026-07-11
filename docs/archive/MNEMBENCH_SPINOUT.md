@@ -1,7 +1,11 @@
-# MnemBench Spin-Out Plan
+# MnemBench Spin-Out Plan (Completed)
 
-MnemBench should be positioned as a separate public repository after the MnemAgent
-submission package is stable.
+The split described here is complete. The original compact suite lives at
+`https://github.com/crankysmh47/MnemBench`; the research-scale v2 suite lives at
+`https://github.com/crankysmh47/MnemBench-v2`.
+
+MnemBench is now separated into two public repositories: the original compact
+suite and the research-scale v2 suite.
 
 ## Why Split It
 
@@ -22,10 +26,11 @@ repo.
 
 ## Proposed Repository
 
-Name:
+Repositories:
 
 ```text
-mnembench
+https://github.com/crankysmh47/MnemBench
+https://github.com/crankysmh47/MnemBench-v2
 ```
 
 Tagline:
@@ -37,7 +42,7 @@ Long-running benchmark for agent memory systems.
 Minimum contents:
 
 - `README.md` with quick start and scenario table.
-- `mnembench/` Python package copied from `eval/mnembench`.
+- `mnembench/` installable Python package.
 - `examples/` with a sample OpenAI-compatible `/chat` adapter.
 - `reports/` with example Markdown and JSON outputs.
 - `LICENSE` matching the project license.
@@ -72,12 +77,10 @@ Avoid external benchmark comparisons in the MnemAgent repo. Those comparisons ca
 be added to the standalone MnemBench repository where they are contextually
 useful and less distracting.
 
-## Spin-Out Checklist
+## Completed Spin-Out Checklist
 
-1. Copy `eval/mnembench` into a new repository as the package root.
-2. Convert imports from `eval.mnembench` to `mnembench`.
-3. Add `pyproject.toml` with a `mnembench` console script.
-4. Add one adapter example for MnemAgent and one generic OpenAI-compatible server.
-5. Move external benchmark comparison notes into the new README.
-6. Publish MnemBench separately after the MnemAgent hackathon submission is final.
-7. In MnemAgent, keep only a short link: "Benchmarked with MnemBench."
+1. MnemBench v1 is published at `https://github.com/crankysmh47/MnemBench`.
+2. MnemBench v2 is published at `https://github.com/crankysmh47/MnemBench-v2`.
+3. The v2 package exposes `mnembench --suite v2 --profile ...`.
+4. The standalone repository includes an OpenAI-compatible adapter example.
+5. MnemAgent keeps only links and submission-facing result summaries.
