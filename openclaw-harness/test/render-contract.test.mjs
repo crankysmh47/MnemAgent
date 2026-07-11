@@ -98,7 +98,10 @@ test('forest observatory polish stays subordinate to the centered tree', () => {
   for (const token of ['forest-water-wash','memory-hover-label']) assert.match(rendererSource + forestSceneSource, new RegExp(token));
   assert.match(stageCss, /\.forest-water-wash/);
   assert.match(stageCss, /\.memory-hover-label/);
-  assert.match(motion, /seed-turn 1\.4s/);
+  assert.match(motion, /\.awakening-seed\s*\{[^}]*overflow:\s*visible;\s*\}/s);
+  assert.match(motion, /\.seed-leaf\s*\{[^}]*animation:\s*seed-unfurl/s);
+  assert.doesNotMatch(motion, /\.awakening-seed\s*\{[^}]*animation:/s);
+  assert.doesNotMatch(motion, /@keyframes seed-turn/);
   assert.match(motion, /leaf-fall/);
   assert.doesNotMatch(stageCss + motion, /#archiveWorld\s*\{[^}]*transform:\s*translate/s);
 });
