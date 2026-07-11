@@ -39,13 +39,16 @@ export async function bootstrapArchive() {
   if (typeof document === 'undefined') return null;
   const app = document.querySelector('#archiveApp');
   const svg = document.querySelector('#archiveSvg');
+  const stage = document.querySelector('#archiveStage');
+  const loader = document.querySelector('#archiveLoader');
+  stage.setAttribute('data-loading', 'true');
   let currentUserId = await resolveUserId(location.search, window.localStorage);
   const store = createArchiveStore();
   store.dispatch({ type: 'LOAD_STARTED' });
   const renderer = createLivingStructure(svg, { onSelect: id => store.dispatch({ type: 'SELECT_MEMORY', memoryId: id }), onTrace: id => store.dispatch({ type: 'TRACE_MEMORY', memoryId: id }) });
   const timeline = createTimeline(document.querySelector('#sedimentTimeline'), { onReplay: event => choreographer.replay(event) });
-  const choreographer = createChoreographer({ root: document.querySelector('#archiveStage'), store, reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false });
-  const ambient = createAmbientMotion(document.querySelector('#archiveStage'), store);
+  const choreographer = createChoreographer({ root: stage, store, reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false });
+  const ambient = createAmbientMotion(stage, store);
   const navigation = createArchiveNavigation(svg, document.querySelector('#archiveWorld'), store);
   const focus = createMemoryFocus(document.querySelector('#archiveStage'), store);
   const menu = createArchiveMenu(document.querySelector('#archiveMenu'), store, { userId:currentUserId, onUserChange: userId => { if(!userId||userId===currentUserId) return; window.localStorage.setItem('mnemos_user_id',userId); const next=new URL(location.href); next.searchParams.set('user',userId); location.assign(next.toString()); }, onReplayOpening: () => choreographer.playOpening(store.getState().graph.memories[0]?.id), onReset: () => navigation.reset(), onRetry: () => refresh(true), onExport: () => exportState(store.getState()) });
@@ -92,12 +95,20 @@ export async function bootstrapArchive() {
         store.dispatch({ type: 'SNAPSHOT_RECEIVED', snapshot: { ...snapshot, graph, events, status: snapshot.status } });
         if(decision.featured) store.dispatch({ type: 'NARRATIVE_RECEIVED', narrative: decision });
         renderState();
-        if (!store.getState().openingComplete && graph.memories.length) choreographer.playOpening(graph.memories[0].id);
+        if (!store.getState().openingComplete && graph.memories.length) {
+          stage.setAttribute('data-loading', 'false');
+          loader?.setAttribute('aria-hidden', 'true');
+          choreographer.playOpening(graph.memories[0].id);
+        }
         else if (decision.featured) choreographer.enqueue(decision);
         if (snapshot.status === 'ready') ambient.start();
-      } else renderState();
+      } else {
+        stage.setAttribute('data-loading', 'false');
+        loader?.setAttribute('aria-hidden', 'true');
+        renderState();
+      }
     } catch (error) {
-      if (error.name !== 'AbortError') { console.error('Archive refresh failed:', error); store.dispatch({ type: 'SNAPSHOT_FAILED', error: error.message }); renderState(); }
+      if (error.name !== 'AbortError') { console.error('Archive refresh failed:', error); stage.setAttribute('data-loading', 'false'); loader?.setAttribute('aria-hidden', 'true'); store.dispatch({ type: 'SNAPSHOT_FAILED', error: error.message }); renderState(); }
     }
     return store.getState();
   }

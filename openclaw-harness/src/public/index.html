@@ -28,6 +28,15 @@
     <main class="archive-composition">
       <section id="archiveStage" class="archive-stage" aria-labelledby="archiveTitle">
         <h1 id="archiveTitle" class="sr-only">MnemAgent Living Archive</h1>
+        <div id="archiveLoader" class="archive-loader" role="status" aria-live="polite">
+          <svg class="awakening-seed" viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="seed-ring seed-ring-outer" cx="60" cy="60" r="43"></circle>
+            <circle class="seed-ring seed-ring-inner" cx="60" cy="60" r="30"></circle>
+            <path class="seed-leaf" d="M61 64C43 62 36 49 39 35c15-1 27 8 27 24 0 8-3 15-8 21"></path>
+            <path class="seed-root" d="M60 65c0 12-8 15-8 25m8-14c7 4 9 9 9 15m-9-6c-4 2-7 6-8 11"></path>
+          </svg>
+          <span>Awakening the archive</span>
+        </div>
         <svg id="archiveSvg" viewBox="0 0 1000 720" role="img" aria-describedby="archiveStatus"><defs id="archiveDefs"></defs><g id="archiveWorld"></g></svg>
         <p id="archiveStatus" class="sr-only" aria-live="polite"></p>
         <ol id="memoryCompanionList" class="sr-only"></ol>

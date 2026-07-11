@@ -18,7 +18,7 @@ test('living archive static contract', () => {
     'archiveApp', 'archiveStage', 'archiveSvg', 'archiveWorld',
     'observationMargin', 'narrativeCopy', 'memoryDetail', 'vitalSigns',
     'materialLegend', 'sedimentTimeline', 'archiveMenu', 'archiveStatus',
-    'memoryCompanionList', 'observationSheet',
+    'memoryCompanionList', 'observationSheet', 'archiveLoader',
   ]) {
     assert.equal((html.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, id);
   }
@@ -42,6 +42,21 @@ test('living archive static contract', () => {
   assert.match(responsive, /max-width:\s*700px/);
   assert.match(responsive, /min-width:\s*44px/);
   assert.match(motion, /prefers-reduced-motion/);
+});
+
+test('initial loading state is accessible and choreographs current forest layers', () => {
+  assert.match(html, /id="archiveLoader"/);
+  assert.match(html, /role="status"/);
+  assert.match(html, /Awakening the archive/);
+  assert.match(mainSource, /data-loading/);
+  for (const selector of ['g.water', 'g.groundcover', 'g.roots', 'g.trunk', 'g.branches', 'g.memories', 'g.tendrils', 'g.canopy']) {
+    assert.match(motion, new RegExp(selector.replace('.', '\\.')));
+  }
+  assert.match(rendererSource, /--memory-index/);
+  assert.match(motion, /var\(--memory-index/);
+  assert.match(motion, /phase-opening-bloom[\s\S]*\.memory-interaction/);
+  assert.doesNotMatch(motion, /phase-opening-bloom[^\n]*\.memory-form\s*\{/);
+  assert.match(motion, /prefers-reduced-motion[\s\S]*archive-loader/);
 });
 
 test('archive header uses the official logo and exposes the repository', () => {

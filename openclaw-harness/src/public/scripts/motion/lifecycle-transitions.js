@@ -1,8 +1,8 @@
 const DURATIONS = Object.freeze({
-  'opening-skeleton': 2000,
-  'opening-branches': 3000,
-  'opening-root': 3000,
-  'opening-annotations': 2000,
+  'opening-ground': 500,
+  'opening-tree': 700,
+  'opening-bloom': 1200,
+  'opening-settle': 500,
   arrival: 1200,
   rooting: 1100,
   recall: 900,

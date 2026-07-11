@@ -75,7 +75,7 @@ export function createLivingStructure(svgElement, { onSelect = () => {}, onTrace
       .on('keydown', (event, d) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(d.id); } });
 
     const forms = memoryLayer.selectAll('g.memory-form');
-    forms.select('g.memory-interaction').style('--memory-angle', d => {
+    forms.select('g.memory-interaction').style('--memory-index', (_d, index) => index % 56).style('--memory-angle', d => {
       const angle = nodeById.get(String(d.id))?.angle || 0;
       return `${d.shape === 'leaf' ? angle - 90 : angle * .08}deg`;
     });
