@@ -70,9 +70,9 @@ Useful URLs and commands:
 
 ## Visualizer snapshot
 
-![MnemAgent memory visualizer](docs/assets/visualizer-snapshot.png)
+![MnemAgent living memory archive for the demo-brain user](docs/assets/visualizer-snapshot.png)
 
-The visualizer is intentionally not another chat UI. It shows the memory graph: beliefs, categories, confidence, recall count, and semantic links.
+This is the live `demo-brain` archive: a memory tree that makes preferences, personas, system state, revisions, and fading memories legible at a glance. The visualizer is intentionally not another chat UI; it lets judges and users see what the agent remembers and how those memories relate.
 
 ## What MnemAgent does
 
