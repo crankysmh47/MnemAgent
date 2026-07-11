@@ -281,14 +281,23 @@ The research-scale v2 suite is available at:
 https://github.com/crankysmh47/MnemBench-v2
 ```
 
-Headline local result from the current docs:
+### Real MnemBench v2 result
 
-| Suite | MnemAgent | Baseline | Notes |
-|-------|--------|----------|-------|
-| Live agentic benchmark | 86.5% | 64.6% | Cross-session and project-continuity advantage |
-| MnemBench v2 smoke, Qwen/Postgres runtime | 66.7% | 23.7% | +43.0 points across 13 long-running memory scenarios |
-| MnemBench v2 smoke, DeepSeek v4-flash/Postgres runtime | 66.7% | 27.6% | +39.1 points on the same 13-scenario smoke suite |
-| Dry-run architectural ceiling | 100% | 29% | Confirms deterministic memory logic when extraction is ideal |
+The strongest current live result is the July 8, 2026 MnemBench v2 smoke run.
+It compared the Postgres/pgvector MnemAgent runtime with an otherwise identical
+no-memory baseline across 13 scenarios. MnemAgent scored **66.7%** on average
+probe score, compared with **23.7%** for the baseline: a **+43.0 point** gap.
+
+| Metric | MnemAgent | No-memory baseline | Difference |
+| --- | ---: | ---: | ---: |
+| Average probe score | 66.7% | 23.7% | +43.0 points |
+| Average composite | 0.622 | 0.399 | +0.223 |
+| Pass rate | 76.9% | 38.5% | +38.4 points |
+| Scenarios improved | 8 / 13 | - | - |
+
+This is a live run, not a dry run. The complete run notes, provider
+configuration, and the second live run are in
+[docs/MNEMBENCH_RESULTS.md](docs/MNEMBENCH_RESULTS.md).
 
 Run checks:
 
