@@ -26,6 +26,39 @@ async def test_chat_memory_command(test_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_api_token_guard_disabled_by_default(test_client: AsyncClient, monkeypatch) -> None:
+    monkeypatch.setattr("main.settings.MNEMAGENT_API_TOKEN", "")
+    resp = await test_client.post(
+        "/chat",
+        json={"user_id": "u1", "session_id": "s1", "message": "/memory"},
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_api_token_guard_requires_bearer_token(test_client: AsyncClient, monkeypatch) -> None:
+    monkeypatch.setattr("main.settings.MNEMAGENT_API_TOKEN", "secret-token")
+    missing = await test_client.post(
+        "/chat",
+        json={"user_id": "u1", "session_id": "s1", "message": "/memory"},
+    )
+    wrong = await test_client.post(
+        "/chat",
+        headers={"Authorization": "Bearer wrong"},
+        json={"user_id": "u1", "session_id": "s1", "message": "/memory"},
+    )
+    ok = await test_client.post(
+        "/chat",
+        headers={"Authorization": "Bearer secret-token"},
+        json={"user_id": "u1", "session_id": "s1", "message": "/memory"},
+    )
+
+    assert missing.status_code == 401
+    assert wrong.status_code == 403
+    assert ok.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_chat_memory_stats_command(test_client: AsyncClient) -> None:
     resp = await test_client.post(
         "/chat",

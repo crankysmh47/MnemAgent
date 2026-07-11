@@ -29,6 +29,8 @@ async def _no_server_extract(*_args, **_kwargs) -> list:
 @pytest.fixture
 async def test_client(tmp_path, monkeypatch):
     db_path = tmp_path / "app_test.db"
+    monkeypatch.setattr("config.settings.STORAGE_BACKEND", "sqlite")
+    monkeypatch.setattr("storage.db_manager.settings.STORAGE_BACKEND", "sqlite")
     monkeypatch.setattr("config.settings.DB_PATH", db_path)
     monkeypatch.setattr("storage.db_manager.settings.DB_PATH", db_path)
     monkeypatch.setattr("memory.waking.get_local_embedding_sync", _fake_embedding_sync)
@@ -49,6 +51,11 @@ def tmp_db_path(tmp_path: Path) -> Path:
 @pytest.fixture
 def initialized_db(tmp_db_path: Path) -> Path:
     """Initialize a fresh database and return its path."""
+    from config import settings
+    import storage.db_manager as db_manager
+
+    settings.STORAGE_BACKEND = "sqlite"
+    db_manager.settings.STORAGE_BACKEND = "sqlite"
     initialize_database(tmp_db_path)
     return tmp_db_path
 

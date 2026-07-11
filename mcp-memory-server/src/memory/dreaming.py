@@ -9,6 +9,7 @@ from pathlib import Path
 
 from config import settings
 from memory.event_log import log_memory_event
+from memory.prospective import prospective_from_belief, store_prospective_memory
 from memory.waking import store_belief_embedding_sync
 from memory.entity_lexicon import terms_for_entity_dict
 from storage.db_manager import delete_vec_embedding, get_db_connection, upsert_user_entities
@@ -34,10 +35,22 @@ SAFETY_KEYWORDS = (
     "disease",
 )
 
+MEMORY_POISON_PATTERNS = (
+    r"\bignore\s+(?:all\s+)?(?:memory|system|developer)\s+rules\b",
+    r"\bsilently\s+(?:rewrite|overwrite|replace)\b",
+    r"\bdo\s+not\s+mention\s+(?:this|the\s+rewrite|the\s+change)\b",
+    r"\bforget\s+the\s+(?:previous|old)\s+memory\s+rules\b",
+    r"\boverride\s+(?:memory|salience|storage)\s+policy\b",
+)
+
 
 def _text_has_safety_keyword(text: str) -> bool:
     lowered = text.lower()
     return any(keyword in lowered for keyword in SAFETY_KEYWORDS)
+
+
+def _looks_like_memory_poison(text: str) -> bool:
+    return any(re.search(pattern, text, flags=re.I) for pattern in MEMORY_POISON_PATTERNS)
 
 
 def is_belief_referenced(src: str, tgt: str, response: str) -> bool:
@@ -269,6 +282,17 @@ def consolidate_and_prune_memory(
         for part in (entity, relation, value, user_prompt or "")
         if part is not None
     )
+    if user_prompt and _looks_like_memory_poison(safety_blob):
+        logger.info("Memory firewall rejected likely prompt-injection write")
+        log_memory_event(
+            user_id,
+            "memory_firewall_rejected",
+            entity_source=entity,
+            entity_target=str(value),
+            detail={"category": category, "conviction": conviction},
+            db_path=db_path,
+        )
+        return False
     safety_critical = _text_has_safety_keyword(safety_blob)
 
     if conviction < SALIENCE_MIN_CONVICTION and category != "system_state" and not safety_critical:
@@ -366,6 +390,17 @@ def consolidate_and_prune_memory(
 
     if run_maintenance:
         _run_decay_and_prune(user_id, db_path)
+
+    prospective = prospective_from_belief(memory_dict)
+    if prospective is not None:
+        cue, action = prospective
+        store_prospective_memory(
+            user_id,
+            cue,
+            action,
+            source_belief=belief_id,
+            db_path=db_path,
+        )
 
     dict_terms = terms_for_entity_dict(entity, value)
     if dict_terms:

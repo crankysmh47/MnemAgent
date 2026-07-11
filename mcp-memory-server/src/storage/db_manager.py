@@ -1,8 +1,9 @@
-"""SQLite connection factory with WAL mode, sqlite-vec extension loading, and schema init."""
+"""Database connection factory for Postgres runtime and isolated SQLite tests."""
 
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 import threading
 import time
@@ -17,9 +18,80 @@ VEC_AVAILABLE: bool = False
 _db_lock = threading.Lock()
 
 
+def _pg_error_types() -> tuple[type[Exception], ...]:
+    try:
+        import psycopg
+
+        return (psycopg.Error,)
+    except ImportError:
+        return ()
+
+
+def db_error_types() -> tuple[type[Exception], ...]:
+    """Exception classes raised by the active database backend."""
+
+    return (sqlite3.Error, *_pg_error_types())
+
+
+def is_postgres_backend() -> bool:
+    """Return True when STORAGE_BACKEND requests PostgreSQL."""
+
+    return settings.STORAGE_BACKEND.strip().lower() in {"postgres", "postgresql", "pg"}
+
+
+class _PostgresConnection:
+    """Small compatibility wrapper for the sqlite-style storage call sites."""
+
+    def __init__(self, database_url: str):
+        import psycopg
+        from pgvector.psycopg import register_vector
+        from psycopg.rows import dict_row
+
+        self._conn = psycopg.connect(database_url, row_factory=dict_row)
+        register_vector(self._conn)
+
+    def execute(self, sql: str, params: tuple | list | None = None):
+        return self._conn.execute(_translate_sqlite_sql(sql), params or ())
+
+    def executescript(self, sql: str) -> None:
+        with self._conn.cursor() as cursor:
+            cursor.execute(sql)
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def close(self) -> None:
+        self._conn.close()
+
+
+def _translate_sqlite_sql(sql: str) -> str:
+    """Translate the small SQLite dialect subset used by MnemAgent to Postgres."""
+
+    translated = sql
+    translated = translated.replace(
+        "datetime('now', '-45 minutes')",
+        "CURRENT_TIMESTAMP - INTERVAL '45 minutes'",
+    )
+    translated = translated.replace("MIN(1.0, node_weight + 0.05)", "LEAST(1.0, node_weight + 0.05)")
+    translated = translated.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+    translated = translated.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "BIGSERIAL PRIMARY KEY")
+    translated = translated.replace("DATETIME DEFAULT CURRENT_TIMESTAMP", "TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP")
+    translated = translated.replace("DATETIME", "TIMESTAMPTZ")
+    if "INSERT INTO user_entities" in translated and "ON CONFLICT" not in translated:
+        translated = translated.rstrip().rstrip(";") + " ON CONFLICT DO NOTHING"
+    if "INSERT INTO prospective_memories" in translated and "ON CONFLICT" not in translated:
+        translated = translated.rstrip().rstrip(";") + " ON CONFLICT DO NOTHING"
+    translated = re.sub(r"\?", "%s", translated)
+    return translated
+
+
 def get_db_connection(db_path: Path | None = None) -> sqlite3.Connection:
     """
-    Open a SQLite connection with WAL mode and row factory enabled.
+    Open a database connection.
+
+    Postgres is the production/runtime backend. Passing ``db_path`` forces the
+    lightweight SQLite test backend so existing unit tests can stay fast and
+    hermetic.
 
     Args:
         db_path: Optional override path for the database file.
@@ -27,6 +99,11 @@ def get_db_connection(db_path: Path | None = None) -> sqlite3.Connection:
     Returns:
         An open sqlite3.Connection.
     """
+    if is_postgres_backend() and db_path is None:
+        if not settings.DATABASE_URL:
+            raise RuntimeError("STORAGE_BACKEND=postgres requires DATABASE_URL")
+        return _PostgresConnection(settings.DATABASE_URL)  # type: ignore[return-value]
+
     path = db_path or settings.DB_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path), check_same_thread=False)
@@ -50,7 +127,7 @@ def run_write_with_retry(
         try:
             write_fn()
             return
-        except sqlite3.OperationalError as exc:
+        except db_error_types() as exc:
             if "locked" not in str(exc).lower() or attempt >= retries - 1:
                 raise
             time.sleep(base_delay_s * (2**attempt))
@@ -67,6 +144,9 @@ def _load_vec_extension(conn: sqlite3.Connection) -> bool:
         True if vec0 is available, False otherwise.
     """
     global VEC_AVAILABLE
+    if is_postgres_backend():
+        VEC_AVAILABLE = True
+        return True
     try:
         import sqlite_vec
 
@@ -107,7 +187,7 @@ def _backfill_user_entities(conn: sqlite3.Connection) -> None:
                 """,
                 (row["user_id"], term),
             )
-    except sqlite3.Error as exc:
+    except db_error_types() as exc:
         logger.warning("User entity backfill skipped: %s", exc)
 
 
@@ -121,6 +201,19 @@ def initialize_database(db_path: Path | None = None) -> None:
     global VEC_AVAILABLE
     path = db_path or settings.DB_PATH
     with _db_lock:
+        if is_postgres_backend() and db_path is None:
+            conn = get_db_connection(None)
+            try:
+                schema_path = Path(__file__).parent / "schema.postgres.sql"
+                conn.executescript(schema_path.read_text(encoding="utf-8"))
+                _backfill_user_entities(conn)  # type: ignore[arg-type]
+                conn.commit()
+                logger.info("Postgres database initialized")
+            finally:
+                conn.close()
+            VEC_AVAILABLE = True
+            return
+
         conn = get_db_connection(path)
         try:
             schema_path = Path(__file__).parent / "schema.sql"
@@ -198,7 +291,7 @@ def log_episodic_turn(
                 conn.close()
 
         run_write_with_retry(_write)
-    except sqlite3.Error as exc:
+    except db_error_types() as exc:
         logger.error("Failed to log episodic turn: %s", exc)
 
 
@@ -217,6 +310,18 @@ def upsert_vec_embedding(
     """
     if not VEC_AVAILABLE:
         return
+    if is_postgres_backend() and db_path is None:
+        conn = get_db_connection(db_path)
+        try:
+            conn.execute("DELETE FROM vec_memory WHERE id = ?", (metadata_id,))
+            conn.execute(
+                "INSERT INTO vec_memory (id, embedding) VALUES (?, ?)",
+                (metadata_id, embedding),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return
     try:
         import sqlite_vec
 
@@ -230,7 +335,7 @@ def upsert_vec_embedding(
             conn.commit()
         finally:
             conn.close()
-    except (ImportError, sqlite3.Error) as exc:
+    except (ImportError, *db_error_types()) as exc:
         logger.warning("Failed to upsert vector embedding for id=%s: %s", metadata_id, exc)
 
 
@@ -272,7 +377,7 @@ def upsert_user_entities(
         conn.commit()
         if added:
             logger.debug("Added %d new entities to user=%s dictionary", added, user_id)
-    except sqlite3.Error as exc:
+    except db_error_types() as exc:
         logger.warning("Failed to upsert user entities: %s", exc)
     finally:
         conn.close()
@@ -300,7 +405,7 @@ def get_user_entity_dict(
             (user_id,),
         ).fetchall()
         return {row["entity_name"] for row in rows}
-    except sqlite3.Error as exc:
+    except db_error_types() as exc:
         logger.warning("Failed to fetch user entity dict: %s", exc)
         return set()
     finally:
@@ -324,5 +429,5 @@ def delete_vec_embedding(metadata_id: int, db_path: Path | None = None) -> None:
             conn.commit()
         finally:
             conn.close()
-    except sqlite3.Error as exc:
+    except db_error_types() as exc:
         logger.warning("Failed to delete vector embedding for id=%s: %s", metadata_id, exc)

@@ -44,7 +44,7 @@ $m = Invoke-RestMethod -Uri "http://127.0.0.1:8001/health" -TimeoutSec 10
 $w = Invoke-RestMethod -Uri "$Harness/health" -TimeoutSec 10
 Write-Host "  MnemAgent: $($h.status) | MCP: $($m.status) | Harness: $($w.status)" -ForegroundColor Green
 
-# 2. Store facts via API (sequential to avoid SQLite lock storms)
+# 2. Store facts via API (sequential for deterministic demo output)
 Write-Host "[2/7] Storing memories (Python preference + FAST affiliation)..."
 Invoke-Store "backend_language" "prefers" "Python"
 Invoke-Store "user" "affiliated_with" "FAST" "persona"

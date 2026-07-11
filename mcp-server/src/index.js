@@ -14,6 +14,7 @@ import { z } from "zod";
 const MNEMOS_URL = (process.env.MNEMOS_URL || "http://localhost:8000").replace(/\/$/, "");
 const DEFAULT_PORT = Number(process.env.MCP_PORT || process.env.PORT || 8001);
 const DEFAULT_USER_ID = (process.env.MNEMOS_DEFAULT_USER_ID || "").trim();
+const MNEMAGENT_API_TOKEN = (process.env.MNEMAGENT_API_TOKEN || "").trim();
 const PLACEHOLDER_USER_IDS = new Set([
   "",
   "default",
@@ -49,6 +50,9 @@ function parseArgs() {
 
 async function mnemosRequest(method, path, data) {
   const config = { timeout: 120000 };
+  if (MNEMAGENT_API_TOKEN) {
+    config.headers = { Authorization: `Bearer ${MNEMAGENT_API_TOKEN}` };
+  }
   try {
     if (method === "get") {
       return (await axios.get(`${MNEMOS_URL}${path}`, config)).data;

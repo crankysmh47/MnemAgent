@@ -16,6 +16,7 @@ import networkx as nx
 from config import settings
 from memory.entity_lexicon import CORE_TECH_DICTIONARY
 from memory.event_log import log_memory_event
+from memory.prospective import fetch_due_prospective_memories
 from memory.response_grounding import (
     fetch_all_active_beliefs,
     fetch_salience_rejected_values,
@@ -24,11 +25,12 @@ from memory.response_grounding import (
     should_inject_memory_context,
 )
 from storage.db_manager import (
-    VEC_AVAILABLE,
     get_db_connection,
     get_user_entity_dict,
+    is_postgres_backend,
     upsert_vec_embedding,
 )
+import storage.db_manager as db_manager
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,9 @@ SYSTEM_PROMPT_TEMPLATE = """You are an autonomous engineering agent with a persi
 
 [MEMORY CONTEXT — Retrieved from long-term storage]
 {injected_facts}
+
+[DUE PROSPECTIVE REMINDERS â€” Fire only when the user's current prompt matches the cue]
+{prospective_facts}
 
 Use the memory context above to personalize your responses. Reference stored
 preferences naturally without re-asking.
@@ -382,7 +387,31 @@ def _fetch_candidates_by_vector(
     db_path: Path | None,
     limit: int = 20,
 ) -> list[sqlite3.Row]:
-    """KNN search via sqlite-vec."""
+    """KNN search via pgvector/Postgres or sqlite-vec."""
+    if is_postgres_backend() and db_path is None:
+        conn = get_db_connection(db_path)
+        try:
+            rows = conn.execute(
+                """
+                SELECT sg.*, (v.embedding <-> ?::vector) AS vec_distance
+                FROM vec_memory v
+                JOIN semantic_graph sg ON sg.id = v.id
+                WHERE sg.user_id = ? AND sg.node_weight > ?
+                ORDER BY v.embedding <-> ?::vector
+                LIMIT ?
+                """,
+                (
+                    embedding,
+                    user_id,
+                    settings.PRUNE_THRESHOLD,
+                    embedding,
+                    limit,
+                ),
+            ).fetchall()
+            return rows
+        finally:
+            conn.close()
+
     import sqlite_vec
 
     conn = get_db_connection(db_path)
@@ -535,7 +564,7 @@ async def build_optimized_qwen_payload(
             selected_ids = {int(row["id"]) for row in selected}
         else:
             embedding = await get_embedding(user_input)
-            if VEC_AVAILABLE:
+            if db_manager.VEC_AVAILABLE:
                 candidates = _fetch_candidates_by_vector(user_id, embedding, db_path)
                 candidates = _filter_candidates_by_semantic_floor(candidates, embedding)
             else:
@@ -651,7 +680,16 @@ async def build_optimized_qwen_payload(
             conn.close()
 
         injected_facts = "\n".join(fact_lines) if fact_lines else "(no stored memories yet)"
-        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(injected_facts=injected_facts)
+        due_prospective = fetch_due_prospective_memories(user_id, user_input, db_path=db_path)
+        prospective_lines = [
+            f"- When the user asks about {item['cue']}: remind them to {item['action']}"
+            for item in due_prospective
+        ]
+        prospective_facts = "\n".join(prospective_lines) if prospective_lines else "(none)"
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+            injected_facts=injected_facts,
+            prospective_facts=prospective_facts,
+        )
         if compound and injected_values:
             values_csv = ", ".join(injected_values)
             system_prompt += (

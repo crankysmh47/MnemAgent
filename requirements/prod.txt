@@ -8,3 +8,5 @@ sentence-transformers==3.0.1
 oss2==2.18.5
 python-dotenv==1.0.1
 pydantic==2.7.4
+psycopg[binary]==3.2.3
+pgvector==0.3.6

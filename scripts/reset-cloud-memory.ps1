@@ -187,8 +187,60 @@ function Invoke-SqliteReset {
   }
 }
 
-$useDockerDb = (-not $DbPath) -and (Test-DockerServiceRunning)
-$resolvedDb = if ($useDockerDb) { "/app/data/memory_state.db (mnemos-memory container)" } else { Resolve-DbPath $DbPath }
+function Convert-ToSqlStringList {
+  param([string[]]$Values)
+  if (-not $Values -or $Values.Count -eq 0) { return "" }
+  return (($Values | ForEach-Object { "'" + ($_.Replace("'", "''")) + "'" }) -join ",")
+}
+
+function Invoke-PostgresReset {
+  param([string[]]$PreserveUsers)
+
+  $keepList = Convert-ToSqlStringList -Values $PreserveUsers
+  if ($keepList) {
+    $whereDelete = "WHERE user_id NOT IN ($keepList)"
+    $vecDelete = "DELETE FROM vec_memory WHERE id NOT IN (SELECT id FROM semantic_graph WHERE user_id IN ($keepList));"
+  } else {
+    $whereDelete = ""
+    $vecDelete = "DELETE FROM vec_memory;"
+  }
+
+  $sql = @"
+BEGIN;
+CREATE TEMP TABLE reset_counts AS
+SELECT 'semantic_graph' AS table_name, COUNT(*)::bigint AS before_count FROM semantic_graph
+UNION ALL SELECT 'episodic_logs', COUNT(*) FROM episodic_logs
+UNION ALL SELECT 'memory_events', COUNT(*) FROM memory_events
+UNION ALL SELECT 'user_bindings', COUNT(*) FROM user_bindings
+UNION ALL SELECT 'user_entities', COUNT(*) FROM user_entities
+UNION ALL SELECT 'prospective_memories', COUNT(*) FROM prospective_memories;
+$vecDelete
+DELETE FROM semantic_graph $whereDelete;
+DELETE FROM episodic_logs $whereDelete;
+DELETE FROM memory_events $whereDelete;
+DELETE FROM user_bindings $whereDelete;
+DELETE FROM user_entities $whereDelete;
+DELETE FROM prospective_memories $whereDelete;
+SELECT table_name, before_count FROM reset_counts ORDER BY table_name;
+COMMIT;
+"@
+
+  $cid = docker compose ps -q postgres 2>$null
+  if ([string]::IsNullOrWhiteSpace($cid)) {
+    throw "Postgres container is not running. Start the stack with docker compose up -d first."
+  }
+  $pgUser = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "mnemagent" }
+  $pgDb = if ($env:POSTGRES_DB) { $env:POSTGRES_DB } else { "mnemagent" }
+  $sql | docker compose exec -T postgres psql -U $pgUser -d $pgDb
+  if ($LASTEXITCODE -ne 0) {
+    throw "Postgres reset failed"
+  }
+}
+
+$storageBackend = if ($env:STORAGE_BACKEND) { $env:STORAGE_BACKEND.ToLowerInvariant() } else { "postgres" }
+$usePostgres = (-not $DbPath) -and ($storageBackend -in @("postgres", "postgresql", "pg"))
+$useDockerDb = (-not $DbPath) -and (-not $usePostgres) -and (Test-DockerServiceRunning)
+$resolvedDb = if ($usePostgres) { "Postgres/pgvector (docker compose service: postgres)" } elseif ($useDockerDb) { "/app/data/memory_state.db (mnemos-memory container)" } else { Resolve-DbPath $DbPath }
 $keep = if ($KeepDemoBrain) { $KeepUsers } else { $KeepUsers }
 $judgeUserId = "$JudgePrefix-$([guid]::NewGuid().ToString("N").Substring(0, 12))"
 
@@ -198,7 +250,11 @@ Write-Host "Preserving users: $($keep -join ', ')"
 Write-Host "Fresh judge user_id: $judgeUserId"
 
 if ($PSCmdlet.ShouldProcess($resolvedDb, "wipe non-demo memories and create judge namespace")) {
-  Invoke-SqliteReset -Path $resolvedDb -PreserveUsers $keep -UseDocker:$useDockerDb
+  if ($usePostgres) {
+    Invoke-PostgresReset -PreserveUsers $keep
+  } else {
+    Invoke-SqliteReset -Path $resolvedDb -PreserveUsers $keep -UseDocker:$useDockerDb
+  }
 
   New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
   $judgeUserId | Set-Content $UserFile -Encoding UTF8

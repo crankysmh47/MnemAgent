@@ -8,7 +8,7 @@ import re
 from contextlib import asynccontextmanager
 from functools import partial
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -49,6 +49,24 @@ from storage.db_manager import get_total_turns, initialize_database, log_episodi
 logger = logging.getLogger(__name__)
 
 _dreaming_semaphore = asyncio.Semaphore(2)
+
+
+def require_api_token(authorization: str | None = Header(default=None)) -> None:
+    """Optional bearer-token guard for cloud deployments."""
+    expected = settings.MNEMAGENT_API_TOKEN.strip()
+    if not expected:
+        return
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing bearer token",
+        )
+    supplied = authorization.split(" ", 1)[1].strip()
+    if supplied != expected:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid bearer token",
+        )
 
 
 class ChatRequest(BaseModel):
@@ -260,7 +278,7 @@ async def health() -> dict[str, str]:
     }
 
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, dependencies=[Depends(require_api_token)])
 async def chat(request: ChatRequest) -> ChatResponse:
     """
     Handle chat messages and MCP memory commands.
@@ -344,13 +362,13 @@ async def chat(request: ChatRequest) -> ChatResponse:
     )
 
 
-@app.get("/api/graph/{user_id}")
+@app.get("/api/graph/{user_id}", dependencies=[Depends(require_api_token)])
 async def api_graph(user_id: str) -> dict:
     """Return belief graph data for the memory visualizer."""
     return get_graph_data(user_id)
 
 
-@app.get("/api/events/{user_id}")
+@app.get("/api/events/{user_id}", dependencies=[Depends(require_api_token)])
 async def api_events(
     user_id: str,
     since: str | None = Query(default=None),
@@ -360,13 +378,13 @@ async def api_events(
     return {"events": get_events_since(user_id, since=since, limit=limit)}
 
 
-@app.get("/api/metrics/{user_id}")
+@app.get("/api/metrics/{user_id}", dependencies=[Depends(require_api_token)])
 async def api_metrics(user_id: str) -> dict:
     """Return aggregate metrics and UCB timeline data."""
     return get_metrics_data(user_id)
 
 
-@app.get("/api/memory/search/{user_id}")
+@app.get("/api/memory/search/{user_id}", dependencies=[Depends(require_api_token)])
 async def api_memory_search(
     user_id: str,
     query: str = Query(..., min_length=1),
@@ -386,7 +404,7 @@ async def api_memory_search(
     }
 
 
-@app.get("/api/memory/dump/{user_id}")
+@app.get("/api/memory/dump/{user_id}", dependencies=[Depends(require_api_token)])
 async def api_memory_dump(
     user_id: str,
     format: str = Query(default="markdown", pattern="^(text|markdown|json)$"),
@@ -407,7 +425,7 @@ async def api_memory_dump(
     return {"user_id": user_id, "format": "markdown", "response": dump}
 
 
-@app.get("/api/memory/stats/{user_id}")
+@app.get("/api/memory/stats/{user_id}", dependencies=[Depends(require_api_token)])
 async def api_memory_stats(
     user_id: str,
     format: str = Query(default="markdown", pattern="^(text|markdown|json)$"),
@@ -428,7 +446,7 @@ async def api_memory_stats(
     return {"user_id": user_id, "format": "markdown", "response": stats}
 
 
-@app.post("/api/user/bind")
+@app.post("/api/user/bind", dependencies=[Depends(require_api_token)])
 async def api_user_bind(request: UserBindRequest) -> dict:
     """Bind channel sender to canonical MnemAgent user_id."""
     channel = request.channel.strip()
@@ -449,7 +467,7 @@ async def api_user_bind(request: UserBindRequest) -> dict:
     )
 
 
-@app.get("/api/user/bindings/{user_id}")
+@app.get("/api/user/bindings/{user_id}", dependencies=[Depends(require_api_token)])
 async def api_user_bindings(user_id: str) -> dict:
     """List channel bindings for a canonical user_id."""
     loop = asyncio.get_running_loop()
@@ -457,7 +475,7 @@ async def api_user_bindings(user_id: str) -> dict:
     return {"user_id": user_id, "bindings": bindings}
 
 
-@app.post("/api/memory/store")
+@app.post("/api/memory/store", dependencies=[Depends(require_api_token)])
 async def api_memory_store(request: MemoryStoreRequest) -> dict:
     """Store a fact via salience auction (MCP memory_store)."""
     memory_dict = {
@@ -484,7 +502,7 @@ async def api_memory_store(request: MemoryStoreRequest) -> dict:
     }
 
 
-@app.post("/api/memory/store/batch")
+@app.post("/api/memory/store/batch", dependencies=[Depends(require_api_token)])
 async def api_memory_store_batch(request: MemoryBatchStoreRequest) -> dict:
     """Store multiple facts in one request."""
     loop = asyncio.get_running_loop()

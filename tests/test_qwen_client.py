@@ -44,6 +44,14 @@ def test_extract_facts_deterministically_handles_clear_teach_message() -> None:
     assert ("frontend_framework", "is", "React") in triples
 
 
+def test_extract_facts_deterministically_handles_prospective_memory() -> None:
+    facts = extract_facts_deterministically(
+        "When I ask about deployment, remind me to check the OSS snapshot."
+    )
+    triples = {(f["entity"], f["relation"], f["value"]) for f in facts}
+    assert ("when_asked_about_deployment", "remind", "check the OSS snapshot") in triples
+
+
 def test_extract_memory_update_no_tags() -> None:
     assert extract_memory_update("plain text") is None
 

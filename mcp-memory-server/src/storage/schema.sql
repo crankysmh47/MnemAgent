@@ -73,4 +73,19 @@ CREATE TABLE IF NOT EXISTS user_entities (
 CREATE INDEX IF NOT EXISTS idx_entities_user
     ON user_entities(user_id);
 
+CREATE TABLE IF NOT EXISTS prospective_memories (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        TEXT NOT NULL,
+    cue            TEXT NOT NULL,
+    action         TEXT NOT NULL,
+    source_belief  INTEGER,
+    fired_count    INTEGER DEFAULT 0,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_fired_at  DATETIME,
+    UNIQUE(user_id, cue, action) ON CONFLICT IGNORE
+);
+
+CREATE INDEX IF NOT EXISTS idx_prospective_user_cue
+    ON prospective_memories(user_id, cue);
+
 -- vec_memory virtual table is created in db_manager.py after sqlite-vec loads.

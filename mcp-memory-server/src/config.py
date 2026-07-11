@@ -99,6 +99,9 @@ class Settings:
         default_factory=lambda: _env_float("SEMANTIC_SIMILARITY_FLOOR", 0.3)
     )
     CHAT_MAX_TOKENS: int = field(default_factory=lambda: _env_int("CHAT_MAX_TOKENS", 2000))
+    STORAGE_BACKEND: str = field(default_factory=lambda: _env_str("STORAGE_BACKEND", "postgres"))
+    DATABASE_URL: str = field(default_factory=lambda: _env_str("DATABASE_URL", ""))
+    MNEMAGENT_API_TOKEN: str = field(default_factory=lambda: _env_str("MNEMAGENT_API_TOKEN", ""))
     EXTRACTION_MODEL: str = field(default_factory=lambda: _env_str("EXTRACTION_MODEL", ""))
     ENABLE_DREAMING_EXTRACTION: bool = field(
         default_factory=lambda: _env_str("ENABLE_DREAMING_EXTRACTION", "true").lower()

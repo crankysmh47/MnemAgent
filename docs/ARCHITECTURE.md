@@ -103,7 +103,7 @@ The asymmetry (+0.05 reward vs -0.01 penalty) prevents the system from penalizin
 | 1 | Working Memory | In-process, last 3 turns | Short-term conversational context |
 | 2 | Episodic Memory | episodic_logs table, session-scoped | Source material for consolidation, UCB T calculation |
 | 3 | Semantic Memory | semantic_graph table, global per user | Long-term beliefs — what gets injected into prompts |
-| 4 | Vector Index | vec_memory virtual table (sqlite-vec) | SIMD-accelerated KNN semantic search |
+| 4 | Vector Index | `vec_memory` pgvector table | KNN semantic search over stored belief embeddings |
 | 5 | Event Log | memory_events table | Lifecycle events for the visualizer |
 
 ## The Forgetting System
@@ -143,7 +143,7 @@ User sends message
 
 ## Key Design Decisions
 
-- **SQLite, not a vector database** — zero infrastructure, single-file state, WAL mode for concurrent reads
+- **Postgres + pgvector runtime** - multi-user cloud deployment, transactional belief updates, vector search in the same database, and a direct path to Alibaba RDS.
 - **T is per-user, not global** — prevents new users from inheriting inflated UCB exploration from power users
 - **Asymmetric feedback** — rewards (+0.05) > penalties (-0.01) so exploration isn't punished
 - **Proximity regex, not substring** — "Python" in snake context doesn't credit programming preference
@@ -177,3 +177,38 @@ And is instructed to output new persistent facts inside `<memory_update>` tags w
 | `/api/events/{uid}` | GET | Lifecycle event stream |
 | `/api/metrics/{uid}` | GET | Aggregate metrics + UCB timeline |
 | `/api/user/bind` | POST | Channel → user_id binding |
+## Cue-Triggered Prospective Memory
+
+MnemAgent supports a small form of human-like prospective memory: intentions that fire when a cue appears, not after a wall-clock timer expires.
+
+Example:
+
+```text
+When I ask about deployment, remind me to check the OSS snapshot.
+```
+
+The deterministic extractor stores:
+
+```json
+{"entity":"when_asked_about_deployment","relation":"remind","value":"check the OSS snapshot","category":"system_state","conviction":1.0}
+```
+
+During the waking phase, MnemAgent scans the user's current prompt for due cues and injects a separate prospective reminder block:
+
+```text
+[DUE PROSPECTIVE REMINDERS]
+- When the user asks about deployment: remind them to check the OSS snapshot
+```
+
+This avoids timed reminders. OpenClaw does not need to track wall-clock time, there is no scheduler overhead, and the feature still tests a memory capability most agent benchmarks ignore: remembering to do the right thing when the relevant context returns.
+
+## Cloud Multi-User Posture
+
+MnemAgent now uses Postgres/pgvector as the product runtime backend. The SQLite adapter remains only as a legacy/test fallback for isolated unit tests that need disposable file-backed databases.
+
+Security controls for cloud mode:
+
+- optional `MNEMAGENT_API_TOKEN` bearer auth on chat, memory, graph, metrics, and binding endpoints;
+- token forwarding from the OpenClaw MCP server and visualizer harness;
+- Postgres schema with row-level security policies keyed by `mnemagent.user_id`;
+- prompt-injection memory firewall that rejects extracted writes from obvious memory-rule override attempts.

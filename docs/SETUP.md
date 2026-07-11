@@ -395,7 +395,7 @@ OpenClaw Gateway (:18789)     ←──  openclaw agent / dashboard
        │  mcp-server/src/index.js
        │       │  (node process spawned by OpenClaw)
        │       ▼
-       │  MnemAgent Memory API (:8000)  ←── FastAPI + SQLite + sqlite-vec
+       │  MnemAgent Memory API (:8000)  ←── FastAPI + Postgres + pgvector
        │       │
        │       ├── Waking Phase  (sync — embed, UCB retrieve, respond)
        │       └── Dreaming Phase (async — salience auction, decay, prune)

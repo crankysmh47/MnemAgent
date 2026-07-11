@@ -28,7 +28,7 @@ MnemAgent is built directly around those constraints:
 | User preferences | Persona/preference/system-state categories with confidence scores |
 | Better cross-session decisions | New OpenClaw sessions can call `mnemos__memory_dump` or `mnemos__memory_search` |
 | Efficient storage | Salience Auction rejects low-conviction memories before database write |
-| Efficient retrieval | sqlite-backed graph retrieval plus UCB scoring, capped injected facts |
+| Efficient retrieval | Postgres/pgvector graph retrieval plus UCB scoring, capped injected facts |
 | Timely forgetting | Synaptic decay for inactive nodes and hard pruning below threshold |
 | Limited context windows | Compound probes inject only bounded, relevant beliefs instead of the full graph |
 
@@ -146,7 +146,7 @@ Tests confirm:
 OpenClaw + MnemAgent MCP integration verified end-to-end:
 
 ```
-openclaw agent → mnemos MCP (7 tools) → mcp-server → MnemAgent API (:8000) → SQLite memory
+openclaw agent → mnemos MCP (7 tools) → mcp-server → MnemAgent API (:8000) → Postgres/pgvector memory
 ```
 
 | Tool | Status | Description |
@@ -176,7 +176,7 @@ Cross-session recall confirmed: facts stored in session A are retrievable in ses
 
 1. **Dual-output extraction reliability**: The `<memory_update>` format requires model cooperation. qwen-max follows it when prompted directly but through Docker the prompt sometimes doesn't propagate. A dedicated extraction model (qwen-turbo) in the Dreaming phase would make extraction independent of the primary model's instruction-following.
 
-2. **Semantic search vs. arbitrary facts**: Vector search (sqlite-vec KNN) works well for semantically meaningful facts but struggles with arbitrary codenames and version numbers. A hybrid BM25+vector approach would improve recall of unguessable facts.
+2. **Semantic search vs. arbitrary facts**: pgvector KNN works well for semantically meaningful facts but still struggles with arbitrary codenames and version numbers. A hybrid BM25+vector approach would improve recall of unguessable facts.
 
 3. **UCB cold start**: New beliefs with N_i=0 receive an exploration bonus that grows with T, but the first probe immediately after teaching may not surface them. A "recency boost" parameter could supplement UCB for just-taught facts.
 
