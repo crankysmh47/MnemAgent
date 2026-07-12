@@ -318,7 +318,8 @@ def consolidate_and_prune_memory(
         existing = conn.execute(
             """
             SELECT id, entity_target FROM semantic_graph
-            WHERE user_id = ? AND entity_source = ? AND relation = ?
+            WHERE user_id = ? AND scope_type = 'core' AND scope_id = 'core'
+              AND entity_source = ? AND relation = ?
             """,
             (user_id, entity, relation),
         ).fetchone()
@@ -345,9 +346,9 @@ def consolidate_and_prune_memory(
         conn.execute(
             """
             INSERT INTO semantic_graph (
-                user_id, category, entity_source, relation, entity_target, conviction_score
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id, entity_source, relation) DO UPDATE SET
+                user_id, scope_type, scope_id, category, entity_source, relation, entity_target, conviction_score
+            ) VALUES (?, 'core', 'core', ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, scope_type, scope_id, entity_source, relation) DO UPDATE SET
                 category = excluded.category,
                 entity_target = excluded.entity_target,
                 conviction_score = excluded.conviction_score,
@@ -359,7 +360,8 @@ def consolidate_and_prune_memory(
         row = conn.execute(
             """
             SELECT id FROM semantic_graph
-            WHERE user_id = ? AND entity_source = ? AND relation = ?
+            WHERE user_id = ? AND scope_type = 'core' AND scope_id = 'core'
+              AND entity_source = ? AND relation = ?
             """,
             (user_id, entity, relation),
         ).fetchone()

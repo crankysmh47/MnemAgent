@@ -11,6 +11,7 @@ from typing import Any
 
 from config import settings
 from storage.db_manager import get_db_connection, get_total_turns
+from memory.scopes import MemoryScope
 
 _QUERY_STOP_WORDS = {
     "a",
@@ -154,6 +155,8 @@ def _belief_row(row: sqlite3.Row, total_turns: int) -> dict[str, Any]:
     return {
         "id": int(row["id"]),
         "user_id": row["user_id"],
+        "scope_type": row["scope_type"] if "scope_type" in row.keys() else "core",
+        "scope_id": row["scope_id"] if "scope_id" in row.keys() else "core",
         "category": row["category"],
         "entity_source": row["entity_source"],
         "relation": row["relation"],
@@ -181,6 +184,9 @@ def get_graph_data(
     limit: int = 150,
     focus_id: int | None = None,
     include_summary: bool = True,
+    scope_type: str = "core",
+    scope_id: str = "core",
+    include_core: bool = False,
 ) -> dict[str, Any]:
     """
     Return beliefs, graph edges, and turn count for the visualizer.
@@ -192,12 +198,21 @@ def get_graph_data(
     Returns:
         Dict with beliefs, edges, and total_turns keys.
     """
+    scope = MemoryScope(scope_type, scope_id)
     total_turns = get_total_turns(user_id, db_path)
     conn = get_db_connection(db_path)
     try:
         limit = max(1, min(int(limit), 150))
         predicates = ["user_id = ?", "node_weight > ?"]
         base_params: list[Any] = [user_id, settings.PRUNE_THRESHOLD]
+        if scope.scope_type == "repository" and include_core:
+            predicates.append("((scope_type = ? AND scope_id = ?) OR (scope_type = 'core' AND scope_id = 'core'))")
+            base_params.extend([scope.scope_type, scope.scope_id])
+        else:
+            predicates.extend(["scope_type = ?", "scope_id = ?"])
+            base_params.extend([scope.scope_type, scope.scope_id])
+        scope_where = " AND ".join(predicates)
+        scope_params = list(base_params)
         if category:
             predicates.append("category = ?")
             base_params.append(category)
@@ -216,8 +231,7 @@ def get_graph_data(
         where = " AND ".join(predicates)
 
         total_row = conn.execute(
-            "SELECT COUNT(*) AS count FROM semantic_graph WHERE user_id = ? AND node_weight > ?",
-            (user_id, settings.PRUNE_THRESHOLD),
+            f"SELECT COUNT(*) AS count FROM semantic_graph WHERE {scope_where}", scope_params,
         ).fetchone()
         total_beliefs = int(total_row["count"] if total_row else 0)
         filtered_row = conn.execute(
@@ -232,8 +246,8 @@ def get_graph_data(
         ).fetchall()
         if focus_id is not None and all(int(row["id"]) != focus_id for row in rows):
             focus = conn.execute(
-                "SELECT * FROM semantic_graph WHERE user_id = ? AND id = ? AND node_weight > ?",
-                (user_id, focus_id, settings.PRUNE_THRESHOLD),
+                f"SELECT * FROM semantic_graph WHERE {where} AND id = ?",
+                (*base_params, focus_id),
             ).fetchone()
             if focus:
                 rows = [focus, *rows[: max(0, limit - 1)]]
@@ -243,14 +257,14 @@ def get_graph_data(
         if include_summary:
             category_rows = conn.execute(
                 """SELECT category, COUNT(*) AS count FROM semantic_graph
-                WHERE user_id = ? AND node_weight > ? GROUP BY category""",
-                (user_id, settings.PRUNE_THRESHOLD),
+                WHERE user_id = ? AND node_weight > ? AND scope_type = ? AND scope_id = ? GROUP BY category""",
+                (user_id, settings.PRUNE_THRESHOLD, scope.scope_type, scope.scope_id),
             ).fetchall()
             summary["categories"] = {row["category"]: int(row["count"]) for row in category_rows}
             vitality = conn.execute(
                 """SELECT AVG(node_weight) AS average FROM semantic_graph
-                WHERE user_id = ? AND node_weight > ?""",
-                (user_id, settings.PRUNE_THRESHOLD),
+                WHERE user_id = ? AND node_weight > ? AND scope_type = ? AND scope_id = ?""",
+                (user_id, settings.PRUNE_THRESHOLD, scope.scope_type, scope.scope_id),
             ).fetchone()
             summary["average_vitality"] = round(float(vitality["average"] or 0), 3)
         render_mode = "individual" if total_beliefs <= 120 else "hybrid" if total_beliefs <= 500 else "summary"
@@ -396,6 +410,8 @@ def search_memories(
     category: str | None = None,
     min_confidence: float | None = None,
     db_path: Path | None = None,
+    scope_type: str = "core",
+    scope_id: str = "core",
 ) -> list[dict[str, Any]]:
     """
     Keyword search over semantic_graph for MCP memory_search.
@@ -411,6 +427,7 @@ def search_memories(
     Returns:
         Matching belief dicts.
     """
+    scope = MemoryScope(scope_type, scope_id)
     total_turns = get_total_turns(user_id, db_path)
     min_weight = min_confidence if min_confidence is not None else settings.PRUNE_THRESHOLD
     conn = get_db_connection(db_path)
@@ -418,9 +435,9 @@ def search_memories(
         terms = _search_terms(query)
         sql = """
             SELECT *, 0 AS term_matches FROM semantic_graph
-            WHERE user_id = ? AND node_weight > ?
+            WHERE user_id = ? AND node_weight > ? AND scope_type = ? AND scope_id = ?
         """
-        params: list[Any] = [user_id, min_weight]
+        params: list[Any] = [user_id, min_weight, scope.scope_type, scope.scope_id]
 
         if terms:
             term_clauses: list[str] = []
@@ -449,10 +466,10 @@ def search_memories(
             sql = f"""
                 SELECT *, ({' + '.join(rank_cases)}) AS term_matches
                 FROM semantic_graph
-                WHERE user_id = ? AND node_weight > ?
+                WHERE user_id = ? AND node_weight > ? AND scope_type = ? AND scope_id = ?
                   AND ({' OR '.join(f'({clause})' for clause in term_clauses)})
             """
-            params = rank_params + [user_id, min_weight] + params[2:]
+            params = rank_params + [user_id, min_weight, scope.scope_type, scope.scope_id] + params[4:]
 
         if category:
             sql += " AND category = ?"
@@ -463,3 +480,26 @@ def search_memories(
         return [_belief_row(row, total_turns) for row in rows]
     finally:
         conn.close()
+
+
+def retrieve_scoped_beliefs(
+    user_id: str,
+    repository_id: str,
+    query: str,
+    limit: int = 6,
+    db_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Return a deterministic repository-first context window (max 4 repo + 2 core)."""
+    scope = MemoryScope("repository", repository_id)
+    bounded = max(1, min(int(limit), 6))
+    repository_limit = min(4, bounded)
+    core_limit = min(2, max(0, bounded - repository_limit))
+    repository = search_memories(
+        user_id, query, top_k=repository_limit, db_path=db_path,
+        scope_type=scope.scope_type, scope_id=scope.scope_id,
+    )
+    core = search_memories(
+        user_id, query, top_k=core_limit, db_path=db_path,
+        scope_type="core", scope_id="core",
+    ) if core_limit else []
+    return [*repository, *core][:bounded]

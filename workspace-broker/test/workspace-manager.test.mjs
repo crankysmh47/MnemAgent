@@ -1,19 +1,27 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { createWorkspaceManager } from '../src/workspace-manager.js';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 test('manager enforces repository allowlist and one active workspace', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mnemcode-'));
   const fixture = path.join(root, 'fixture');
   await mkdir(fixture);
   await writeFile(path.join(fixture, 'README.md'), 'fixture');
-  const manager = createWorkspaceManager({ root: path.join(root, 'runs'), allowedRepository: 'crankysmh47/WebPort', clone: async (_repo, target) => { await mkdir(target, { recursive: true }); await writeFile(path.join(target, 'README.md'), 'fixture'); } });
+  const manager = createWorkspaceManager({ root: path.join(root, 'runs'), allowedRepository: 'crankysmh47/WebPort', clone: async (_repo, target) => { await mkdir(path.join(target, 'src'), { recursive: true }); await writeFile(path.join(target, 'README.md'), 'fixture'); await writeFile(path.join(target, 'src/config.js'), 'export const value = 1;\n'); await execFileAsync('git', ['init'], { cwd: target }); await execFileAsync('git', ['config', 'user.name', 'fixture'], { cwd: target }); await execFileAsync('git', ['config', 'user.email', 'fixture@example.test'], { cwd: target }); await execFileAsync('git', ['add', '.'], { cwd: target }); await execFileAsync('git', ['commit', '-m', 'fixture'], { cwd: target }); } });
   await assert.rejects(manager.create({ repository: 'other/repo', issueNumber: 1 }), /allowlist/i);
   const session = await manager.create({ repository: 'crankysmh47/WebPort', issueNumber: 1 });
   assert.match(session.branch, /^mnemagent-judge\/1\//);
+  assert.equal(await manager.readFile(session.id, 'README.md'), 'fixture');
+  await assert.rejects(manager.readFile(session.id, '../secret'), /path/i);
+  await manager.applyPatch(session.id, '--- a/src/config.js\n+++ b/src/config.js\n@@ -1 +1 @@\n-export const value = 1;\n+export const value = 2;\n');
+  assert.match(await manager.diff(session.id), /value = 2/);
   await assert.rejects(manager.create({ repository: 'crankysmh47/WebPort', issueNumber: 2 }), /active workspace/i);
   await manager.cleanup(session.id);
   await rm(root, { recursive: true, force: true });

@@ -11,6 +11,9 @@ const cors = require("cors");
 const axios = require("axios");
 const { DEMO_USER_ID, seedDemoBrain } = require("./demo-seed");
 const { canReadArchive, canMutateThroughHarness } = require("./cloud-policy");
+const { randomBytes } = require("node:crypto");
+const { createJudgeAuth } = require("./judge-auth");
+const { createJudgeRunService } = require("./judge-run-service");
 
 const PORT = process.env.PORT || 3000;
 const MNEMOS_URL = (process.env.MNEMOS_URL || process.env.MCP_SERVER_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -18,6 +21,15 @@ const MCP_ADAPTER_URL = (process.env.MCP_ADAPTER_URL || "http://localhost:8001")
 const AUTO_SEED_DEMO = process.env.AUTO_SEED_DEMO !== "false";
 const MNEMAGENT_API_TOKEN = (process.env.MNEMAGENT_API_TOKEN || "").trim();
 const CLOUD_MODE = process.env.MNEMAGENT_ENV === "cloud";
+if (CLOUD_MODE && (!process.env.JUDGE_ACCESS_CODE || !process.env.JUDGE_SESSION_SECRET)) {
+  throw new Error("Cloud mode requires JUDGE_ACCESS_CODE and JUDGE_SESSION_SECRET.");
+}
+const judgeAuth = createJudgeAuth({
+  accessCode: process.env.JUDGE_ACCESS_CODE || "mnemcode-local-judge",
+  sessionSecret: process.env.JUDGE_SESSION_SECRET || randomBytes(48).toString("hex"),
+  secure: CLOUD_MODE,
+});
+const judgeRuns = createJudgeRunService();
 
 function mnemosConfig(config = {}) {
   const headers = { ...(config.headers || {}) };
@@ -66,13 +78,74 @@ async function resolveCanonicalUserId() {
 }
 
 const app = express();
-app.use(cors());
+app.disable("x-powered-by");
+app.use(cors({ origin: false }));
 app.use(express.json());
+app.use((_req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("Referrer-Policy", "same-origin");
+  res.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
 app.use((req, res, next) => {
-  if (!canMutateThroughHarness(req.method, CLOUD_MODE)) {
+  if (!req.path.startsWith("/judge/") && !req.path.startsWith("/api/judge/") && !canMutateThroughHarness(req.method, CLOUD_MODE)) {
     return res.status(403).json({ error: "Browser mutations are disabled in cloud mode; use the protected OpenClaw/MCP path." });
   }
   next();
+});
+
+function verifyJudge(req, { mutable = false } = {}) {
+  return judgeAuth.verify({
+    cookieHeader: req.headers.cookie,
+    csrfHeader: req.headers["x-csrf-token"],
+    origin: req.headers.origin,
+    host: req.headers.host,
+    mutable,
+  });
+}
+
+app.post("/judge/session", (req, res) => {
+  try {
+    const issued = judgeAuth.login({ accessCode: req.body?.accessCode, ip: req.ip });
+    res.set("Set-Cookie", issued.cookie);
+    res.json({ authenticated: true, csrf: issued.csrf });
+  } catch (error) {
+    const locked = /locked/i.test(error.message);
+    res.status(locked ? 429 : 401).json({ error: locked ? "Judge access is temporarily locked." : "Invalid judge access code." });
+  }
+});
+
+app.get("/api/judge/session", (req, res) => {
+  try { verifyJudge(req); res.json({ authenticated: true }); }
+  catch { res.status(401).json({ authenticated: false }); }
+});
+
+app.get("/api/judge/scenarios", (_req, res) => res.json({
+  model: process.env.JUDGE_MODEL || "openrouter/deepseek/deepseek-v4-flash",
+  repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/MnemAgent-Agent-Lab",
+  scenarios: [
+    { issueNumber: 1, title: "Retry transient configuration failures", outcome: "A tested patch and review memory" },
+    { issueNumber: 2, title: "Apply repository timeout conventions", outcome: "Fresh-session repository recall" },
+    { issueNumber: 3, title: "Bound incoming request bodies", outcome: "A draft PR approval demonstration" },
+  ],
+}));
+
+app.post("/api/judge/runs", async (req, res) => {
+  try {
+    verifyJudge(req, { mutable: true });
+    const run = await judgeRuns.create(req.body || {});
+    res.status(201).json(run);
+  } catch (error) {
+    res.status(/session|csrf|origin/i.test(error.message) ? 403 : 400).json({ error: "The judge run could not be started." });
+  }
+});
+
+app.get("/api/judge/runs/:id", (req, res) => {
+  try { verifyJudge(req); } catch { return res.status(401).json({ error: "Judge access required." }); }
+  const run = judgeRuns.get(req.params.id);
+  if (!run) return res.status(404).json({ error: "Run not found." });
+  res.json({ ...run, events: judgeRuns.events(req.params.id, req.query.after) });
 });
 
 // Prevent stale HTML/CSS in browsers during active development

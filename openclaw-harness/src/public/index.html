@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="/styles/sediment-timeline.css">
   <link rel="stylesheet" href="/styles/motion.css">
   <link rel="stylesheet" href="/styles/responsive.css">
+  <link rel="stylesheet" href="/styles/agent-workbench.css">
 </head>
 <body>
   <a class="skip-link" href="#archiveStage">Skip to the living archive</a>
@@ -45,19 +46,30 @@
         <p id="archiveStatus" class="sr-only" aria-live="polite"></p>
         <ol id="memoryCompanionList" class="sr-only"></ol>
       </section>
-      <aside id="observationMargin" class="observation-margin" aria-label="Archive observation">
-        <p class="observation-eyebrow">Living observation</p>
-        <section id="narrativeCopy" aria-live="polite"></section>
-        <section id="memoryDetail" aria-label="Selected memory"></section>
-        <dl id="vitalSigns" aria-label="Archive vital signs"></dl>
-        <section id="materialLegend" aria-label="Memory material legend"></section>
+      <aside id="agentWorkbench" class="agent-workbench" aria-label="Memory-aware coding agent">
+        <header><p class="observation-eyebrow">MnemCode · judge workspace</p><h2>Watch memory become action.</h2><p>The agent reads a real issue, recalls repository conventions, tests its patch, and asks before opening a draft PR.</p></header>
+        <p class="agent-model">DeepSeek V4 Flash <span data-model>loading model…</span></p>
+        <form data-judge-access><label for="judgeAccessCode">Judge access code</label><input id="judgeAccessCode" name="accessCode" type="password" autocomplete="one-time-code" required><button type="submit">Enter workspace</button></form>
+        <form data-judge-run hidden><label for="judgeScenario">Prepared task</label><select id="judgeScenario" data-scenario name="issueNumber"></select><label for="judgeMessage">Direction for the agent</label><textarea id="judgeMessage" name="message" rows="3">Inspect the issue, recall relevant repository memory, make the smallest tested change, and explain the evidence.</textarea><button type="submit">Start agent run</button></form>
+        <p class="agent-status" data-judge-status aria-live="polite">Public demo is read-only. Enter the judge code to run the agent.</p>
+        <nav class="agent-tabs" aria-label="Agent evidence"><button type="button" aria-current="page">Activity</button><button type="button">Changes</button><button type="button">Memory</button></nav>
+        <ol class="agent-activity" data-activity aria-live="polite"></ol>
       </aside>
     </main>
+    <section id="observationMargin" class="observation-margin memory-lens" aria-label="Memory Lens">
+        <p class="observation-eyebrow">Memory lens</p>
+        <div class="memory-lens-grid">
+        <div><section id="narrativeCopy" aria-live="polite"></section><section id="memoryDetail" aria-label="Selected memory"></section></div>
+        <dl id="vitalSigns" aria-label="Archive vital signs"></dl>
+        <section id="materialLegend" aria-label="Memory material legend"></section>
+        </div>
+      </section>
     <nav id="sedimentTimeline" class="sediment-timeline" aria-label="Memory history"></nav>
     <dialog id="archiveMenu" class="archive-menu" aria-labelledby="archiveMenuTitle"><form method="dialog"><h2 id="archiveMenuTitle">Archive controls</h2><label for="userId">Memory owner</label><input id="userId" name="userId" autocomplete="off"><fieldset id="categoryFilters"><legend>Memory forms</legend></fieldset><fieldset id="lifecycleFilters"><legend>Vitality</legend></fieldset><button id="motionToggle" type="button" aria-pressed="false">Reduce motion</button><button id="replayOpening" type="button">Replay awakening</button><button id="resetArchiveView" type="button">Reset view</button><button id="exportArchive" type="button">Export archive data</button><button id="retryArchive" type="button">Retry connection</button><button value="close">Close controls</button></form></dialog>
     <section id="observationSheet" class="observation-sheet" aria-labelledby="observationSheetTitle"><h2 id="observationSheetTitle">Memory observation</h2><div id="observationSheetContent"></div></section>
   </div>
   <script src="/vendor/d3/d3.min.js"></script>
   <script type="module" src="/scripts/main.js"></script>
+  <script type="module" src="/scripts/judge-console.js"></script>
 </body>
 </html>

@@ -218,16 +218,23 @@ def initialize_database(db_path: Path | None = None) -> None:
         try:
             schema_path = Path(__file__).parent / "schema.sql"
             conn.executescript(schema_path.read_text(encoding="utf-8"))
+            from importlib import import_module
+
+            import_module("storage.migrations.001_memory_scopes").migrate_sqlite(conn)
             _load_vec_extension(conn)
             if VEC_AVAILABLE:
-                conn.execute(
-                    f"""
-                    CREATE VIRTUAL TABLE IF NOT EXISTS vec_memory USING vec0(
-                        id INTEGER PRIMARY KEY,
-                        embedding float[{settings.EMBEDDING_DIM}]
+                try:
+                    conn.execute(
+                        f"""
+                        CREATE VIRTUAL TABLE IF NOT EXISTS vec_memory USING vec0(
+                            id INTEGER PRIMARY KEY,
+                            embedding float[{settings.EMBEDDING_DIM}]
+                        )
+                        """
                     )
-                    """
-                )
+                except sqlite3.OperationalError as exc:
+                    logger.warning("sqlite-vec table creation unavailable: %s", exc)
+                    VEC_AVAILABLE = False
             _backfill_user_entities(conn)
             conn.commit()
             logger.info("Database initialized at %s", path)

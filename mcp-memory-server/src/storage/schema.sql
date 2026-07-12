@@ -5,6 +5,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS episodic_logs (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id        TEXT NOT NULL,
+    scope_type     TEXT NOT NULL DEFAULT 'core' CHECK(scope_type IN ('core', 'repository')),
+    scope_id       TEXT NOT NULL DEFAULT 'core',
     session_id     TEXT NOT NULL,
     timestamp      DATETIME DEFAULT CURRENT_TIMESTAMP,
     user_prompt    TEXT NOT NULL,
@@ -17,6 +19,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_user
 CREATE TABLE IF NOT EXISTS semantic_graph (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id          TEXT NOT NULL,
+    scope_type       TEXT NOT NULL DEFAULT 'core' CHECK(scope_type IN ('core', 'repository')),
+    scope_id         TEXT NOT NULL DEFAULT 'core',
     category         TEXT DEFAULT 'preference',
     entity_source    TEXT NOT NULL,
     relation         TEXT NOT NULL,
@@ -28,7 +32,7 @@ CREATE TABLE IF NOT EXISTS semantic_graph (
     conviction_score REAL DEFAULT 1.0,
     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_accessed    DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, entity_source, relation) ON CONFLICT REPLACE
+    UNIQUE(user_id, scope_type, scope_id, entity_source, relation) ON CONFLICT REPLACE
 );
 
 CREATE INDEX IF NOT EXISTS idx_graph_user
@@ -38,6 +42,8 @@ CREATE INDEX IF NOT EXISTS idx_graph_user
 CREATE TABLE IF NOT EXISTS memory_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
+    scope_type TEXT NOT NULL DEFAULT 'core' CHECK(scope_type IN ('core', 'repository')),
+    scope_id TEXT NOT NULL DEFAULT 'core',
     event_type TEXT NOT NULL,
     entity_source TEXT,
     entity_target TEXT,
@@ -76,13 +82,15 @@ CREATE INDEX IF NOT EXISTS idx_entities_user
 CREATE TABLE IF NOT EXISTS prospective_memories (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id        TEXT NOT NULL,
+    scope_type     TEXT NOT NULL DEFAULT 'core' CHECK(scope_type IN ('core', 'repository')),
+    scope_id       TEXT NOT NULL DEFAULT 'core',
     cue            TEXT NOT NULL,
     action         TEXT NOT NULL,
     source_belief  INTEGER,
     fired_count    INTEGER DEFAULT 0,
     created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_fired_at  DATETIME,
-    UNIQUE(user_id, cue, action) ON CONFLICT IGNORE
+    UNIQUE(user_id, scope_type, scope_id, cue, action) ON CONFLICT IGNORE
 );
 
 CREATE INDEX IF NOT EXISTS idx_prospective_user_cue

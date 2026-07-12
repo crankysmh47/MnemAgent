@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci --production
+RUN npm install --global openclaw@2026.6.5
 
 COPY src/ ./src/
 COPY openclaw-config/ ./openclaw-config/
