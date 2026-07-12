@@ -59,9 +59,12 @@ const server = http.createServer(async (req, res) => {
     verifyHmacRequest({ method: req.method, path: req.url, body, headers: req.headers, secret: config.hmacSecret, nonces });
     const input = body ? JSON.parse(body) : {};
     if (req.method === 'GET' && req.url === '/v1/issues') return send(res, 200, { issues: await github.listIssues() });
+    if (req.method === 'POST' && req.url === '/v1/issues') return send(res, 201, await github.createIssue(input));
     if (req.method === 'POST' && req.url === '/v1/workspaces') return send(res, 201, await manager.create(input));
     const fileMatch = /^\/v1\/workspaces\/([^/]+)\/files\?path=(.+)$/.exec(req.url);
     if (req.method === 'GET' && fileMatch) return send(res, 200, { content: await manager.readFile(fileMatch[1], decodeURIComponent(fileMatch[2])) });
+    const filesMatch = /^\/v1\/workspaces\/([^/]+)\/files$/.exec(req.url);
+    if (req.method === 'GET' && filesMatch) return send(res, 200, { files: await manager.listFiles(filesMatch[1]) });
     const actionMatch = /^\/v1\/workspaces\/([^/]+)\/(patch|test|diff)$/.exec(req.url);
     if (actionMatch && req.method === 'POST' && actionMatch[2] === 'patch') return send(res, 200, await manager.applyPatch(actionMatch[1], input.patch));
     if (actionMatch && req.method === 'POST' && actionMatch[2] === 'test') {

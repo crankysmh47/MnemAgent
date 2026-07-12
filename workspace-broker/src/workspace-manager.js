@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
-import { readFile, realpath, rm } from 'node:fs/promises';
+import { readFile, readdir, realpath, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { validatePatch } from '../../workspace-runner/patch-policy.js';
@@ -24,7 +24,7 @@ export function createWorkspaceManager({ root, allowedRepository, clone, runnerI
   return {
     async create({ repository, issueNumber }) {
       if (repository !== allowedRepository) throw new Error('Repository is not on the allowlist.');
-      if (!Number.isInteger(Number(issueNumber)) || Number(issueNumber) < 1) throw new Error('Issue number is invalid.');
+      if (!Number.isInteger(Number(issueNumber)) || Number(issueNumber) < 0) throw new Error('Issue number is invalid.');
       if (activeId) throw new Error('An active workspace already exists.');
       const id = `ws_${randomUUID()}`;
       const target = path.resolve(root, id);
@@ -45,12 +45,28 @@ export function createWorkspaceManager({ root, allowedRepository, clone, runnerI
       if (target !== workspace && !target.startsWith(`${workspace}${path.sep}`)) throw new Error('Workspace path escapes the repository.');
       return readFile(target, 'utf8');
     },
+    async listFiles(id) {
+      const session = sessions.get(id);
+      if (!session) throw new Error('Workspace not found.');
+      const files = [];
+      async function walk(directory, prefix = '') {
+        for (const entry of await readdir(directory, { withFileTypes: true })) {
+          if (files.length >= 400 || ['.git', 'node_modules', 'dist', 'build'].includes(entry.name)) continue;
+          const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+          if (entry.isDirectory()) await walk(path.join(directory, entry.name), relative);
+          else if (entry.isFile()) files.push(relative);
+        }
+      }
+      await walk(session.path);
+      return files.sort();
+    },
     async applyPatch(id, patchText) {
       const session = sessions.get(id);
       if (!session) throw new Error('Workspace not found.');
       const summary = validatePatch(patchText);
       await gitWithInput(session.path, ['apply', '--check', '--whitespace=error', '-'], patchText);
       await gitWithInput(session.path, ['apply', '--whitespace=error', '-'], patchText);
+      await execFileAsync('git', ['add', '-N', '--', ...summary.files], { cwd: session.path, windowsHide: true });
       return summary;
     },
     async diff(id) {
@@ -62,7 +78,7 @@ export function createWorkspaceManager({ root, allowedRepository, clone, runnerI
     async test(id, request = { commandId: 'test' }) {
       const session = sessions.get(id);
       if (!session) throw new Error('Workspace not found.');
-      const args = ['run', '--rm', '-i', '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--memory', '768m', '--cpus', '0.75', '--pids-limit', '128', '--tmpfs', '/tmp:rw,noexec,nosuid,size=128m', '-e', 'WORKSPACE_ROOT=/workspace', '-v', `${session.path}:/workspace:rw`, runnerImage];
+      const args = ['run', '--rm', '-i', '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--memory', '768m', '--cpus', '0.75', '--pids-limit', '128', '--tmpfs', '/tmp:rw,exec,nosuid,size=128m', '-e', 'WORKSPACE_ROOT=/workspace', '-v', `${session.path}:/workspace:rw`, runnerImage];
       return new Promise((resolve, reject) => {
         const child = spawn('docker', args, { shell: false, windowsHide: true });
         let stdout = ''; let stderr = '';

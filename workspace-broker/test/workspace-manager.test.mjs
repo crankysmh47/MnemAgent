@@ -22,6 +22,10 @@ test('manager enforces repository allowlist and one active workspace', async () 
   await assert.rejects(manager.readFile(session.id, '../secret'), /path/i);
   await manager.applyPatch(session.id, '--- a/src/config.js\n+++ b/src/config.js\n@@ -1 +1 @@\n-export const value = 1;\n+export const value = 2;\n');
   assert.match(await manager.diff(session.id), /value = 2/);
+  await manager.applyPatch(session.id, '--- /dev/null\n+++ b/tests/new-test.js\n@@ -0,0 +1 @@\n+export const first = true;\n');
+  await manager.applyPatch(session.id, '--- a/tests/new-test.js\n+++ b/tests/new-test.js\n@@ -1 +1 @@\n-export const first = true;\n+export const first = false;\n');
+  assert.match(await manager.diff(session.id), /first = false/);
+  assert.ok((await manager.listFiles(session.id)).includes('src/config.js'));
   await assert.rejects(manager.create({ repository: 'crankysmh47/WebPort', issueNumber: 2 }), /active workspace/i);
   await manager.cleanup(session.id);
   await rm(root, { recursive: true, force: true });

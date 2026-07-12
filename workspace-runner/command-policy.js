@@ -5,6 +5,7 @@ export function validateCommand({ commandId, testNamePattern } = {}) {
   if (commandId === 'test-unit' && testNamePattern === undefined) return { argv: ['npm', 'run', 'test:unit'] };
   if (commandId === 'validate-fs' && testNamePattern === undefined) return { argv: ['npm', 'run', 'validate:fs'] };
   if (commandId === 'test-integration' && testNamePattern === undefined) return { argv: ['npm', 'run', 'test:integration'] };
+  if (commandId === 'numeric-command-test' && testNamePattern === undefined) return { argv: ['node', 'tests/unit/numeric_commands_test.mjs'] };
   if (commandId === 'node-check' && SAFE_JS_PATH.test(testNamePattern || '')) {
     return { argv: ['node', '--check', testNamePattern] };
   }

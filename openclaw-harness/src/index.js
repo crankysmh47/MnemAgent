@@ -122,12 +122,11 @@ app.get("/api/judge/session", (req, res) => {
 });
 
 app.get("/api/judge/scenarios", (_req, res) => res.json({
-  model: process.env.JUDGE_MODEL || "openrouter/deepseek/deepseek-v4-flash",
-  repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/MnemAgent-Agent-Lab",
+  model: process.env.JUDGE_MODEL || "dashscope/deepseek-v4-flash",
+  repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/WebPort",
   scenarios: [
-    { issueNumber: 1, title: "Retry transient configuration failures", outcome: "A tested patch and review memory" },
-    { issueNumber: 2, title: "Apply repository timeout conventions", outcome: "Fresh-session repository recall" },
-    { issueNumber: 3, title: "Bound incoming request bodies", outcome: "A draft PR approval demonstration" },
+    { issueNumber: 0, title: "Audit WebPort and choose a bounded issue", outcome: "A real issue, tested patch, and draft PR" },
+    { issueNumber: 1, title: "Replay the prepared memory correction", outcome: "Fresh-session repository recall" },
   ],
 }));
 

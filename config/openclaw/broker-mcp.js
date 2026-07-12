@@ -16,19 +16,23 @@ async function broker(path, method = 'POST', payload = {}) {
 
 const tools = [
   ['list_issues', 'List open issues in the single allowlisted repository', {}],
+  ['create_issue', 'Create one bounded issue selected during the audit', { title: { type: 'string' }, body: { type: 'string' } }],
   ['create_workspace', 'Create the only isolated judge workspace', { repository: { type: 'string' }, issueNumber: { type: 'integer' } }],
   ['read_workspace_file', 'Read one regular file inside the active workspace', { workspaceId: { type: 'string' }, path: { type: 'string' } }],
+  ['list_workspace_files', 'List bounded regular-file paths in the active workspace', { workspaceId: { type: 'string' } }],
   ['apply_workspace_patch', 'Validate and apply a bounded unified patch', { workspaceId: { type: 'string' }, patch: { type: 'string' } }],
-  ['run_workspace_tests', 'Run one fixed no-network test command', { workspaceId: { type: 'string' }, commandId: { type: 'string', enum: ['test','test-unit','validate-fs','test-integration'] } }],
+  ['run_workspace_tests', 'Run one fixed no-network test command', { workspaceId: { type: 'string' }, commandId: { type: 'string', enum: ['test','test-unit','validate-fs','test-integration','numeric-command-test'] } }],
   ['show_workspace_diff', 'Show the current bounded workspace diff', { workspaceId: { type: 'string' } }],
   ['cleanup_workspace', 'Delete the active workspace', { workspaceId: { type: 'string' } }],
 ].map(([name, description, properties]) => ({ name, description, inputSchema: { type: 'object', properties, additionalProperties: false } }));
 
 async function call(name, args) {
   if (name === 'list_issues') return broker('/v1/issues', 'GET');
+  if (name === 'create_issue') return broker('/v1/issues', 'POST', args);
   if (name === 'create_workspace') return broker('/v1/workspaces', 'POST', args);
   const id = encodeURIComponent(args.workspaceId || '');
   if (name === 'read_workspace_file') return broker(`/v1/workspaces/${id}/files?path=${encodeURIComponent(args.path)}`, 'GET');
+  if (name === 'list_workspace_files') return broker(`/v1/workspaces/${id}/files`, 'GET');
   if (name === 'apply_workspace_patch') return broker(`/v1/workspaces/${id}/patch`, 'POST', { patch: args.patch });
   if (name === 'run_workspace_tests') return broker(`/v1/workspaces/${id}/test`, 'POST', { commandId: args.commandId });
   if (name === 'show_workspace_diff') return broker(`/v1/workspaces/${id}/diff`, 'POST');
@@ -38,8 +42,10 @@ async function call(name, args) {
 
 const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
 rl.on('line', async line => {
+  let requestId = null;
   try {
     const message = JSON.parse(line);
+    requestId = message.id ?? null;
     let result;
     if (message.method === 'initialize') result = { protocolVersion: '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 'mnemcode', version: '1.0.0' } };
     else if (message.method === 'tools/list') result = { tools };
@@ -48,6 +54,6 @@ rl.on('line', async line => {
     else throw new Error('Unsupported MCP method.');
     process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: message.id, result })}\n`);
   } catch (error) {
-    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32000, message: error.message } })}\n`);
+    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: requestId, error: { code: -32000, message: error.message } })}\n`);
   }
 });

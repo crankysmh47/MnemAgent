@@ -7,11 +7,11 @@ const { createJudgeRunService } = serviceModule;
 test('run service emits observable ordered activity and uses the configured model', async () => {
   const calls = [];
   const service = createJudgeRunService({
-    model: 'openrouter/deepseek/deepseek-v4-flash',
+    model: 'dashscope/deepseek-v4-flash',
     executor: async input => { calls.push(input); return { text: 'Issue selected: add path normalization tests', usageUsd: 0.01 }; },
   });
   const run = await service.create({ sessionId: 'fresh-session', issueNumber: 1, message: 'Inspect and choose.' });
-  assert.equal(calls[0].model, 'openrouter/deepseek/deepseek-v4-flash');
+  assert.equal(calls[0].model, 'dashscope/deepseek-v4-flash');
   assert.deepEqual(service.events(run.id).map(event => event.type), ['run.started', 'model.started', 'assistant.message', 'run.completed']);
   assert.equal(service.get(run.id).status, 'completed');
 });

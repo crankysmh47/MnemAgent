@@ -260,6 +260,8 @@ def consolidate_and_prune_memory(
     *,
     run_maintenance: bool = True,
     user_prompt: str | None = None,
+    scope_type: str = "core",
+    scope_id: str = "core",
 ) -> bool:
     """
     Apply salience gate, upsert belief, optionally decay inactive nodes and hard prune.
@@ -267,6 +269,9 @@ def consolidate_and_prune_memory(
     Returns:
         True if a belief was stored, False if rejected or invalid.
     """
+    from memory.scopes import MemoryScope
+
+    scope = MemoryScope(scope_type, scope_id)
     entity = memory_dict.get("entity")
     relation = memory_dict.get("relation")
     value = memory_dict.get("value")
@@ -318,10 +323,10 @@ def consolidate_and_prune_memory(
         existing = conn.execute(
             """
             SELECT id, entity_target FROM semantic_graph
-            WHERE user_id = ? AND scope_type = 'core' AND scope_id = 'core'
+            WHERE user_id = ? AND scope_type = ? AND scope_id = ?
               AND entity_source = ? AND relation = ?
             """,
-            (user_id, entity, relation),
+            (user_id, scope.scope_type, scope.scope_id, entity, relation),
         ).fetchone()
         if existing and existing["entity_target"] != value:
             logger.info(
@@ -347,7 +352,7 @@ def consolidate_and_prune_memory(
             """
             INSERT INTO semantic_graph (
                 user_id, scope_type, scope_id, category, entity_source, relation, entity_target, conviction_score
-            ) VALUES (?, 'core', 'core', ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id, scope_type, scope_id, entity_source, relation) DO UPDATE SET
                 category = excluded.category,
                 entity_target = excluded.entity_target,
@@ -355,15 +360,15 @@ def consolidate_and_prune_memory(
                 node_weight = 1.0,
                 last_accessed = CURRENT_TIMESTAMP
             """,
-            (user_id, category, entity, relation, value, conviction),
+            (user_id, scope.scope_type, scope.scope_id, category, entity, relation, value, conviction),
         )
         row = conn.execute(
             """
             SELECT id FROM semantic_graph
-            WHERE user_id = ? AND scope_type = 'core' AND scope_id = 'core'
+            WHERE user_id = ? AND scope_type = ? AND scope_id = ?
               AND entity_source = ? AND relation = ?
             """,
-            (user_id, entity, relation),
+            (user_id, scope.scope_type, scope.scope_id, entity, relation),
         ).fetchone()
         belief_id = int(row["id"]) if row else None
 

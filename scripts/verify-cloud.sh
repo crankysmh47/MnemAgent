@@ -8,4 +8,8 @@ set -a; source .env.cloud; set +a
 curl --fail --silent --show-error "https://${MEMORY_DOMAIN}/health" >/dev/null
 docker compose --env-file .env.cloud -f docker-compose.yml -f compose.cloud.yml ps
 curl --fail --silent --show-error http://127.0.0.1:8001/health >/dev/null
-echo "HTTPS, public health, and loopback-only MCP checks passed."
+curl --fail --silent --show-error http://127.0.0.1:8010/health >/dev/null
+if curl --fail --silent --show-error "https://${MEMORY_DOMAIN}/api/graph/not-a-judge" >/dev/null 2>&1; then
+  echo "Unexpected public archive access." >&2; exit 1
+fi
+echo "HTTPS, public health, read-only archive policy, MCP, and workspace broker checks passed."

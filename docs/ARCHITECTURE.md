@@ -2,6 +2,12 @@
 
 > Memory that earns its place. — Qwen Global AI Hackathon, Track 1: MemoryAgent
 
+## Judge-facing topology
+
+The current submission adds a memory-aware coding path to the memory engine described below. The browser is read-only until a judge session is established. OpenClaw can reach only filtered MnemAgent and MnemCode MCP tools. The HMAC-authenticated broker owns GitHub credentials and starts a no-network runner. Human approval is bound to the exact diff and PR metadata for five minutes.
+
+Core and repository beliefs are distinct database scopes. The active uniqueness contract is `(user_id, scope_type, scope_id, entity_source, relation)`, and retrieval reserves up to four slots for the active repository plus two for core memory.
+
 ## The Core Problem
 
 Standard RAG-based memory agents have two fatal flaws:
@@ -114,7 +120,7 @@ The asymmetry (+0.05 reward vs -0.01 penalty) prevents the system from penalizin
 
 ## Contradiction Resolution
 
-The `UNIQUE(user_id, entity_source, relation) ON CONFLICT REPLACE` constraint handles atomic overwrites. When a new fact conflicts with an existing one, the database replaces the old row in a single SQL operation. No race conditions possible.
+The scoped unique constraint handles atomic overwrites. A new fact replaces only the matching user, scope, entity, and relation. Repository corrections cannot overwrite core memory or another repository.
 
 ## Data Flow (Turn by Turn)
 

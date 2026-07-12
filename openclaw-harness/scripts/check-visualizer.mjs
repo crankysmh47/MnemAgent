@@ -13,6 +13,11 @@ async function startFixtureServer() {
   app.use(express.static(path.join(root, 'src', 'public')));
   app.use('/vendor/d3', express.static(path.join(root, 'node_modules', 'd3', 'dist')));
   app.get('/api/graph/:uid', (_req, res) => res.json(GRAPH_FIXTURE));
+  app.get('/api/judge/scenarios', (_req, res) => res.json({
+    model: 'dashscope/deepseek-v4-flash',
+    repository: 'crankysmh47/WebPort',
+    scenarios: [{ issueNumber: 0, title: 'Audit WebPort', outcome: 'Tested draft PR' }],
+  }));
   app.get('/api/metrics/:uid', (_req, res) => res.json(METRICS_FIXTURE));
   app.get('/api/events/:uid', (_req, res) => res.json(EVENTS_FIXTURE));
   app.get('/api/user/whoami', (_req, res) => res.json({ user_id: 'demo-brain' }));
