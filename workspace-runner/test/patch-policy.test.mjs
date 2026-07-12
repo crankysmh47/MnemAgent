@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { validatePatch } from '../patch-policy.js';
+
+const valid = '--- a/src/config.js\n+++ b/src/config.js\n@@\n-old\n+new\n';
+
+test('accepts bounded source patches and rejects protected paths', () => {
+  assert.deepEqual(validatePatch(valid), { files: ['src/config.js'], changedLines: 2 });
+  assert.throws(() => validatePatch(valid.replace('src/config.js', '.env')), /not allowed/);
+  assert.throws(() => validatePatch(valid.replace('src/config.js', '../escape.js')), /not allowed/);
+});
