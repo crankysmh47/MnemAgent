@@ -2,7 +2,7 @@
 
 ## Target
 
-Use one Alibaba ECS Linux instance with Docker Engine and the Compose plugin. Point `memory.<domain>` and `agent.<domain>` A records at its public IP. The ECS security group should allow 80/443 publicly and SSH only from the operator's IP.
+Use one Alibaba ECS Linux instance with Docker Engine and the Compose plugin. Point `memory.<domain>` at its public IP. The ECS security group should allow 80/443 publicly and SSH only from the operator's IP.
 
 ## Deploy
 
@@ -12,14 +12,14 @@ cd MnemAgent
 cp .env.cloud.example .env.cloud
 ```
 
-Replace every example value. Generate secrets with `openssl rand -hex 32`; generate the OpenClaw password hash with `docker run --rm caddy:2.8.4-alpine caddy hash-password --plaintext 'temporary-judge-password'` and escape each `$` as `$$` in `.env.cloud`.
+Replace every example value. Generate secrets with `openssl rand -hex 32`.
 
 ```bash
 bash scripts/deploy-cloud.sh
 bash scripts/verify-cloud.sh
 ```
 
-The base command starts the memory service, MCP service, visualizer, Postgres, and Caddy. The optional `judge-agent` profile requires a tested, explicitly pinned `OPENCLAW_IMAGE`; do not substitute `latest`. The terminal OpenClaw path can connect to the private MCP endpoint without enabling that browser profile.
+The command starts the memory service, MCP service, visualizer, Postgres, and Caddy. MCP binds to `127.0.0.1:8001` on ECS, so OpenClaw can use it from the host terminal without exposing it publicly.
 
 ## Submission proof
 

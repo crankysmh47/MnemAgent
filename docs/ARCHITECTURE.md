@@ -225,8 +225,7 @@ flowchart LR
   J["Judge browser"] -->|"HTTPS :443"| C["Caddy on Alibaba ECS"]
   T["OpenClaw terminal"] --> O["OpenClaw gateway"]
   C --> V["Read-only visualizer"]
-  C -->|"basic auth"| O
-  O --> M["MnemAgent MCP"]
+  O -->|"loopback MCP"| M["MnemAgent MCP"]
   M --> A["Memory API"]
   V --> A
   A --> P[("Postgres + pgvector")]
@@ -234,4 +233,4 @@ flowchart LR
   A -. "optional snapshot" .-> S[("Alibaba OSS")]
 ```
 
-Only Caddy publishes ports. API, MCP, PostgreSQL, and OpenClaw control traffic stay on the Compose network. The cloud harness permits read-only access to `demo-brain` and the configured judge namespace; memory mutations travel through the protected OpenClaw/MCP path.
+Only Caddy publishes a public application route. MCP is bound to ECS loopback for the host OpenClaw terminal; API and PostgreSQL stay on the Compose network. The cloud harness permits read-only access to `demo-brain` and the configured judge namespace; memory mutations travel through the OpenClaw/MCP path.

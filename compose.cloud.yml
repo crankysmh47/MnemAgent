@@ -7,7 +7,7 @@ services:
       MNEMAGENT_API_TOKEN: ${MNEMAGENT_API_TOKEN:?set MNEMAGENT_API_TOKEN}
 
   mnemos-mcp:
-    ports: !reset []
+    ports: !override ["127.0.0.1:8001:8001"]
     environment:
       MNEMAGENT_API_TOKEN: ${MNEMAGENT_API_TOKEN:?set MNEMAGENT_API_TOKEN}
 
@@ -30,9 +30,7 @@ services:
       - "443:443"
     environment:
       MEMORY_DOMAIN: ${MEMORY_DOMAIN:?set MEMORY_DOMAIN}
-      AGENT_DOMAIN: ${AGENT_DOMAIN:?set AGENT_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
-      OPENCLAW_BASIC_AUTH_HASH: ${OPENCLAW_BASIC_AUTH_HASH:?set OPENCLAW_BASIC_AUTH_HASH}
     volumes:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -40,15 +38,6 @@ services:
     depends_on:
       openclaw-harness:
         condition: service_healthy
-    restart: unless-stopped
-
-  openclaw:
-    image: ${OPENCLAW_IMAGE:?set a tested OpenClaw image}
-    profiles: [judge-agent]
-    expose: ["18789"]
-    env_file: [.env.cloud]
-    volumes:
-      - ./config/openclaw:/root/.openclaw:ro
     restart: unless-stopped
 
 volumes:
