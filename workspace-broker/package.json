@@ -1,0 +1,1 @@
+{"name":"mnemcode-workspace-broker","private":true,"type":"module","scripts":{"test":"node --test test/*.test.mjs","start":"node src/index.js"}}
