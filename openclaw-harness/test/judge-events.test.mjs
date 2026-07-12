@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createJudgeEventLog } from '../src/judge-events.js';
+import events from '../src/judge-events.js';
+const { createJudgeEventLog } = events;
 
 test('judge events are monotonic and resumable', () => {
   const log = createJudgeEventLog();

@@ -1,6 +1,6 @@
 const PREPARED_ISSUES = new Set([1, 2, 3]);
 
-export function validateJudgeRun({ issueNumber, message } = {}) {
+function validateJudgeRun({ issueNumber, message } = {}) {
   const parsedIssue = Number(issueNumber);
   const text = String(message || '').trim();
   if (!PREPARED_ISSUES.has(parsedIssue)) throw new Error('Choose a prepared issue.');
@@ -8,6 +8,8 @@ export function validateJudgeRun({ issueNumber, message } = {}) {
   return { issueNumber: parsedIssue, message: text };
 }
 
-export function canOpenDraftPr({ testsPassed, approval, diffHash } = {}) {
+function canOpenDraftPr({ testsPassed, approval, diffHash } = {}) {
   return Boolean(testsPassed && approval?.valid === true && typeof diffHash === 'string' && diffHash.length >= 3);
 }
+
+module.exports = { validateJudgeRun, canOpenDraftPr };

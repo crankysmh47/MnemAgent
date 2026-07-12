@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateJudgeRun, canOpenDraftPr } from '../src/judge-policy.js';
+import policy from '../src/judge-policy.js';
+const { validateJudgeRun, canOpenDraftPr } = policy;
 
 test('judge runs allow only prepared issues and bounded messages', () => {
   assert.deepEqual(validateJudgeRun({ issueNumber: 1, message: 'Add bounded retries.' }), { issueNumber: 1, message: 'Add bounded retries.' });

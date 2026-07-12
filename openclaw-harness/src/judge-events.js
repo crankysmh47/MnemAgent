@@ -1,17 +1,11 @@
-import { randomUUID } from 'node:crypto';
+const { randomUUID } = require('node:crypto');
 
-export function createJudgeEventLog() {
+function createJudgeEventLog() {
   const runs = new Map();
   return {
     append(runId, event) {
       const entries = runs.get(runId) || [];
-      const entry = {
-        id: `evt_${randomUUID()}`,
-        runId,
-        sequence: entries.length + 1,
-        timestamp: new Date().toISOString(),
-        ...event,
-      };
+      const entry = { id: `evt_${randomUUID()}`, runId, sequence: entries.length + 1, timestamp: new Date().toISOString(), ...event };
       entries.push(entry);
       runs.set(runId, entries);
       return entry;
@@ -24,3 +18,5 @@ export function createJudgeEventLog() {
     },
   };
 }
+
+module.exports = { createJudgeEventLog };
