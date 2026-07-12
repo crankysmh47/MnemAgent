@@ -122,7 +122,7 @@ app.get("/api/judge/session", (req, res) => {
 });
 
 app.get("/api/judge/scenarios", (_req, res) => res.json({
-  model: process.env.JUDGE_MODEL || "dashscope/deepseek-v4-flash",
+  model: process.env.JUDGE_MODEL || "deepseek-api/deepseek-v4-flash",
   repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/WebPort",
   scenarios: [
     { issueNumber: 0, title: "Audit WebPort and choose a bounded issue", outcome: "A real issue, tested patch, and draft PR" },

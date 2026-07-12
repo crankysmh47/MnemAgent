@@ -34,7 +34,7 @@ chmod 600 .env.cloud
 getent group docker | cut -d: -f3  # use this as DOCKER_GID
 ```
 
-Create a fine-grained GitHub token for the single demo repository. Grant Contents, Issues, and Pull requests read/write. Set the DashScope-compatible endpoint and key that can call `deepseek-v4-flash`. There is no OpenRouter key option in the judge stack. Replace every placeholder in `.env.cloud`.
+Create a fine-grained GitHub token for the single demo repository. Grant Contents, Issues, and Pull requests read/write. Set `DEEPSEEK_API_KEY` for the official `https://api.deepseek.com` endpoint. The judge stack does not use the Qwen/DashScope key or offer an OpenRouter key option. Replace every placeholder in `.env.cloud`.
 
 ## 4. Deploy
 

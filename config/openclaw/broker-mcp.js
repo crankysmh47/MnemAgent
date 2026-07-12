@@ -21,6 +21,7 @@ const tools = [
   ['read_workspace_file', 'Read one regular file inside the active workspace', { workspaceId: { type: 'string' }, path: { type: 'string' } }],
   ['list_workspace_files', 'List bounded regular-file paths in the active workspace', { workspaceId: { type: 'string' } }],
   ['apply_workspace_patch', 'Validate and apply a bounded unified patch', { workspaceId: { type: 'string' }, patch: { type: 'string' } }],
+  ['replace_workspace_text', 'Replace one exact, unique, bounded source fragment', { workspaceId: { type: 'string' }, path: { type: 'string' }, oldText: { type: 'string' }, newText: { type: 'string' } }],
   ['run_workspace_tests', 'Run one fixed no-network test command', { workspaceId: { type: 'string' }, commandId: { type: 'string', enum: ['test','test-unit','validate-fs','test-integration','numeric-command-test'] } }],
   ['show_workspace_diff', 'Show the current bounded workspace diff', { workspaceId: { type: 'string' } }],
   ['cleanup_workspace', 'Delete the active workspace', { workspaceId: { type: 'string' } }],
@@ -34,6 +35,7 @@ async function call(name, args) {
   if (name === 'read_workspace_file') return broker(`/v1/workspaces/${id}/files?path=${encodeURIComponent(args.path)}`, 'GET');
   if (name === 'list_workspace_files') return broker(`/v1/workspaces/${id}/files`, 'GET');
   if (name === 'apply_workspace_patch') return broker(`/v1/workspaces/${id}/patch`, 'POST', { patch: args.patch });
+  if (name === 'replace_workspace_text') return broker(`/v1/workspaces/${id}/replace`, 'POST', { path: args.path, oldText: args.oldText, newText: args.newText });
   if (name === 'run_workspace_tests') return broker(`/v1/workspaces/${id}/test`, 'POST', { commandId: args.commandId });
   if (name === 'show_workspace_diff') return broker(`/v1/workspaces/${id}/diff`, 'POST');
   if (name === 'cleanup_workspace') return broker(`/v1/workspaces/${id}/cleanup`, 'POST');

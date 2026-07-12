@@ -65,8 +65,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && fileMatch) return send(res, 200, { content: await manager.readFile(fileMatch[1], decodeURIComponent(fileMatch[2])) });
     const filesMatch = /^\/v1\/workspaces\/([^/]+)\/files$/.exec(req.url);
     if (req.method === 'GET' && filesMatch) return send(res, 200, { files: await manager.listFiles(filesMatch[1]) });
-    const actionMatch = /^\/v1\/workspaces\/([^/]+)\/(patch|test|diff)$/.exec(req.url);
+    const actionMatch = /^\/v1\/workspaces\/([^/]+)\/(patch|replace|test|diff)$/.exec(req.url);
     if (actionMatch && req.method === 'POST' && actionMatch[2] === 'patch') return send(res, 200, await manager.applyPatch(actionMatch[1], input.patch));
+    if (actionMatch && req.method === 'POST' && actionMatch[2] === 'replace') return send(res, 200, await manager.replaceText(actionMatch[1], input));
     if (actionMatch && req.method === 'POST' && actionMatch[2] === 'test') {
       const result = await manager.test(actionMatch[1], input);
       testEvidence.set(actionMatch[1], result.exitCode === 0);

@@ -65,7 +65,7 @@ The graph API renders no more than 150 individual memories and 120 ambient relat
 6. Review the exact diff and test output. Approve only if both are correct.
 7. The broker opens a draft PR. It cannot push to `main` or create a ready-for-review PR.
 
-The final repository acceptance run uses `crankysmh47/WebPort`: the agent audits the repository, chooses and creates a bounded issue, implements it with `deepseek-v4-flash`, and opens a tested draft PR.
+The final repository acceptance run uses `crankysmh47/WebPort`: the agent selected [issue #11](https://github.com/crankysmh47/WebPort/issues/11), retrieved its repository-scoped correction, wrote regression coverage, implemented the bounded fix with `deepseek-v4-flash`, and produced [tested draft PR #13](https://github.com/crankysmh47/WebPort/pull/13).
 
 ## Local setup
 

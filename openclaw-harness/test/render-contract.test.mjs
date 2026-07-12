@@ -15,6 +15,7 @@ const baseCss = fs.readFileSync(new URL('styles/base.css', root), 'utf8');
 const observationCss = fs.readFileSync(new URL('styles/observation-margin.css', root), 'utf8');
 const forestScenePath = new URL('scripts/render/forest-scene.js', root);
 const forestSceneSource = fs.existsSync(forestScenePath) ? fs.readFileSync(forestScenePath, 'utf8') : '';
+const workbenchCss = fs.readFileSync(new URL('styles/agent-workbench.css', root), 'utf8');
 
 test('living archive static contract', () => {
   for (const id of [
@@ -125,4 +126,12 @@ test('desktop archive is viewport-contained with intentional panel scrolling', (
   assert.match(observationCss, /\.observation-margin\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s);
   assert.match(navigationSource, /\.filter\([^)]*event\.type\s*!==\s*['"]wheel['"]/s);
   assert.match(responsive, /max-width:\s*1099px[\s\S]*\.archive-app\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/s);
+});
+
+test('memory lens keeps the selected memory prominent and folds secondary context', () => {
+  assert.match(html, /class="memory-lens-primary"[\s\S]*id="memoryDetail"/);
+  assert.match(html, /<details class="memory-lens-context">[\s\S]*<summary>[\s\S]*More context/);
+  assert.match(html, /memory-lens-context[\s\S]*id="narrativeCopy"[\s\S]*id="materialLegend"/);
+  assert.match(workbenchCss, /\.memory-lens-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto/s);
+  assert.match(workbenchCss, /\.memory-lens-context\[open\]/);
 });

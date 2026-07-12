@@ -57,13 +57,19 @@
       </aside>
     </main>
     <section id="observationMargin" class="observation-margin memory-lens" aria-label="Memory Lens">
+      <div class="memory-lens-heading">
         <p class="observation-eyebrow">Memory lens</p>
-        <div class="memory-lens-grid">
-        <div><section id="narrativeCopy" aria-live="polite"></section><section id="memoryDetail" aria-label="Selected memory"></section></div>
+        <span>What the agent carries forward</span>
+      </div>
+      <div class="memory-lens-grid">
+        <div class="memory-lens-primary"><section id="memoryDetail" aria-label="Selected memory"></section></div>
         <dl id="vitalSigns" aria-label="Archive vital signs"></dl>
-        <section id="materialLegend" aria-label="Memory material legend"></section>
-        </div>
-      </section>
+        <details class="memory-lens-context">
+          <summary><span>More context</span><span aria-hidden="true">+</span></summary>
+          <div class="memory-lens-context-body"><section id="narrativeCopy" aria-live="polite"></section><section id="materialLegend" aria-label="Memory material legend"></section></div>
+        </details>
+      </div>
+    </section>
     <nav id="sedimentTimeline" class="sediment-timeline" aria-label="Memory history"></nav>
     <dialog id="archiveMenu" class="archive-menu" aria-labelledby="archiveMenuTitle"><form method="dialog"><h2 id="archiveMenuTitle">Archive controls</h2><label for="userId">Memory owner</label><input id="userId" name="userId" autocomplete="off"><fieldset id="categoryFilters"><legend>Memory forms</legend></fieldset><fieldset id="lifecycleFilters"><legend>Vitality</legend></fieldset><button id="motionToggle" type="button" aria-pressed="false">Reduce motion</button><button id="replayOpening" type="button">Replay awakening</button><button id="resetArchiveView" type="button">Reset view</button><button id="exportArchive" type="button">Export archive data</button><button id="retryArchive" type="button">Retry connection</button><button value="close">Close controls</button></form></dialog>
     <section id="observationSheet" class="observation-sheet" aria-labelledby="observationSheetTitle"><h2 id="observationSheetTitle">Memory observation</h2><div id="observationSheetContent"></div></section>

@@ -14,7 +14,7 @@ async function startFixtureServer() {
   app.use('/vendor/d3', express.static(path.join(root, 'node_modules', 'd3', 'dist')));
   app.get('/api/graph/:uid', (_req, res) => res.json(GRAPH_FIXTURE));
   app.get('/api/judge/scenarios', (_req, res) => res.json({
-    model: 'dashscope/deepseek-v4-flash',
+    model: 'deepseek-api/deepseek-v4-flash',
     repository: 'crankysmh47/WebPort',
     scenarios: [{ issueNumber: 0, title: 'Audit WebPort', outcome: 'Tested draft PR' }],
   }));

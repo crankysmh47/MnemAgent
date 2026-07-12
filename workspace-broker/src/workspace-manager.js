@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
-import { readFile, readdir, realpath, rm } from 'node:fs/promises';
+import { readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { validatePatch } from '../../workspace-runner/patch-policy.js';
@@ -59,6 +59,22 @@ export function createWorkspaceManager({ root, allowedRepository, clone, runnerI
       }
       await walk(session.path);
       return files.sort();
+    },
+    async replaceText(id, { path: relativePath, oldText, newText } = {}) {
+      const session = sessions.get(id);
+      if (!session) throw new Error('Workspace not found.');
+      if (typeof relativePath !== 'string' || !/^(?:src|include|test|tests|public|tools)\/[A-Za-z0-9_./-]+\.(?:js|mjs|cjs|cpp|cc|c|h|hpp|css|html|json)$/.test(relativePath) || relativePath.includes('..')) throw new Error('Workspace path is invalid.');
+      if (typeof oldText !== 'string' || typeof newText !== 'string' || !oldText || oldText.length > 10_000 || newText.length > 12_000) throw new Error('Replacement is outside the bounded edit policy.');
+      if (newText.split('\n').length > 200) throw new Error('Replacement exceeds 200 lines.');
+      const workspace = await realpath(session.path);
+      const target = await realpath(path.join(workspace, relativePath));
+      if (!target.startsWith(`${workspace}${path.sep}`)) throw new Error('Workspace path escapes the repository.');
+      const content = await readFile(target, 'utf8');
+      const occurrences = content.split(oldText).length - 1;
+      if (occurrences !== 1) throw new Error('Old text must occur exactly once.');
+      await writeFile(target, content.replace(oldText, newText), 'utf8');
+      await execFileAsync('git', ['add', '-N', '--', relativePath], { cwd: session.path, windowsHide: true });
+      return { path: relativePath, changedLines: Math.max(oldText.split('\n').length, newText.split('\n').length) };
     },
     async applyPatch(id, patchText) {
       const session = sessions.get(id);

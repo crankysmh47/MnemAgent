@@ -22,7 +22,7 @@ async function openClawExecutor({ sessionId, message, model }) {
 }
 
 function createJudgeRunService({
-  model = process.env.JUDGE_MODEL || 'dashscope/deepseek-v4-flash',
+  model = process.env.JUDGE_MODEL || 'deepseek-api/deepseek-v4-flash',
   hardBudgetUsd = Number(process.env.JUDGE_MODEL_HARD_BUDGET_USD || 4.5),
   executor = openClawExecutor,
   replayText = 'Replay mode is active. The recorded agent run remains available without additional model spend.',

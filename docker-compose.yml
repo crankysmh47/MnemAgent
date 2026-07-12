@@ -78,11 +78,10 @@ services:
       - MNEMAGENT_API_TOKEN=${MNEMAGENT_API_TOKEN:-}
       - MCP_ADAPTER_URL=http://mnemos-mcp:8001
       - PORT=3000
-      - JUDGE_MODEL=${JUDGE_MODEL:-dashscope/deepseek-v4-flash}
+      - JUDGE_MODEL=${JUDGE_MODEL:-deepseek-api/deepseek-v4-flash}
       - JUDGE_ACCESS_CODE=${JUDGE_ACCESS_CODE:-mnemcode-local-judge}
       - JUDGE_SESSION_SECRET=${JUDGE_SESSION_SECRET:-local-development-session-secret-change-for-cloud-123456}
-      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-${QWEN_API_KEY:-}}
-      - DASHSCOPE_BASE_URL=${DASHSCOPE_BASE_URL:-${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - OPENCLAW_CONFIG_PATH=/app/config/openclaw/openclaw.json
       - MNEMCODE_ROOT=/app
       - WORKSPACE_BROKER_URL=http://workspace-broker:8010
