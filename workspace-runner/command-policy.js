@@ -1,8 +1,8 @@
-const SAFE_PATTERN = /^[A-Za-z0-9_.-]{1,80}$/;
+const SAFE_JS_PATH = /^(?:src|test)\/[A-Za-z0-9_.-]{1,80}\.js$/;
 
 export function validateCommand({ commandId, testNamePattern } = {}) {
   if (commandId === 'test' && testNamePattern === undefined) return { argv: ['npm', 'test'] };
-  if (commandId === 'node-check' && SAFE_PATTERN.test(testNamePattern || '') && testNamePattern.endsWith('.js')) {
+  if (commandId === 'node-check' && SAFE_JS_PATH.test(testNamePattern || '')) {
     return { argv: ['node', '--check', testNamePattern] };
   }
   throw new Error('Command is not allowed in the judge workspace.');
