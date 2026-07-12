@@ -1,6 +1,6 @@
 services:
   mnemos-memory:
-    ports: !reset []
+    ports: !override ["127.0.0.1:8000:8000"]
     env_file: !override [.env.cloud]
     environment:
       MNEMAGENT_ENV: cloud
