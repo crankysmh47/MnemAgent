@@ -58,7 +58,7 @@ The graph API renders no more than 150 individual memories and 120 ambient relat
 ## Judge flow
 
 1. Open the deployed URL and inspect the populated public MnemTree.
-2. Enter the private judge access code. This creates a random one-hour memory namespace with three chat turns, one coding run, and one draft-PR approval.
+2. Enter the private judge access code. This creates a random one-hour memory namespace with 30 chat turns, 5 coding runs, and 5 draft-PR approvals.
 3. Tell the agent a durable coding preference. Send another message: it runs in a fresh OpenClaw session and can recall the first turn. The MnemTree switches to the private namespace and grows as memories are stored.
 4. Start the prepared WebPort issue #14 task. Activity shows issue inspection, memory retrieval, file reads, test-first edits, and constrained test execution.
 5. Inspect the memories, test results, and exact diff in their separate tabs.
@@ -81,8 +81,11 @@ Set the model keys in `.env`, then build and start:
 
 ```bash
 docker compose --profile judge-build build workspace-runner
+export JUDGE_GITHUB_TOKEN="$(gh auth token)"
 docker compose up -d --build
 ```
+
+On Windows, `./scripts/start-demo.ps1` reads the GitHub token from the authenticated `gh` keyring for the lifetime of the process, starts the stack, and seeds `demo-brain`. It never writes the token to the repository or `.env`.
 
 Open `http://localhost:3000/?user=demo-brain`. Local judge access defaults to `mnemcode-local-judge`; cloud mode refuses to start with missing judge secrets.
 

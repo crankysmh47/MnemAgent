@@ -1,5 +1,9 @@
 const CHAT_RESERVE_USD = 0.01;
 const CODING_RESERVE_USD = 0.05;
+const CHAT_TURN_LIMIT = 30;
+const CODING_RUN_LIMIT = 5;
+const PUBLICATION_LIMIT = 5;
+const SESSION_RESERVE_USD = 0.55;
 
 function snapshot(entry) {
   return {
@@ -29,7 +33,12 @@ function createJudgeSessionStore({ now = Date.now, ttlMs = 60 * 60 * 1000, maxSe
         sessionId,
         namespace,
         expiresAt: now() + ttlMs,
-        quota: { chatTurnsRemaining: 3, codingRunsRemaining: 1, publicationsRemaining: 1, reservedUsdRemaining: 0.1 },
+        quota: {
+          chatTurnsRemaining: CHAT_TURN_LIMIT,
+          codingRunsRemaining: CODING_RUN_LIMIT,
+          publicationsRemaining: PUBLICATION_LIMIT,
+          reservedUsdRemaining: SESSION_RESERVE_USD,
+        },
         inFlight: { chat: 0, coding: 0 },
       };
       sessions.set(sessionId, entry);
@@ -54,7 +63,7 @@ function createJudgeSessionStore({ now = Date.now, ttlMs = 60 * 60 * 1000, maxSe
       const cost = kind === 'chat' ? CHAT_RESERVE_USD : CODING_RESERVE_USD;
       entry.inFlight[kind] -= 1;
       entry.quota[field] += 1;
-      entry.quota.reservedUsdRemaining = Number(Math.min(0.1, entry.quota.reservedUsdRemaining + cost).toFixed(2));
+      entry.quota.reservedUsdRemaining = Number(Math.min(SESSION_RESERVE_USD, entry.quota.reservedUsdRemaining + cost).toFixed(2));
       return snapshot(entry);
     },
     settle(sessionId, kind) {
