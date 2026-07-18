@@ -52,6 +52,6 @@ Model: `deepseek-api/deepseek-v4-flash` in OpenClaw, sent as `deepseek-v4-flash`
 - One active coding run
 - No network in runner
 - Five-minute approval
-- Three chat turns, one coding run, and one draft publication per judge session
+- 30 chat turns, 5 coding runs, and 5 draft publications per judge session
 - One-hour sponsored session, shown as action quotas rather than a misleading dollar estimate
 - Twelve sponsored sessions and a 2,000,000-token coding hard stop before replay mode
