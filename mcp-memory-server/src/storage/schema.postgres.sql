@@ -3,6 +3,8 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS episodic_logs (
     id             BIGSERIAL PRIMARY KEY,
     user_id        TEXT NOT NULL,
+    scope_type     TEXT NOT NULL DEFAULT 'core' CHECK(scope_type IN ('core', 'repository')),
+    scope_id       TEXT NOT NULL DEFAULT 'core',
     session_id     TEXT NOT NULL,
     timestamp      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     user_prompt    TEXT NOT NULL,
@@ -15,6 +17,8 @@ CREATE INDEX IF NOT EXISTS idx_logs_user
 CREATE TABLE IF NOT EXISTS semantic_graph (
     id               BIGSERIAL PRIMARY KEY,
     user_id          TEXT NOT NULL,
+    scope_type       TEXT NOT NULL DEFAULT 'core' CHECK(scope_type IN ('core', 'repository')),
+    scope_id         TEXT NOT NULL DEFAULT 'core',
     category         TEXT DEFAULT 'preference',
     entity_source    TEXT NOT NULL,
     relation         TEXT NOT NULL,
@@ -26,7 +30,7 @@ CREATE TABLE IF NOT EXISTS semantic_graph (
     conviction_score DOUBLE PRECISION DEFAULT 1.0,
     created_at       TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     last_accessed    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, entity_source, relation)
+    UNIQUE(user_id, scope_type, scope_id, entity_source, relation)
 );
 
 CREATE INDEX IF NOT EXISTS idx_graph_user
@@ -36,6 +40,8 @@ CREATE INDEX IF NOT EXISTS idx_graph_user
 CREATE TABLE IF NOT EXISTS memory_events (
     id            BIGSERIAL PRIMARY KEY,
     user_id       TEXT NOT NULL,
+    scope_type    TEXT NOT NULL DEFAULT 'core' CHECK(scope_type IN ('core', 'repository')),
+    scope_id      TEXT NOT NULL DEFAULT 'core',
     event_type    TEXT NOT NULL,
     entity_source TEXT,
     entity_target TEXT,
@@ -79,17 +85,34 @@ CREATE TABLE IF NOT EXISTS vec_memory (
 CREATE TABLE IF NOT EXISTS prospective_memories (
     id             BIGSERIAL PRIMARY KEY,
     user_id        TEXT NOT NULL,
+    scope_type     TEXT NOT NULL DEFAULT 'core' CHECK(scope_type IN ('core', 'repository')),
+    scope_id       TEXT NOT NULL DEFAULT 'core',
     cue            TEXT NOT NULL,
     action         TEXT NOT NULL,
     source_belief  BIGINT REFERENCES semantic_graph(id) ON DELETE SET NULL,
     fired_count    INTEGER DEFAULT 0,
     created_at     TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     last_fired_at  TIMESTAMPTZ,
-    UNIQUE(user_id, cue, action)
+    UNIQUE(user_id, scope_type, scope_id, cue, action)
 );
 
 CREATE INDEX IF NOT EXISTS idx_prospective_user_cue
     ON prospective_memories(user_id, cue);
+
+ALTER TABLE episodic_logs ADD COLUMN IF NOT EXISTS scope_type TEXT NOT NULL DEFAULT 'core';
+ALTER TABLE episodic_logs ADD COLUMN IF NOT EXISTS scope_id TEXT NOT NULL DEFAULT 'core';
+ALTER TABLE semantic_graph ADD COLUMN IF NOT EXISTS scope_type TEXT NOT NULL DEFAULT 'core';
+ALTER TABLE semantic_graph ADD COLUMN IF NOT EXISTS scope_id TEXT NOT NULL DEFAULT 'core';
+ALTER TABLE memory_events ADD COLUMN IF NOT EXISTS scope_type TEXT NOT NULL DEFAULT 'core';
+ALTER TABLE memory_events ADD COLUMN IF NOT EXISTS scope_id TEXT NOT NULL DEFAULT 'core';
+ALTER TABLE prospective_memories ADD COLUMN IF NOT EXISTS scope_type TEXT NOT NULL DEFAULT 'core';
+ALTER TABLE prospective_memories ADD COLUMN IF NOT EXISTS scope_id TEXT NOT NULL DEFAULT 'core';
+ALTER TABLE semantic_graph DROP CONSTRAINT IF EXISTS semantic_graph_user_id_entity_source_relation_key;
+ALTER TABLE prospective_memories DROP CONSTRAINT IF EXISTS prospective_memories_user_id_cue_action_key;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_semantic_graph_scope
+    ON semantic_graph(user_id, scope_type, scope_id, entity_source, relation);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_prospective_scope
+    ON prospective_memories(user_id, scope_type, scope_id, cue, action);
 
 ALTER TABLE episodic_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE semantic_graph ENABLE ROW LEVEL SECURITY;

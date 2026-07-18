@@ -1,38 +1,57 @@
-# Deploy to Alibaba Cloud
+# Deploy on Alibaba Cloud
 
-## Target
+Use one Hong Kong ECS spot instance for the judging window. Mainland instances can require ICP filing for public web access; Hong Kong avoids that deployment dependency. A 2 vCPU / 4 GB instance is the minimum, and 4 vCPU / 8 GB is more comfortable during C++ tests.
 
-Use one Alibaba ECS Linux instance with Docker Engine and the Compose plugin. Point `memory.<domain>` at its public IP. The ECS security group should allow 80/443 publicly and SSH only from the operator's IP.
+## 1. Create the instance
 
-## Deploy
+- Ubuntu 24.04 LTS, x86_64
+- ESSD entry disk, 40 GB
+- Security group inbound: TCP 22 from your IP, TCP 80 and 443 from anywhere
+- No public 3000, 8000, 8001, 8010, 5432, or 18789 rules
+- Spot maximum price capped to the amount you are willing to spend; enable automatic release only after August 13
+
+Point an A record such as `memory.example.com` to the ECS public IP.
+
+## 2. Install the runtime
 
 ```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl git docker.io docker-compose-v2
+sudo usermod -aG docker "$USER"
+newgrp docker
 git clone https://github.com/crankysmh47/MnemAgent.git
 cd MnemAgent
-cp .env.cloud.example .env.cloud
+git switch MnemCode
 ```
 
-Replace every example value. Generate secrets with `openssl rand -hex 32`.
+## 3. Configure secrets
 
 ```bash
-bash scripts/deploy-cloud.sh
-bash scripts/verify-cloud.sh
+cp .env.cloud.example .env.cloud
+openssl rand -hex 32  # repeat for each session/HMAC secret
+stat -c '%a %n' .env.cloud
+chmod 600 .env.cloud
+getent group docker | cut -d: -f3  # use this as DOCKER_GID
 ```
 
-The command starts the memory service, MCP service, visualizer, Postgres, and Caddy. MCP binds to `127.0.0.1:8001` on ECS, so OpenClaw can use it from the host terminal without exposing it publicly.
+Create a fine-grained GitHub token for the single demo repository. Grant Contents, Issues, and Pull requests read/write. Set `DEEPSEEK_API_KEY` for the official `https://api.deepseek.com` endpoint. The judge stack does not use the Qwen/DashScope key or offer an OpenRouter key option. Replace every placeholder in `.env.cloud`.
 
-## Submission proof
+## 4. Deploy
 
-The runtime Alibaba API integration is [`mcp-memory-server/src/storage/cloud_sync.py`](../mcp-memory-server/src/storage/cloud_sync.py). It creates a database snapshot and uploads it to OSS when the OSS variables are configured. Use an ECS RAM role or a narrowly scoped RAM user; prefer an internal OSS endpoint when ECS and OSS share a region.
+```bash
+./scripts/deploy-cloud.sh
+./scripts/verify-cloud.sh
+```
 
-Record these items for the submission:
+The deploy script builds the pinned runner first, validates Compose, starts the stack, and waits for health. Caddy obtains TLS automatically after DNS resolves.
 
-1. The public HTTPS visualizer and protected agent URLs.
-2. ECS console or CLI output identifying the running instance and region.
-3. The deployed `/health` response without secrets.
-4. An OSS object created by the runtime backup path, if OSS is enabled.
-5. A direct repository link to `cloud_sync.py`.
+## 5. Spot protection
 
-## Rollback
+Install `scripts/spot-interruption-watch.sh` as a systemd service. It checks the ECS metadata interruption signal, writes a run-block flag, backs up Postgres, and stops new judge runs before termination. Configure OSS credentials only if you want off-instance snapshots.
 
-Keep the previous image tags and database volume. If verification fails, restore the previous Git tag and run the same deployment script. Database snapshots are additive; a failed backup does not stop memory serving.
+## 6. Cost control
+
+- Keep one instance for the full judging window instead of crossing a monthly subscription boundary.
+- Set Alibaba budget alerts at $10, $20, and $30.
+- MnemCode admits at most 12 sponsored sessions per process and switches coding runs to replay after 2,000,000 measured model tokens. Set a separate $5 provider-side balance limit because token prices are controlled by the model provider.
+- Stop the stack and release the ECS instance after judging on August 13.

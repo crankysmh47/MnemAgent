@@ -11,6 +11,14 @@ const cors = require("cors");
 const axios = require("axios");
 const { DEMO_USER_ID, seedDemoBrain } = require("./demo-seed");
 const { canReadArchive, canMutateThroughHarness } = require("./cloud-policy");
+const { randomBytes } = require("node:crypto");
+const { createJudgeAuth } = require("./judge-auth");
+const { createJudgeRunService } = require("./judge-run-service");
+const { createJudgeChatService } = require("./judge-chat-service");
+const { createJudgeSessionStore } = require("./judge-session-store");
+const { createJudgeEvidenceStore } = require("./judge-evidence");
+const { createBrokerClient } = require("./broker-client");
+const { createInternalHmacVerifier } = require("./internal-hmac");
 
 const PORT = process.env.PORT || 3000;
 const MNEMOS_URL = (process.env.MNEMOS_URL || process.env.MCP_SERVER_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -18,6 +26,23 @@ const MCP_ADAPTER_URL = (process.env.MCP_ADAPTER_URL || "http://localhost:8001")
 const AUTO_SEED_DEMO = process.env.AUTO_SEED_DEMO !== "false";
 const MNEMAGENT_API_TOKEN = (process.env.MNEMAGENT_API_TOKEN || "").trim();
 const CLOUD_MODE = process.env.MNEMAGENT_ENV === "cloud";
+if (CLOUD_MODE && (!process.env.JUDGE_ACCESS_CODE || !process.env.JUDGE_SESSION_SECRET)) {
+  throw new Error("Cloud mode requires JUDGE_ACCESS_CODE and JUDGE_SESSION_SECRET.");
+}
+const judgeAuth = createJudgeAuth({
+  accessCode: process.env.JUDGE_ACCESS_CODE || "mnemcode-local-judge",
+  sessionSecret: process.env.JUDGE_SESSION_SECRET || randomBytes(48).toString("hex"),
+  secure: CLOUD_MODE,
+});
+const judgeRuns = createJudgeRunService();
+const judgeChats = createJudgeChatService();
+const judgeSessions = createJudgeSessionStore();
+const judgeEvidence = createJudgeEvidenceStore();
+const brokerClient = createBrokerClient({ secret: process.env.WORKSPACE_HMAC_SECRET || 'local-development-hmac-secret-change-for-cloud-12345' });
+const internalVerifier = createInternalHmacVerifier({ secret: process.env.WORKSPACE_HMAC_SECRET || 'local-development-hmac-secret-change-for-cloud-12345' });
+const settledChatTurns = new Set();
+const settledCodingRuns = new Set();
+const enrichedCodingRuns = new Set();
 
 function mnemosConfig(config = {}) {
   const headers = { ...(config.headers || {}) };
@@ -66,13 +91,164 @@ async function resolveCanonicalUserId() {
 }
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+if (CLOUD_MODE) app.set('trust proxy', 1);
+app.disable("x-powered-by");
+app.use(cors({ origin: false }));
+app.use(express.json({ limit: '128kb', verify: (req, _res, buffer) => { req.rawBody = buffer.toString('utf8'); } }));
+app.use((_req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("Referrer-Policy", "same-origin");
+  res.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
 app.use((req, res, next) => {
-  if (!canMutateThroughHarness(req.method, CLOUD_MODE)) {
+  if (!req.path.startsWith("/judge/") && !req.path.startsWith("/api/judge/") && !canMutateThroughHarness(req.method, CLOUD_MODE)) {
     return res.status(403).json({ error: "Browser mutations are disabled in cloud mode; use the protected OpenClaw/MCP path." });
   }
   next();
+});
+
+function verifyJudge(req, { mutable = false } = {}) {
+  return judgeAuth.verify({
+    cookieHeader: req.headers.cookie,
+    csrfHeader: req.headers["x-csrf-token"],
+    origin: req.headers.origin,
+    host: req.headers.host,
+    mutable,
+  });
+}
+
+app.post("/judge/session", (req, res) => {
+  try {
+    const issued = judgeAuth.login({ accessCode: req.body?.accessCode, ip: req.ip });
+    const sponsored = judgeSessions.create({ sessionId: issued.sessionId, namespace: issued.namespace });
+    res.set("Set-Cookie", issued.cookie);
+    res.json({ authenticated: true, csrf: issued.csrf, namespace: issued.namespace, expiresAt: issued.expiresAt, quota: sponsored.quota });
+  } catch (error) {
+    const locked = /locked/i.test(error.message);
+    res.status(locked ? 429 : 401).json({ error: locked ? "Judge access is temporarily locked." : "Invalid judge access code." });
+  }
+});
+
+app.get("/api/judge/session", (req, res) => {
+  try {
+    const identity = verifyJudge(req);
+    const sponsored = judgeSessions.get(identity.sessionId);
+    res.json({ authenticated: true, namespace: identity.namespace, expiresAt: sponsored.expiresAt, quota: sponsored.quota });
+  }
+  catch { res.status(401).json({ authenticated: false }); }
+});
+
+app.get("/api/judge/scenarios", (_req, res) => res.json({
+  model: process.env.JUDGE_MODEL || "deepseek-api/deepseek-v4-flash",
+  repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/WebPort",
+  scenarios: [{ issueNumber: 14, title: "WebPort · missing head operand", outcome: "Repository recall, test-first fix, and approval-gated draft PR" }],
+}));
+
+app.post('/api/judge/internal/events', (req, res) => {
+  try {
+    internalVerifier.verify({ method: req.method, path: req.path, body: req.rawBody || '', headers: req.headers });
+    const event = judgeEvidence.ingest(req.body?.runId, req.body || {});
+    judgeRuns.appendInternal(req.body.runId, event);
+    res.status(202).json({ accepted: true });
+  } catch { res.status(401).json({ error: 'Internal evidence rejected.' }); }
+});
+
+app.post("/api/judge/chat", (req, res) => {
+  try {
+    const identity = verifyJudge(req, { mutable: true });
+    const quota = judgeSessions.reserve(identity.sessionId, 'chat').quota;
+    try {
+      const turn = judgeChats.create({ ownerSessionId: identity.sessionId, namespace: identity.namespace, message: req.body?.message });
+      res.status(202).json({ ...turn, quota });
+    } catch (error) {
+      judgeSessions.release(identity.sessionId, 'chat');
+      throw error;
+    }
+  } catch (error) {
+    res.status(/session|csrf|origin/i.test(error.message) ? 403 : 400).json({ error: "The sponsored chat turn could not be started." });
+  }
+});
+
+app.get("/api/judge/chat/:id", (req, res) => {
+  try {
+    const identity = verifyJudge(req);
+    const turn = judgeChats.get(req.params.id, identity.sessionId);
+    if ((turn.status === 'completed' || turn.status === 'failed') && !settledChatTurns.has(turn.id)) {
+      settledChatTurns.add(turn.id);
+      if (turn.status === 'failed') judgeSessions.release(identity.sessionId, 'chat');
+      else judgeSessions.settle(identity.sessionId, 'chat');
+    }
+    res.json({ ...turn, quota: judgeSessions.get(identity.sessionId).quota });
+  } catch { res.status(404).json({ error: "Judge chat turn not found." }); }
+});
+
+app.post("/api/judge/runs", (req, res) => {
+  try {
+    const identity = verifyJudge(req, { mutable: true });
+    const quota = judgeSessions.reserve(identity.sessionId, 'coding').quota;
+    try {
+      const run = judgeRuns.create({
+        ownerSessionId: identity.sessionId,
+        namespace: identity.namespace,
+        sessionId: `judge-code-${randomBytes(12).toString('hex')}`,
+        issueNumber: Number(req.body?.issueNumber),
+        message: String(req.body?.message || '').trim() || 'Solve WebPort issue #14 using the repository conventions you remember. Write the regression test first, implement the smallest missing-operand guard, run the focused and unit tests, and show the exact diff.',
+      });
+      res.status(202).json({ ...run, quota });
+    } catch (error) {
+      judgeSessions.release(identity.sessionId, 'coding');
+      throw error;
+    }
+  } catch (error) {
+    res.status(/session|csrf|origin/i.test(error.message) ? 403 : 400).json({ error: "The judge run could not be started." });
+  }
+});
+
+app.get("/api/judge/runs/:id", (req, res) => {
+  try {
+    const identity = verifyJudge(req);
+    const run = judgeRuns.get(req.params.id, identity.sessionId);
+    if ((run.status === 'completed' || run.status === 'failed') && !settledCodingRuns.has(run.id)) {
+      settledCodingRuns.add(run.id);
+      if (run.status === 'failed') judgeSessions.release(identity.sessionId, 'coding');
+      else judgeSessions.settle(identity.sessionId, 'coding');
+    }
+    if (run.status === 'completed' && !enrichedCodingRuns.has(run.id)) {
+      enrichedCodingRuns.add(run.id);
+      axios.get(`${MNEMOS_URL}/api/memory/search/${encodeURIComponent(identity.namespace)}`, mnemosConfig({
+        timeout: 5_000,
+        params: { query: 'head missing file operand command errors repository rules', top_k: 4, scope_type: 'repository', scope_id: 'crankysmh47/WebPort' },
+      })).then(response => {
+        for (const memory of response.data?.results || []) {
+          const event = judgeEvidence.ingest(run.id, { type: 'memory.retrieved', detail: { scope: 'repository/crankysmh47/WebPort', entity: memory.entity_source, relation: memory.relation, value: memory.entity_target } });
+          judgeRuns.appendInternal(run.id, event);
+        }
+      }).catch(() => {});
+    }
+    res.json({ ...run, events: judgeRuns.events(req.params.id, identity.sessionId, req.query.after), evidence: judgeEvidence.get(run.id), quota: judgeSessions.get(identity.sessionId).quota });
+  } catch { res.status(404).json({ error: "Judge run not found." }); }
+});
+
+app.post('/api/judge/runs/:id/approve', async (req, res) => {
+  try {
+    const identity = verifyJudge(req, { mutable: true });
+    const run = judgeRuns.get(req.params.id, identity.sessionId);
+    const evidence = judgeEvidence.get(run.id);
+    if (req.body?.confirmed !== true || run.status !== 'completed' || !evidence.readyForApproval || evidence.pr) throw new Error('Run is not ready for publication.');
+    const metadata = {
+      runId: run.id,
+      title: 'fix: guard head when file operand is missing',
+      body: 'Closes #14.\n\nGenerated through the MnemAgent sponsored judge workflow after repository-scoped memory retrieval and constrained test execution.',
+    };
+    const approval = await brokerClient.prepare(evidence.workspaceId, metadata);
+    const pr = await brokerClient.open(evidence.workspaceId, { ...metadata, token: approval.token, expiresAt: approval.expiresAt });
+    judgeSessions.consumePublication(identity.sessionId);
+    res.status(201).json({ evidence: judgeEvidence.setPr(run.id, pr), quota: judgeSessions.get(identity.sessionId).quota });
+  } catch (error) {
+    res.status(/session|csrf|origin/i.test(error.message) ? 403 : 400).json({ error: 'The draft PR could not be opened.' });
+  }
 });
 
 // Prevent stale HTML/CSS in browsers during active development

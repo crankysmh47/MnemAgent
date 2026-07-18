@@ -71,16 +71,31 @@ services:
       - "3000:3000"
     volumes:
       - ./openclaw-harness/src/public:/app/src/public:ro
+      - ./config/openclaw:/app/config/openclaw:ro
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
       - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
       - MNEMAGENT_API_TOKEN=${MNEMAGENT_API_TOKEN:-}
       - MCP_ADAPTER_URL=http://mnemos-mcp:8001
       - PORT=3000
+      - JUDGE_MODEL=${JUDGE_MODEL:-deepseek-api/deepseek-v4-flash}
+      - JUDGE_MODEL_HARD_TOKEN_BUDGET=${JUDGE_MODEL_HARD_TOKEN_BUDGET:-2000000}
+      - JUDGE_MAX_SPONSORED_SESSIONS=${JUDGE_MAX_SPONSORED_SESSIONS:-12}
+      - JUDGE_ACCESS_CODE=${JUDGE_ACCESS_CODE:-mnemcode-local-judge}
+      - JUDGE_SESSION_SECRET=${JUDGE_SESSION_SECRET:-local-development-session-secret-change-for-cloud-123456}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - OPENCLAW_CONFIG_PATH=/app/config/openclaw/openclaw.json
+      - MNEMAGENT_MCP_URL=${MNEMAGENT_MCP_URL:-http://mnemos-mcp:8001/mcp}
+      - MNEMCODE_ROOT=/app
+      - WORKSPACE_BROKER_URL=http://workspace-broker:8010
+      - MNEMCODE_EVENT_URL=http://127.0.0.1:3000/api/judge/internal/events
+      - WORKSPACE_HMAC_SECRET=${WORKSPACE_HMAC_SECRET:-local-development-hmac-secret-change-for-cloud-12345}
     depends_on:
       mnemos-memory:
         condition: service_healthy
       mnemos-mcp:
+        condition: service_healthy
+      workspace-broker:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -89,6 +104,39 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  workspace-broker:
+    build:
+      context: .
+      dockerfile: workspace-broker/Dockerfile
+    ports:
+      - "127.0.0.1:8010:8010"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - judge-workspaces:/workspaces
+    group_add:
+      - "${DOCKER_GID:-0}"
+    environment:
+      - JUDGE_DEMO_REPOSITORY=${JUDGE_DEMO_REPOSITORY:-crankysmh47/WebPort}
+      - JUDGE_GITHUB_TOKEN=${JUDGE_GITHUB_TOKEN:-}
+      - WORKSPACE_HMAC_SECRET=${WORKSPACE_HMAC_SECRET:-local-development-hmac-secret-change-for-cloud-12345}
+      - WORKSPACE_APPROVAL_SECRET=${WORKSPACE_APPROVAL_SECRET:-local-development-approval-secret-change-for-cloud-123}
+      - WORKSPACE_ROOT=/workspaces
+      - WORKSPACE_VOLUME=mnemagent-judge-workspaces
+      - JUDGE_RUNNER_IMAGE=${JUDGE_RUNNER_IMAGE:-mnemagent-judge-runner:local}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8010/health',r=>process.exit(r.statusCode===200?0:1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  workspace-runner:
+    build:
+      context: ./workspace-runner
+      dockerfile: Dockerfile
+    image: ${JUDGE_RUNNER_IMAGE:-mnemagent-judge-runner:local}
+    profiles: ["judge-build"]
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -110,3 +158,5 @@ services:
 
 volumes:
   mnemos-postgres:
+  judge-workspaces:
+    name: mnemagent-judge-workspaces

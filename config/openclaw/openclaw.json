@@ -1,45 +1,43 @@
 {
-  "model": {
-    "apiProvider": "openai-compatible",
-    "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "model": "qwen3-coder-flash",
-    "apiKey": "${LLM_API_KEY}",
-    "reasoning": false,
-    "maxTokens": 4096
-  },
-  "mcp": {
-    "servers": {
-      "mnemos": {
-        "url": "http://localhost:8001/mcp",
-        "transport": "streamable-http",
-        "connectionTimeoutMs": 30000
+  "gateway": { "mode": "local", "bind": "loopback", "port": 18789, "auth": { "mode": "token", "token": "${OPENCLAW_GATEWAY_TOKEN}" } },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "deepseek-api": {
+        "baseUrl": "https://api.deepseek.com",
+        "api": "openai-completions",
+        "apiKey": "${DEEPSEEK_API_KEY}",
+        "models": [{ "id": "deepseek/deepseek-v4-flash", "name": "DeepSeek V4 Flash", "contextWindow": 128000, "maxTokens": 8192, "input": ["text"], "reasoning": false }]
       }
     }
   },
-  "channels": {
-    "telegram": {
-      "enabled": false,
-      "botToken": "${TELEGRAM_BOT_TOKEN}",
-      "dmPolicy": "pairing"
-    },
-    "discord": {
-      "enabled": false,
-      "token": "${DISCORD_BOT_TOKEN}",
-      "groupPolicy": "allowlist"
-    },
-    "whatsapp": {
-      "enabled": false,
-      "dmPolicy": "pairing"
-    },
-    "slack": {
-      "enabled": false,
-      "appToken": "${SLACK_APP_TOKEN}",
-      "botToken": "${SLACK_BOT_TOKEN}"
-    }
-  },
   "agents": {
-    "defaults": {
-      "workspace": "${OPENCLAW_HOME}/workspace"
+    "defaults": { "skipBootstrap": true, "model": { "primary": "deepseek-api/deepseek-v4-flash" } },
+    "list": [{
+      "id": "judge-coder", "default": true, "name": "MnemCode Judge Coder",
+      "workspace": "/app/workspace-judge-coder",
+      "model": "deepseek-api/deepseek-v4-flash",
+      "thinkingDefault": "off",
+      "tools": {
+        "profile": "coding",
+        "allow": ["mnemagent__memory_search", "mnemagent__memory_store", "mnemcode__list_issues", "mnemcode__create_workspace", "mnemcode__list_workspace_files", "mnemcode__read_workspace_file", "mnemcode__apply_workspace_patch", "mnemcode__replace_workspace_text", "mnemcode__run_workspace_tests", "mnemcode__show_workspace_diff"],
+        "deny": ["exec", "process", "read", "write", "edit", "apply_patch", "browser", "web_search", "web_fetch", "sessions_spawn", "sessions_send", "sessions_yield", "subagents"]
+      }
+    }, {
+      "id": "judge-chat", "name": "MnemAgent Judge Chat",
+      "workspace": "/app/workspace-judge-chat",
+      "model": "deepseek-api/deepseek-v4-flash",
+      "thinkingDefault": "off",
+      "tools": {
+        "allow": ["mnemagent__memory_search", "mnemagent__memory_store"],
+        "deny": ["exec", "process", "read", "write", "edit", "apply_patch", "browser", "web_search", "web_fetch", "sessions_spawn", "sessions_send", "sessions_yield", "subagents", "mnemcode__list_issues", "mnemcode__create_workspace", "mnemcode__list_workspace_files", "mnemcode__read_workspace_file", "mnemcode__apply_workspace_patch", "mnemcode__replace_workspace_text", "mnemcode__run_workspace_tests", "mnemcode__show_workspace_diff"]
+      }
+    }]
+  },
+  "mcp": {
+    "servers": {
+      "mnemagent": { "url": "${MNEMAGENT_MCP_URL}", "transport": "sse", "toolFilter": { "include": ["memory_search", "memory_store"] } },
+      "mnemcode": { "command": "node", "args": ["${MNEMCODE_ROOT}/config/openclaw/broker-mcp.js"], "env": { "WORKSPACE_BROKER_URL": "${WORKSPACE_BROKER_URL}", "WORKSPACE_HMAC_SECRET": "${WORKSPACE_HMAC_SECRET}", "MNEMCODE_EVENT_URL": "${MNEMCODE_EVENT_URL}", "MNEMCODE_RUN_ID": "${MNEMCODE_RUN_ID}" }, "timeout": 120, "connectTimeout": 10, "toolFilter": { "include": ["list_issues", "create_workspace", "list_workspace_files", "read_workspace_file", "apply_workspace_patch", "replace_workspace_text", "run_workspace_tests", "show_workspace_diff"] } }
     }
   }
 }

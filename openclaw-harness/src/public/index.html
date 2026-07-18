@@ -14,17 +14,18 @@
   <link rel="stylesheet" href="/styles/sediment-timeline.css">
   <link rel="stylesheet" href="/styles/motion.css">
   <link rel="stylesheet" href="/styles/responsive.css">
+  <link rel="stylesheet" href="/styles/agent-workbench.css">
 </head>
 <body>
   <a class="skip-link" href="#archiveStage">Skip to the living archive</a>
   <div id="archiveApp" class="archive-app" data-status="loading">
     <header class="archive-header">
-      <a class="archive-brand" href="/" aria-label="MnemAgent Living Archive home"><img src="/assets/logo.jpg" alt="MnemAgent logo"><span>MnemAgent</span></a>
+      <a class="archive-brand" href="/" aria-label="MnemAgent Living Archive home"><img src="/assets/logo.jpg" alt="MnemAgent logo"><span class="archive-brand-name">MnemAgent</span></a>
       <nav class="archive-actions" aria-label="Archive links">
         <label class="archive-search" for="archiveSearch"><span class="sr-only">Search memories</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg><input id="archiveSearch" type="search" autocomplete="off" placeholder="Search memories" aria-describedby="archiveSearchStatus"><kbd>/</kbd></label>
         <span id="archiveSearchStatus" class="sr-only" aria-live="polite"></span>
         <a class="github-link" href="https://github.com/crankysmh47/MnemAgent" target="_blank" rel="noopener noreferrer" aria-label="Open MnemAgent on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .7a11.3 11.3 0 0 0-3.6 22c.6.1.8-.2.8-.5v-2.1c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.2c0 .3.2.6.8.5A11.3 11.3 0 0 0 12 .7Z"/></svg></a>
-        <button id="archiveMenuButton" type="button" aria-controls="archiveMenu" aria-expanded="false">Archive controls</button>
+        <button id="archiveMenuButton" type="button" aria-label="Archive controls" aria-controls="archiveMenu" aria-expanded="false"><span>Archive controls</span></button>
       </nav>
     </header>
     <main class="archive-composition">
@@ -45,19 +46,48 @@
         <p id="archiveStatus" class="sr-only" aria-live="polite"></p>
         <ol id="memoryCompanionList" class="sr-only"></ol>
       </section>
-      <aside id="observationMargin" class="observation-margin" aria-label="Archive observation">
-        <p class="observation-eyebrow">Living observation</p>
-        <section id="narrativeCopy" aria-live="polite"></section>
-        <section id="memoryDetail" aria-label="Selected memory"></section>
-        <dl id="vitalSigns" aria-label="Archive vital signs"></dl>
-        <section id="materialLegend" aria-label="Memory material legend"></section>
+      <aside id="agentWorkbench" class="agent-workbench" aria-label="Memory-aware coding agent">
+        <header><p class="observation-eyebrow">MnemCode · judge workspace</p><h2>Watch memory become action.</h2><p>Teach the agent a preference, start a fresh conversation, then watch that memory guide a real tested change.</p></header>
+        <p class="agent-model"><span>Sponsored by MnemAgent</span><span data-model>DeepSeek V4 Flash</span></p>
+        <form data-judge-access><label for="judgeAccessCode">Judge access code</label><input id="judgeAccessCode" name="accessCode" type="password" autocomplete="one-time-code" required><button type="submit">Enter private workspace</button></form>
+        <section class="sponsored-quota" data-sponsored-quota hidden aria-label="Sponsored demo allowance"></section>
+        <section data-judge-shell hidden>
+          <div class="chat-log" data-chat-log aria-live="polite"><p class="chat-empty">Start by telling the agent one coding preference. Each reply uses a fresh agent session but the same private memory.</p></div>
+          <form data-judge-chat><label for="judgeChatMessage">Chat with the memory agent</label><textarea id="judgeChatMessage" name="message" rows="2" maxlength="2000" placeholder="For this project, prefer user-safe error messages." required></textarea><button type="submit">Send fresh-session message</button></form>
+          <form data-judge-run><input data-scenario name="issueNumber" type="hidden" value="14"><label for="judgeMessage">Agent direction <span class="optional-label">optional</span></label><textarea id="judgeMessage" name="message" rows="2" maxlength="4000" placeholder="Apply the conventions I taught you."></textarea><button type="submit" data-run-coding>Run the WebPort task</button></form>
+          <p class="agent-status" data-judge-status aria-live="polite">Private workspace ready.</p>
+          <nav class="agent-tabs" aria-label="Agent evidence">
+            <button type="button" data-tab="activity" aria-selected="true">Activity</button>
+            <button type="button" data-tab="memory" aria-selected="false">Memory</button>
+            <button type="button" data-tab="changes" aria-selected="false">Changes</button>
+          </nav>
+          <section data-panel="activity"><ol class="agent-activity" data-activity aria-live="polite"></ol></section>
+          <section data-panel="memory" hidden><div class="evidence-empty" data-memory-empty>Retrieved memories appear here during the coding run.</div><ul class="memory-evidence" data-memory-evidence></ul></section>
+          <section data-panel="changes" hidden><div class="evidence-empty" data-changes-empty>Tests and the exact patch appear here before publication.</div><ul class="test-evidence" data-test-evidence></ul><pre class="diff-evidence" data-diff></pre><form class="approve-form" data-approve-pr hidden><label><input name="confirmed" type="checkbox" required> I reviewed the evidence above.</label><button type="submit">Open draft PR</button></form><a class="pr-link" data-pr-link hidden target="_blank" rel="noopener noreferrer">View draft PR</a></section>
+        </section>
+        <aside class="validated-replay"><strong>Validated public evidence</strong><span>WebPort draft PR #15 shows this exact constrained, test-first run if the live allowance is exhausted.</span><a href="https://github.com/crankysmh47/WebPort/pull/15" target="_blank" rel="noopener noreferrer">Inspect draft PR #15</a></aside>
       </aside>
     </main>
+    <section id="observationMargin" class="observation-margin memory-lens" aria-label="Memory Lens">
+      <div class="memory-lens-heading">
+        <p class="observation-eyebrow">Memory lens</p>
+        <span>What the agent carries forward</span>
+      </div>
+      <div class="memory-lens-grid">
+        <div class="memory-lens-primary"><section id="memoryDetail" aria-label="Selected memory"></section></div>
+        <dl id="vitalSigns" aria-label="Archive vital signs"></dl>
+        <details class="memory-lens-context">
+          <summary><span>More context</span><span aria-hidden="true">+</span></summary>
+          <div class="memory-lens-context-body"><section id="narrativeCopy" aria-live="polite"></section><section id="materialLegend" aria-label="Memory material legend"></section></div>
+        </details>
+      </div>
+    </section>
     <nav id="sedimentTimeline" class="sediment-timeline" aria-label="Memory history"></nav>
     <dialog id="archiveMenu" class="archive-menu" aria-labelledby="archiveMenuTitle"><form method="dialog"><h2 id="archiveMenuTitle">Archive controls</h2><label for="userId">Memory owner</label><input id="userId" name="userId" autocomplete="off"><fieldset id="categoryFilters"><legend>Memory forms</legend></fieldset><fieldset id="lifecycleFilters"><legend>Vitality</legend></fieldset><button id="motionToggle" type="button" aria-pressed="false">Reduce motion</button><button id="replayOpening" type="button">Replay awakening</button><button id="resetArchiveView" type="button">Reset view</button><button id="exportArchive" type="button">Export archive data</button><button id="retryArchive" type="button">Retry connection</button><button value="close">Close controls</button></form></dialog>
     <section id="observationSheet" class="observation-sheet" aria-labelledby="observationSheetTitle"><h2 id="observationSheetTitle">Memory observation</h2><div id="observationSheetContent"></div></section>
   </div>
   <script src="/vendor/d3/d3.min.js"></script>
   <script type="module" src="/scripts/main.js"></script>
+  <script type="module" src="/scripts/judge-console.js"></script>
 </body>
 </html>

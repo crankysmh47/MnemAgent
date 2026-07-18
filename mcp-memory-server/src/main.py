@@ -94,6 +94,8 @@ class MemoryStoreRequest(BaseModel):
     value: str
     category: str = "preference"
     conviction: float = Field(default=1.0, ge=0.0, le=1.0)
+    scope_type: str = Field(default="core", pattern="^(core|repository)$")
+    scope_id: str = "core"
 
 
 class MemoryBatchStoreRequest(BaseModel):
@@ -372,11 +374,15 @@ async def api_graph(
     limit: int = Query(default=150, ge=1, le=150),
     focus_id: int | None = Query(default=None, ge=1),
     include_summary: bool = Query(default=True),
+    scope_type: str = Query(default="core", pattern="^(core|repository)$"),
+    scope_id: str = Query(default="core"),
+    include_core: bool = Query(default=False),
 ) -> dict:
     """Return belief graph data for the memory visualizer."""
     return get_graph_data(
         user_id, query=q, category=category, lifecycle=lifecycle, cursor=cursor,
         limit=limit, focus_id=focus_id, include_summary=include_summary,
+        scope_type=scope_type, scope_id=scope_id, include_core=include_core,
     )
 
 
@@ -403,6 +409,8 @@ async def api_memory_search(
     top_k: int = Query(default=5, ge=1, le=20),
     category: str | None = Query(default=None),
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
+    scope_type: str = Query(default="core", pattern="^(core|repository)$"),
+    scope_id: str = Query(default="core"),
 ) -> dict:
     """Search persistent memory for MCP memory_search."""
     return {
@@ -412,6 +420,8 @@ async def api_memory_search(
             top_k=top_k,
             category=category,
             min_confidence=min_confidence,
+            scope_type=scope_type,
+            scope_id=scope_id,
         )
     }
 
@@ -498,12 +508,11 @@ async def api_memory_store(request: MemoryStoreRequest) -> dict:
         "conviction": request.conviction,
     }
     loop = asyncio.get_running_loop()
-    stored = await loop.run_in_executor(
-        None,
-        consolidate_and_prune_memory,
-        request.user_id,
-        memory_dict,
-    )
+    from functools import partial
+    stored = await loop.run_in_executor(None, partial(
+        consolidate_and_prune_memory, request.user_id, memory_dict,
+        scope_type=request.scope_type, scope_id=request.scope_id,
+    ))
     return {
         "status": "ok" if stored else "rejected",
         "stored": stored,
@@ -533,9 +542,12 @@ async def api_memory_store_batch(request: MemoryBatchStoreRequest) -> dict:
         def _store_one(
             uid: str = request.user_id,
             payload: dict = memory_dict,
+            fact_scope_type: str = fact.scope_type,
+            fact_scope_id: str = fact.scope_id,
         ) -> bool:
             return consolidate_and_prune_memory(
-                uid, payload, run_maintenance=not skip_maintenance
+                uid, payload, run_maintenance=not skip_maintenance,
+                scope_type=fact_scope_type, scope_id=fact_scope_id,
             )
 
         ok = await loop.run_in_executor(None, _store_one)

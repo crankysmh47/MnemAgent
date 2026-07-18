@@ -127,6 +127,8 @@ function createMcpServer() {
       value: z.string(),
       category: z.string().optional().default("preference"),
       conviction: z.number().min(0).max(1).optional().default(1.0),
+      scope_type: z.enum(["core", "repository"]).optional().default("core"),
+      scope_id: z.string().optional().default("core"),
     },
     async (args) =>
       runTool(async () => {
@@ -144,6 +146,8 @@ function createMcpServer() {
       top_k: z.number().int().min(1).max(20).optional().default(5),
       category: z.string().optional(),
       min_confidence: z.number().min(0).max(1).optional(),
+      scope_type: z.enum(["core", "repository"]).optional().default("core"),
+      scope_id: z.string().optional().default("core"),
     },
     async (args) =>
       runTool(async () => {
@@ -153,6 +157,8 @@ function createMcpServer() {
         if (args.min_confidence !== undefined) {
           params.set("min_confidence", String(args.min_confidence));
         }
+        params.set("scope_type", args.scope_type);
+        params.set("scope_id", args.scope_id);
         const result = await mnemosRequest(
           "get",
           `/api/memory/search/${encodeURIComponent(normalized.user_id)}?${params}`

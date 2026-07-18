@@ -155,4 +155,7 @@ export async function bootstrapArchive() {
 
 function exportState(state) { const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'mnemagent-living-archive.json'; link.click(); URL.revokeObjectURL(link.href); }
 
-if (typeof document !== 'undefined') bootstrapArchive().catch(error => { const status = document.querySelector('#archiveStatus'); if (status) status.textContent = `Archive failed to awaken: ${error.message}`; });
+if (typeof document !== 'undefined') bootstrapArchive().then(archive => {
+  window.mnemArchive = archive;
+  window.dispatchEvent(new CustomEvent('mnemagent:archive-ready'));
+}).catch(error => { const status = document.querySelector('#archiveStatus'); if (status) status.textContent = `Archive failed to awaken: ${error.message}`; });

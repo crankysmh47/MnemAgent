@@ -10,6 +10,7 @@
     Referrer-Policy strict-origin-when-cross-origin
     X-Frame-Options DENY
     Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
   }
   request_body {
     max_size 2MB

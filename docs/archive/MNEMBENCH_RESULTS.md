@@ -1,11 +1,8 @@
 # MnemBench results
 
-MnemBench v2 is the research-scale companion benchmark for long-running
-memory-agent behavior. Its standalone repository is:
-
-```text
-https://github.com/crankysmh47/MnemBench-v2
-```
+MnemBench v2 is the research-scale companion suite for long-running
+memory-agent behavior. It currently lives in the MnemAgent evaluation code and
+does not have a separate public repository.
 
 The original compact v1 suite remains at:
 
@@ -14,8 +11,8 @@ https://github.com/crankysmh47/MnemBench
 ```
 
 This document records the live v2 runs used by the MnemAgent submission. Raw
-Markdown and JSON outputs belong in the MnemBench-v2 repository; this file is
-the product-facing summary.
+Markdown and JSON outputs are machine-local; this file is the stable
+product-facing summary.
 
 ## Latest live Postgres-backed v2 smoke run
 

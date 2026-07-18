@@ -13,7 +13,12 @@
   .archive-brand { font-size: 1.25rem; }
   .archive-brand img { width: 34px; height: 34px; }
   .archive-actions { gap: .35rem; }
+  .archive-brand-name { display: none; }
+  .archive-search { width: min(36vw, 9rem); }
   .github-link { width: 44px; min-width: 44px; height: 44px; }
+  #archiveMenuButton { display: grid; place-items: center; width: 44px; min-width: 44px; height: 44px; padding: 0; }
+  #archiveMenuButton span { display: none; }
+  #archiveMenuButton::after { content: '☰'; font-size: 1rem; }
   .archive-composition { display: block; min-height: calc(100vh - var(--header-h) - var(--timeline-h)); }
   .archive-stage { min-height: calc(100svh - var(--header-h) - var(--timeline-h)); }
   .archive-stage svg { min-height: calc(100svh - var(--header-h) - var(--timeline-h)); }

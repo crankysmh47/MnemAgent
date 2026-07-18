@@ -6,7 +6,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID } = require("node:crypto");
 
 const PORT = process.env.PORT || 8001;
 const MNEMOS_URL = (process.env.MNEMOS_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -219,7 +219,7 @@ async function handleJsonRpc(message) {
   const { id, method, params } = message;
 
   if (method === "initialize") {
-    const sessionId = uuidv4();
+    const sessionId = randomUUID();
     const channel = params?.clientInfo?.channel || "openclaw";
     const senderId = params?.clientInfo?.name || "openclaw";
     const session = { sessionId, channel, sender_id: senderId, user_id: null };

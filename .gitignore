@@ -26,6 +26,8 @@ htmlcov/
 
 # Node
 node_modules/
+.tmp/
+config/openclaw/plugin-skills/
 
 # Local git worktrees
 .worktrees/

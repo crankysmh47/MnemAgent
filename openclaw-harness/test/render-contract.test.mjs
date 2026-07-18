@@ -15,6 +15,9 @@ const baseCss = fs.readFileSync(new URL('styles/base.css', root), 'utf8');
 const observationCss = fs.readFileSync(new URL('styles/observation-margin.css', root), 'utf8');
 const forestScenePath = new URL('scripts/render/forest-scene.js', root);
 const forestSceneSource = fs.existsSync(forestScenePath) ? fs.readFileSync(forestScenePath, 'utf8') : '';
+const workbenchCss = fs.readFileSync(new URL('styles/agent-workbench.css', root), 'utf8');
+const judgeApiSource = fs.readFileSync(new URL('scripts/judge-api.js', root), 'utf8');
+const judgeConsoleSource = fs.readFileSync(new URL('scripts/judge-console.js', root), 'utf8');
 
 test('living archive static contract', () => {
   for (const id of [
@@ -44,6 +47,8 @@ test('living archive static contract', () => {
   assert.match(responsive, /max-width:\s*1099px/);
   assert.match(responsive, /max-width:\s*700px/);
   assert.match(responsive, /min-width:\s*44px/);
+  assert.match(responsive, /\.archive-brand-name\s*\{[^}]*display:\s*none/s);
+  assert.match(responsive, /#archiveMenuButton\s*\{[^}]*width:\s*44px/s);
   assert.match(motion, /prefers-reduced-motion/);
 });
 
@@ -125,4 +130,25 @@ test('desktop archive is viewport-contained with intentional panel scrolling', (
   assert.match(observationCss, /\.observation-margin\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain/s);
   assert.match(navigationSource, /\.filter\([^)]*event\.type\s*!==\s*['"]wheel['"]/s);
   assert.match(responsive, /max-width:\s*1099px[\s\S]*\.archive-app\s*\{[^}]*height:\s*auto[^}]*overflow:\s*visible/s);
+});
+
+test('memory lens keeps the selected memory prominent and folds secondary context', () => {
+  assert.match(html, /class="memory-lens-primary"[\s\S]*id="memoryDetail"/);
+  assert.match(html, /<details class="memory-lens-context">[\s\S]*<summary>[\s\S]*More context/);
+  assert.match(html, /memory-lens-context[\s\S]*id="narrativeCopy"[\s\S]*id="materialLegend"/);
+  assert.match(workbenchCss, /\.memory-lens-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto/s);
+  assert.match(workbenchCss, /\.memory-lens-context\[open\]/);
+});
+
+test('judge workbench exposes sponsored chat and three functional evidence panels', () => {
+  for (const token of ['data-sponsored-quota', 'data-judge-chat', 'data-chat-log', 'data-run-coding', 'data-tab="activity"', 'data-tab="memory"', 'data-tab="changes"', 'data-panel="activity"', 'data-panel="memory"', 'data-panel="changes"', 'data-approve-pr']) {
+    assert.match(html, new RegExp(token));
+  }
+  assert.match(html, /Sponsored by MnemAgent/);
+  assert.match(html, /Open draft PR/);
+  assert.doesNotMatch(html, /API key|GitHub token|OpenRouter/i);
+  assert.doesNotMatch(html, /\$0\.10|reserved usd/i);
+  assert.doesNotMatch(judgeConsoleSource, /\['Reserved'/);
+  assert.match(judgeApiSource, /session:\s*\(\)\s*=>\s*request\(['"]\/api\/judge\/session['"]\)/);
+  assert.match(workbenchCss, /\.agent-workbench\s+\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
 });
