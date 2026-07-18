@@ -395,7 +395,11 @@ app.get("/api/demo/status", async (_req, res) => {
 for (const route of ["graph", "events", "metrics"]) {
   app.get(`/api/${route}/:uid`, async (req, res) => {
     try {
-      if (CLOUD_MODE && !canReadArchive(req.params.uid, resolveSetupUserId())) {
+      let sessionUserId = null;
+      if (CLOUD_MODE) {
+        try { sessionUserId = verifyJudge(req).namespace; } catch { /* anonymous demo visit */ }
+      }
+      if (CLOUD_MODE && !canReadArchive(req.params.uid, resolveSetupUserId(), sessionUserId)) {
         return res.status(403).json({ error: "Archive namespace is not available." });
       }
       const query = new URLSearchParams(req.query).toString();

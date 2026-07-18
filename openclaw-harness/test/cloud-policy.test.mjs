@@ -9,3 +9,8 @@ test('cloud policy exposes only read-only demo and configured judge archives', (
   assert.equal(policy.canMutateThroughHarness('POST', true), false);
   assert.equal(policy.canMutateThroughHarness('POST', false), true);
 });
+
+test('cloud policy exposes a signed session archive only to its owning judge', () => {
+  assert.equal(policy.canReadArchive('judge-a1b2', '', 'judge-a1b2'), true);
+  assert.equal(policy.canReadArchive('judge-other', '', 'judge-a1b2'), false);
+});
