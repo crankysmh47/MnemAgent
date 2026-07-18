@@ -1,4 +1,4 @@
-const PREPARED_ISSUES = new Set([1, 2, 3]);
+const PREPARED_ISSUES = new Set([14]);
 
 function validateJudgeRun({ issueNumber, message } = {}) {
   const parsedIssue = Number(issueNumber);

@@ -15,20 +15,29 @@
     "defaults": { "skipBootstrap": true, "model": { "primary": "deepseek-api/deepseek-v4-flash" } },
     "list": [{
       "id": "judge-coder", "default": true, "name": "MnemCode Judge Coder",
-      "workspace": "${OPENCLAW_HOME}/workspace-judge-coder",
+      "workspace": "/app/workspace-judge-coder",
       "model": "deepseek-api/deepseek-v4-flash",
       "thinkingDefault": "off",
       "tools": {
         "profile": "coding",
-        "allow": ["mnemagent__memory_search", "mnemagent__memory_store", "mnemcode__list_issues", "mnemcode__create_issue", "mnemcode__create_workspace", "mnemcode__list_workspace_files", "mnemcode__read_workspace_file", "mnemcode__apply_workspace_patch", "mnemcode__replace_workspace_text", "mnemcode__run_workspace_tests", "mnemcode__show_workspace_diff", "mnemcode__cleanup_workspace"],
+        "allow": ["mnemagent__memory_search", "mnemagent__memory_store", "mnemcode__list_issues", "mnemcode__create_workspace", "mnemcode__list_workspace_files", "mnemcode__read_workspace_file", "mnemcode__apply_workspace_patch", "mnemcode__replace_workspace_text", "mnemcode__run_workspace_tests", "mnemcode__show_workspace_diff"],
         "deny": ["exec", "process", "read", "write", "edit", "apply_patch", "browser", "web_search", "web_fetch", "sessions_spawn", "sessions_send", "sessions_yield", "subagents"]
+      }
+    }, {
+      "id": "judge-chat", "name": "MnemAgent Judge Chat",
+      "workspace": "/app/workspace-judge-chat",
+      "model": "deepseek-api/deepseek-v4-flash",
+      "thinkingDefault": "off",
+      "tools": {
+        "allow": ["mnemagent__memory_search", "mnemagent__memory_store"],
+        "deny": ["exec", "process", "read", "write", "edit", "apply_patch", "browser", "web_search", "web_fetch", "sessions_spawn", "sessions_send", "sessions_yield", "subagents", "mnemcode__list_issues", "mnemcode__create_workspace", "mnemcode__list_workspace_files", "mnemcode__read_workspace_file", "mnemcode__apply_workspace_patch", "mnemcode__replace_workspace_text", "mnemcode__run_workspace_tests", "mnemcode__show_workspace_diff"]
       }
     }]
   },
   "mcp": {
     "servers": {
-      "mnemagent": { "url": "http://127.0.0.1:8001/mcp", "transport": "sse", "toolFilter": { "include": ["memory_search", "memory_store"] } },
-      "mnemcode": { "command": "node", "args": ["${MNEMCODE_ROOT}/config/openclaw/broker-mcp.js"], "env": { "WORKSPACE_BROKER_URL": "${WORKSPACE_BROKER_URL}", "WORKSPACE_HMAC_SECRET": "${WORKSPACE_HMAC_SECRET}" }, "timeout": 120, "connectTimeout": 10, "toolFilter": { "include": ["list_issues", "create_issue", "create_workspace", "list_workspace_files", "read_workspace_file", "apply_workspace_patch", "replace_workspace_text", "run_workspace_tests", "show_workspace_diff", "cleanup_workspace"] } }
+      "mnemagent": { "url": "${MNEMAGENT_MCP_URL}", "transport": "sse", "toolFilter": { "include": ["memory_search", "memory_store"] } },
+      "mnemcode": { "command": "node", "args": ["${MNEMCODE_ROOT}/config/openclaw/broker-mcp.js"], "env": { "WORKSPACE_BROKER_URL": "${WORKSPACE_BROKER_URL}", "WORKSPACE_HMAC_SECRET": "${WORKSPACE_HMAC_SECRET}", "MNEMCODE_EVENT_URL": "${MNEMCODE_EVENT_URL}", "MNEMCODE_RUN_ID": "${MNEMCODE_RUN_ID}" }, "timeout": 120, "connectTimeout": 10, "toolFilter": { "include": ["list_issues", "create_workspace", "list_workspace_files", "read_workspace_file", "apply_workspace_patch", "replace_workspace_text", "run_workspace_tests", "show_workspace_diff"] } }
     }
   }
 }

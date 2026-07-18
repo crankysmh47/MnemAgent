@@ -4,10 +4,22 @@ import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { createWorkspaceManager } from '../src/workspace-manager.js';
+import { buildRunnerArgs, createWorkspaceManager } from '../src/workspace-manager.js';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
+
+test('runner mounts the shared workspace volume at the selected workspace', () => {
+  const args = buildRunnerArgs({
+    workspaceVolume: 'mnemagent-judge-workspaces',
+    workspaceId: 'ws_example',
+    runnerImage: 'runner:test',
+  });
+  assert.ok(args.includes('type=volume,source=mnemagent-judge-workspaces,target=/workspaces'));
+  assert.ok(args.includes('WORKSPACE_ROOT=/workspaces/ws_example'));
+  assert.ok(!args.some(value => value.includes('/workspaces/ws_example:/workspace')));
+  assert.equal(args.at(-1), 'runner:test');
+});
 
 test('manager enforces repository allowlist and one active workspace', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mnemcode-'));

@@ -1,8 +1,21 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import readline from 'node:readline';
+import { projectBrokerEvent } from './broker-events.js';
 
 const base = process.env.WORKSPACE_BROKER_URL || 'http://127.0.0.1:8010';
 const secret = process.env.WORKSPACE_HMAC_SECRET || '';
+const runId = process.env.MNEMCODE_RUN_ID || '';
+const eventUrl = process.env.MNEMCODE_EVENT_URL || 'http://127.0.0.1:3000/api/judge/internal/events';
+
+async function emitEvidence(event) {
+  if (!runId || !event) return;
+  const body = JSON.stringify({ runId, ...event, timestamp: new Date().toISOString() });
+  const timestamp = Math.floor(Date.now() / 1000);
+  const nonce = randomBytes(16).toString('base64url');
+  const pathname = new URL(eventUrl).pathname;
+  const signature = createHmac('sha256', secret).update(`POST\n${pathname}\n${timestamp}\n${nonce}\n${body}`).digest('hex');
+  await fetch(eventUrl, { method: 'POST', body, headers: { 'Content-Type': 'application/json', 'x-mnemcode-timestamp': String(timestamp), 'x-mnemcode-nonce': nonce, 'x-mnemcode-signature': signature } }).catch(() => {});
+}
 
 async function broker(path, method = 'POST', payload = {}) {
   const body = method === 'GET' ? '' : JSON.stringify(payload);
@@ -28,18 +41,23 @@ const tools = [
 ].map(([name, description, properties]) => ({ name, description, inputSchema: { type: 'object', properties, additionalProperties: false } }));
 
 async function call(name, args) {
-  if (name === 'list_issues') return broker('/v1/issues', 'GET');
-  if (name === 'create_issue') return broker('/v1/issues', 'POST', args);
-  if (name === 'create_workspace') return broker('/v1/workspaces', 'POST', args);
+  let result;
+  if (name === 'list_issues') result = await broker('/v1/issues', 'GET');
+  else if (name === 'create_issue') result = await broker('/v1/issues', 'POST', args);
+  else if (name === 'create_workspace') result = await broker('/v1/workspaces', 'POST', args);
+  else {
   const id = encodeURIComponent(args.workspaceId || '');
-  if (name === 'read_workspace_file') return broker(`/v1/workspaces/${id}/files?path=${encodeURIComponent(args.path)}`, 'GET');
-  if (name === 'list_workspace_files') return broker(`/v1/workspaces/${id}/files`, 'GET');
-  if (name === 'apply_workspace_patch') return broker(`/v1/workspaces/${id}/patch`, 'POST', { patch: args.patch });
-  if (name === 'replace_workspace_text') return broker(`/v1/workspaces/${id}/replace`, 'POST', { path: args.path, oldText: args.oldText, newText: args.newText });
-  if (name === 'run_workspace_tests') return broker(`/v1/workspaces/${id}/test`, 'POST', { commandId: args.commandId });
-  if (name === 'show_workspace_diff') return broker(`/v1/workspaces/${id}/diff`, 'POST');
-  if (name === 'cleanup_workspace') return broker(`/v1/workspaces/${id}/cleanup`, 'POST');
-  throw new Error('Unknown MnemCode tool.');
+  if (name === 'read_workspace_file') result = await broker(`/v1/workspaces/${id}/files?path=${encodeURIComponent(args.path)}`, 'GET');
+  else if (name === 'list_workspace_files') result = await broker(`/v1/workspaces/${id}/files`, 'GET');
+  else if (name === 'apply_workspace_patch') result = await broker(`/v1/workspaces/${id}/patch`, 'POST', { patch: args.patch });
+  else if (name === 'replace_workspace_text') result = await broker(`/v1/workspaces/${id}/replace`, 'POST', { path: args.path, oldText: args.oldText, newText: args.newText });
+  else if (name === 'run_workspace_tests') result = await broker(`/v1/workspaces/${id}/test`, 'POST', { commandId: args.commandId });
+  else if (name === 'show_workspace_diff') result = await broker(`/v1/workspaces/${id}/diff`, 'POST');
+  else if (name === 'cleanup_workspace') result = await broker(`/v1/workspaces/${id}/cleanup`, 'POST');
+  else throw new Error('Unknown MnemCode tool.');
+  }
+  await emitEvidence(projectBrokerEvent(name, args, result));
+  return result;
 }
 
 const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });

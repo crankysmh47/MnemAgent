@@ -79,12 +79,16 @@ services:
       - MCP_ADAPTER_URL=http://mnemos-mcp:8001
       - PORT=3000
       - JUDGE_MODEL=${JUDGE_MODEL:-deepseek-api/deepseek-v4-flash}
+      - JUDGE_MODEL_HARD_TOKEN_BUDGET=${JUDGE_MODEL_HARD_TOKEN_BUDGET:-2000000}
+      - JUDGE_MAX_SPONSORED_SESSIONS=${JUDGE_MAX_SPONSORED_SESSIONS:-12}
       - JUDGE_ACCESS_CODE=${JUDGE_ACCESS_CODE:-mnemcode-local-judge}
       - JUDGE_SESSION_SECRET=${JUDGE_SESSION_SECRET:-local-development-session-secret-change-for-cloud-123456}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - OPENCLAW_CONFIG_PATH=/app/config/openclaw/openclaw.json
+      - MNEMAGENT_MCP_URL=${MNEMAGENT_MCP_URL:-http://mnemos-mcp:8001/mcp}
       - MNEMCODE_ROOT=/app
       - WORKSPACE_BROKER_URL=http://workspace-broker:8010
+      - MNEMCODE_EVENT_URL=http://127.0.0.1:3000/api/judge/internal/events
       - WORKSPACE_HMAC_SECRET=${WORKSPACE_HMAC_SECRET:-local-development-hmac-secret-change-for-cloud-12345}
     depends_on:
       mnemos-memory:
@@ -103,8 +107,8 @@ services:
 
   workspace-broker:
     build:
-      context: ./workspace-broker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: workspace-broker/Dockerfile
     ports:
       - "127.0.0.1:8010:8010"
     volumes:
@@ -118,6 +122,7 @@ services:
       - WORKSPACE_HMAC_SECRET=${WORKSPACE_HMAC_SECRET:-local-development-hmac-secret-change-for-cloud-12345}
       - WORKSPACE_APPROVAL_SECRET=${WORKSPACE_APPROVAL_SECRET:-local-development-approval-secret-change-for-cloud-123}
       - WORKSPACE_ROOT=/workspaces
+      - WORKSPACE_VOLUME=mnemagent-judge-workspaces
       - JUDGE_RUNNER_IMAGE=${JUDGE_RUNNER_IMAGE:-mnemagent-judge-runner:local}
     restart: unless-stopped
     healthcheck:
@@ -154,3 +159,4 @@ services:
 volumes:
   mnemos-postgres:
   judge-workspaces:
+    name: mnemagent-judge-workspaces

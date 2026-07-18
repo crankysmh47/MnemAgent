@@ -25,11 +25,13 @@ function createJudgeAuth({ accessCode, sessionSecret, secure = false, now = () =
       }
       attempts.delete(ip);
       const csrf = randomBytes(24).toString('base64url');
-      const payload = Buffer.from(JSON.stringify({ namespace: 'judge', exp: now() + SESSION_SECONDS, csrf })).toString('base64url');
+      const sessionId = `jss_${randomBytes(12).toString('hex')}`;
+      const namespace = `judge-${randomBytes(8).toString('hex')}`;
+      const payload = Buffer.from(JSON.stringify({ sessionId, namespace, exp: now() + SESSION_SECONDS, csrf })).toString('base64url');
       const token = `${payload}.${sign(payload)}`;
       const flags = [`mnemcode_judge=${token}`, 'Path=/', 'HttpOnly', 'SameSite=Strict', `Max-Age=${SESSION_SECONDS}`];
       if (secure) flags.push('Secure');
-      return { csrf, cookie: flags.join('; ') };
+      return { csrf, sessionId, namespace, expiresAt: (now() + SESSION_SECONDS) * 1000, cookie: flags.join('; ') };
     },
     verify({ cookieHeader = '', csrfHeader, origin, host, mutable = false }) {
       const token = /(?:^|;\s*)mnemcode_judge=([^;]+)/.exec(cookieHeader)?.[1];
@@ -38,7 +40,7 @@ function createJudgeAuth({ accessCode, sessionSecret, secure = false, now = () =
       const expected = sign(payload || '');
       if (!suppliedSignature || suppliedSignature.length !== expected.length || !timingSafeEqual(Buffer.from(suppliedSignature), Buffer.from(expected))) throw new Error('Judge session is invalid.');
       const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-      if (session.namespace !== 'judge' || session.exp < now()) throw new Error('Judge session expired.');
+      if (!/^jss_[a-f0-9]{24}$/.test(session.sessionId || '') || !/^judge-[a-f0-9]{16}$/.test(session.namespace || '') || session.exp < now()) throw new Error('Judge session expired.');
       if (mutable) {
         if (!safeEqual(csrfHeader || '', session.csrf)) throw new Error('CSRF validation failed.');
         let originHost;

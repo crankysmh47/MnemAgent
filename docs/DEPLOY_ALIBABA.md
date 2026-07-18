@@ -53,5 +53,5 @@ Install `scripts/spot-interruption-watch.sh` as a systemd service. It checks the
 
 - Keep one instance for the full judging window instead of crossing a monthly subscription boundary.
 - Set Alibaba budget alerts at $10, $20, and $30.
-- MnemCode enforces a separate model budget: $4.25 soft warning, $4.50 hard stop, then replay mode.
+- MnemCode admits at most 12 sponsored sessions per process and switches coding runs to replay after 2,000,000 measured model tokens. Set a separate $5 provider-side balance limit because token prices are controlled by the model provider.
 - Stop the stack and release the ECS instance after judging on August 13.

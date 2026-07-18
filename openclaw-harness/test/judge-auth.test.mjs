@@ -11,7 +11,10 @@ test('judge auth signs secure cookies and verifies CSRF-bound sessions', () => {
   assert.match(issued.cookie, /Secure/);
   assert.match(issued.cookie, /SameSite=Strict/);
   const session = service.verify({ cookieHeader: issued.cookie, csrfHeader: issued.csrf, origin: 'https://demo.example', host: 'demo.example', mutable: true });
-  assert.equal(session.namespace, 'judge');
+  assert.match(session.namespace, /^judge-[a-f0-9]{16}$/);
+  assert.match(session.sessionId, /^jss_[a-f0-9]{24}$/);
+  assert.equal(issued.namespace, session.namespace);
+  assert.equal(issued.sessionId, session.sessionId);
 });
 
 test('judge auth locks an IP after five failed attempts', () => {

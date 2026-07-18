@@ -26,7 +26,7 @@ MnemAgent solves both at the architectural level, not as patches.
                     │  • Embed query                │
                     │  • UCB-scored retrieval        │
                     │  • RWR associative hops        │
-                    │  • Assemble Qwen payload       │
+                    │  • Assemble model payload      │
                     │  • Return response to user     │
                     └─────────────┬───────────────┘
                                   │ response returned
@@ -54,7 +54,7 @@ Before any fact is written to the semantic graph, it is scored on three axes:
 |------|-----------------|-----|
 | **Novelty** | Does this extend or contradict existing knowledge? | Query semantic_graph for existing (user_id, entity, relation) triple |
 | **Utility** | Would knowing this change future responses? | Category: system_state > preference > persona |
-| **Conviction** | Was this stated with certainty or casually? | Extracted from Qwen's `<memory_update>` JSON (0.0–1.0) |
+| **Conviction** | Was this stated with certainty or casually? | Extracted from the model's `<memory_update>` JSON (0.0–1.0) |
 
 **Storage rule:** `Store if: conviction >= 0.4 OR category == 'system_state'`
 
@@ -62,7 +62,7 @@ What gets rejected: "Maybe we'll try Tailwind sometime" (conviction ~0.2), "I'm 
 
 ### Pillar 2 — Dual-Output Chain-of-Thought Extraction
 
-The system prompt forces Qwen to emit structured `<memory_update>` XML before its conversational response:
+The system prompt asks the configured chat model to emit structured `<memory_update>` XML before its conversational response:
 
 ```xml
 <memory_update>{"entity":"backend_framework","relation":"prefers","value":"express","category":"system_state","conviction":0.95}</memory_update>
@@ -92,7 +92,7 @@ This guarantees exploration: given enough turns, every non-pruned memory will ev
 
 ### Pillar 4 — Closed-Loop Feedback
 
-After Qwen responds, the system checks whether each injected memory actually influenced the response using proximity regex (both entity terms within 100 characters of each other):
+After the model responds, the system checks whether each injected memory actually influenced the response using proximity regex (both entity terms within 100 characters of each other):
 
 ```
 If belief shaped the response:  Q_i = min(1.0, Q_i + 0.05), influence_count++
@@ -229,14 +229,17 @@ The visualizer mirrors that contract. It lays out only returned memories, report
 ```mermaid
 flowchart LR
   J["Judge browser"] -->|"HTTPS :443"| C["Caddy on Alibaba ECS"]
-  T["OpenClaw terminal"] --> O["OpenClaw gateway"]
-  C --> V["Read-only visualizer"]
-  O -->|"loopback MCP"| M["MnemAgent MCP"]
+  C --> V["MnemTree + judge workbench"]
+  V --> O["OpenClaw judge agents"]
+  O --> M["MnemAgent MCP"]
+  O -->|"signed structured tools"| B["Workspace broker"]
   M --> A["Memory API"]
   V --> A
   A --> P[("Postgres + pgvector")]
-  A --> Q["DashScope / Qwen"]
+  O --> D["DeepSeek V4 Flash"]
+  B --> R["No-network runner"]
+  B --> G["GitHub draft PR API"]
   A -. "optional snapshot" .-> S[("Alibaba OSS")]
 ```
 
-Only Caddy publishes a public application route. MCP is bound to ECS loopback for the host OpenClaw terminal; API and PostgreSQL stay on the Compose network. The cloud harness permits read-only access to `demo-brain` and the configured judge namespace; memory mutations travel through the OpenClaw/MCP path.
+Only Caddy publishes a public application route. The API, MCP, broker, runner control plane, and PostgreSQL remain private. Anonymous visitors can inspect only `demo-brain`; a signed one-hour judge session unlocks fresh-session chat and one approval-gated coding run in a random private namespace. Memory mutations travel through OpenClaw and MCP, while the browser never receives model or GitHub credentials.

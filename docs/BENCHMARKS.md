@@ -1,6 +1,6 @@
 # Benchmark evidence
 
-The headline result is the latest committed live Postgres-backed MnemBench v2 smoke run from July 8, 2026. MnemBench v2 is currently an evaluation suite in this repository, not a separate public repository. The original public benchmark is [MnemBench](https://github.com/crankysmh47/MnemBench); the two should not be confused.
+The headline result is the latest documented live Postgres-backed MnemBench v2 smoke run from July 8, 2026. MnemBench v2 is currently an evaluation suite in this repository, not a separate public repository. The original public benchmark is [MnemBench](https://github.com/crankysmh47/MnemBench); the two should not be confused. The detailed stable report is [retained here](archive/MNEMBENCH_RESULTS.md); raw machine-local outputs are not committed.
 
 | Metric | MnemAgent | Stateless baseline | Difference |
 | --- | ---: | ---: | ---: |

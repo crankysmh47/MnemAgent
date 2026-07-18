@@ -6,7 +6,7 @@ Persistent, scope-aware memory for coding agents. Submitted to the Qwen Global A
 
 ![MnemAgent logo](docs/assets/logo.jpg)
 
-MnemAgent learns preferences and project conventions across sessions, resolves contradictions inside the correct scope, forgets low-value facts, and makes every coding action visible in a living memory tree. MnemCode is the judge-facing coding workflow built on top: an OpenClaw agent chooses a real issue, works in an isolated no-network container, runs fixed tests, and pauses before opening a draft PR.
+MnemAgent learns preferences and project conventions across sessions, resolves contradictions inside the correct scope, forgets low-value facts, and makes every coding action visible in a living memory tree. MnemCode is the judge-facing coding workflow built on top: an OpenClaw agent works on one real issue in an isolated no-network container, runs fixed tests, and pauses before opening a draft PR.
 
 ![Populated MnemTree with the MnemCode judge workbench](docs/assets/visualizer.png)
 
@@ -31,7 +31,7 @@ flowchart LR
   A --> B["Signed workspace broker"]
   M --> API["FastAPI memory engine"]
   API --> P[("Postgres + pgvector")]
-  API --> Q["Qwen / DashScope"]
+  API --> D["DeepSeek API"]
   B --> R["No-network runner"]
   B --> G["GitHub draft PR API"]
   API -.-> O[("Alibaba OSS backup")]
@@ -57,15 +57,14 @@ The graph API renders no more than 150 individual memories and 120 ambient relat
 
 ## Judge flow
 
-1. Open the deployed URL and inspect the populated MnemTree.
-2. Enter the private judge access code in the right-hand MnemCode panel.
-3. Start a prepared task. The activity feed shows issue inspection, scoped memory retrieval, file reads, patch application, and tests.
-4. Give one review correction. The agent stores it as repository memory.
-5. Start a fresh session and run the next task. The Memory tab shows that the correction was retrieved before planning.
-6. Review the exact diff and test output. Approve only if both are correct.
-7. The broker opens a draft PR. It cannot push to `main` or create a ready-for-review PR.
+1. Open the deployed URL and inspect the populated public MnemTree.
+2. Enter the private judge access code. This creates a random one-hour memory namespace with three chat turns, one coding run, and one draft-PR approval.
+3. Tell the agent a durable coding preference. Send another message: it runs in a fresh OpenClaw session and can recall the first turn. The MnemTree switches to the private namespace and grows as memories are stored.
+4. Start the prepared WebPort issue #14 task. Activity shows issue inspection, memory retrieval, file reads, test-first edits, and constrained test execution.
+5. Inspect the memories, test results, and exact diff in their separate tabs.
+6. Check the approval box and open a draft PR. The broker cannot push to `main` or publish before this explicit approval.
 
-The final repository acceptance run uses `crankysmh47/WebPort`: the agent selected [issue #11](https://github.com/crankysmh47/WebPort/issues/11), retrieved its repository-scoped correction, wrote regression coverage, implemented the bounded fix with `deepseek-v4-flash`, and produced [tested draft PR #13](https://github.com/crankysmh47/WebPort/pull/13).
+The validated acceptance run uses `crankysmh47/WebPort`: the agent handled [issue #14](https://github.com/crankysmh47/WebPort/issues/14), retrieved repository-scoped memory, wrote the regression test first, added the four-line guard with `deepseek-v4-flash`, passed the focused and complete unit suites, and produced [draft PR #15](https://github.com/crankysmh47/WebPort/pull/15). The PR touches only the source file and its regression test, and its sole commit is authored by `crankysmh47 <annankhan741@gmail.com>`.
 
 ## Local setup
 
@@ -120,7 +119,7 @@ The required Alibaba proof is in [cloud sync](mcp-memory-server/src/storage/clou
 - HMAC-signed broker requests with replay protection
 - Diff-bound approval tokens that expire after five minutes
 - Runner limits: no network, read-only root, non-root user, dropped capabilities, 768 MB RAM, 0.75 CPU, 128 PIDs
-- Global model budget: $4.25 soft threshold and $4.50 hard stop, followed by replay mode
+- Sponsored guardrails: at most 12 one-hour judge sessions per process and a 2,000,000-token coding budget, followed by replay mode
 
 ## API summary
 
@@ -132,12 +131,16 @@ The required Alibaba proof is in [cloud sync](mcp-memory-server/src/storage/clou
 | `GET /api/graph/:uid` | Scalable MnemTree payload |
 | `GET /api/events/:uid` | Memory lifecycle events |
 | `POST /judge/session` | Signed judge access session |
+| `GET /api/judge/session` | Current private namespace and remaining allowance |
+| `POST /api/judge/chat` | Start one fresh-session memory chat turn |
+| `GET /api/judge/chat/:id` | Poll a chat turn without blocking the web request |
 | `POST /api/judge/runs` | Start an observable OpenClaw run |
 | `GET /api/judge/runs/:id` | Read run state and ordered evidence |
+| `POST /api/judge/runs/:id/approve` | Open the reviewed change as a draft PR |
 
 ## Benchmarks
 
-The repository contains the raw run artifacts and the methodology, not hand-entered scores. Start with [docs/BENCHMARKS.md](docs/BENCHMARKS.md). The submission reports whichever verified MnemBench version is more favorable without mixing v1 and v2 datasets.
+The repository contains the stable run reports, reproduction method, and stated limitations. Start with [docs/BENCHMARKS.md](docs/BENCHMARKS.md); the full historical report is retained under `docs/archive`. MnemBench v1 and v2 results are labeled separately and are never mixed.
 
 ## License
 

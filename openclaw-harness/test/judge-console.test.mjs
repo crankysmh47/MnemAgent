@@ -17,3 +17,15 @@ test('duplicate replay events do not duplicate activity', () => {
   const state = reduceJudgeState(reduceJudgeState({ status: 'idle', events: [] }, event), event);
   assert.equal(state.events.length, 1);
 });
+
+test('judge state keeps quota and separates real evidence for memory and changes tabs', () => {
+  const state = reduceJudgeState({ status: 'running', events: [], quota: null, evidence: null }, {
+    id: 'evt-1', type: 'test.completed', sequence: 1, detail: { commandId: 'test-unit', exitCode: 0 },
+  }, {
+    quota: { chatTurnsRemaining: 2, codingRunsRemaining: 0, publicationsRemaining: 1, reservedUsdRemaining: 0.04 },
+    evidence: { memories: [{ value: 'Use user-safe errors.' }], tests: [{ commandId: 'test-unit', passed: true }], diff: 'patch', readyForApproval: true },
+  });
+  assert.equal(state.quota.chatTurnsRemaining, 2);
+  assert.equal(state.evidence.memories[0].value, 'Use user-safe errors.');
+  assert.equal(state.evidence.readyForApproval, true);
+});

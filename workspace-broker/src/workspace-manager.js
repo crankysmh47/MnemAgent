@@ -18,7 +18,11 @@ function gitWithInput(cwd, args, input) {
   });
 }
 
-export function createWorkspaceManager({ root, allowedRepository, clone, runnerImage = 'mnemagent-judge-runner:local' }) {
+export function buildRunnerArgs({ workspaceVolume, workspaceId, runnerImage }) {
+  return ['run', '--rm', '-i', '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--memory', '768m', '--cpus', '0.75', '--pids-limit', '128', '--tmpfs', '/tmp:rw,exec,nosuid,size=128m', '-e', `WORKSPACE_ROOT=/workspaces/${workspaceId}`, '--mount', `type=volume,source=${workspaceVolume},target=/workspaces`, runnerImage];
+}
+
+export function createWorkspaceManager({ root, allowedRepository, clone, runnerImage = 'mnemagent-judge-runner:local', workspaceVolume = 'mnemagent-judge-workspaces' }) {
   const sessions = new Map();
   let activeId = null;
   return {
@@ -94,7 +98,7 @@ export function createWorkspaceManager({ root, allowedRepository, clone, runnerI
     async test(id, request = { commandId: 'test' }) {
       const session = sessions.get(id);
       if (!session) throw new Error('Workspace not found.');
-      const args = ['run', '--rm', '-i', '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--memory', '768m', '--cpus', '0.75', '--pids-limit', '128', '--tmpfs', '/tmp:rw,exec,nosuid,size=128m', '-e', 'WORKSPACE_ROOT=/workspace', '-v', `${session.path}:/workspace:rw`, runnerImage];
+      const args = buildRunnerArgs({ workspaceVolume, workspaceId: session.id, runnerImage });
       return new Promise((resolve, reject) => {
         const child = spawn('docker', args, { shell: false, windowsHide: true });
         let stdout = ''; let stderr = '';

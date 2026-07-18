@@ -9,6 +9,7 @@ import { createApproval, verifyApproval } from './approval.js';
 import { verifyHmacRequest } from './hmac.js';
 import { loadConfig } from './config.js';
 import { createWorkspaceManager } from './workspace-manager.js';
+import { hasRequiredTestEvidence, recordTestEvidence } from './test-policy.js';
 
 const execFileAsync = promisify(execFile);
 const config = loadConfig();
@@ -43,7 +44,7 @@ async function withAskPass(callback) {
   finally { await rm(helper, { force: true }); }
 }
 
-const manager = createWorkspaceManager({ root: config.root, allowedRepository: config.repository, clone: cloneRepository, runnerImage: config.runnerImage });
+const manager = createWorkspaceManager({ root: config.root, allowedRepository: config.repository, clone: cloneRepository, runnerImage: config.runnerImage, workspaceVolume: config.workspaceVolume });
 
 function send(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -70,13 +71,13 @@ const server = http.createServer(async (req, res) => {
     if (actionMatch && req.method === 'POST' && actionMatch[2] === 'replace') return send(res, 200, await manager.replaceText(actionMatch[1], input));
     if (actionMatch && req.method === 'POST' && actionMatch[2] === 'test') {
       const result = await manager.test(actionMatch[1], input);
-      testEvidence.set(actionMatch[1], result.exitCode === 0);
+      recordTestEvidence(testEvidence, actionMatch[1], input.commandId, result.exitCode);
       return send(res, 200, result);
     }
     if (actionMatch && req.method === 'POST' && actionMatch[2] === 'diff') return send(res, 200, { diff: await manager.diff(actionMatch[1]) });
     const prepareMatch = /^\/v1\/workspaces\/([^/]+)\/prepare-pr$/.exec(req.url);
     if (req.method === 'POST' && prepareMatch) {
-      if (!testEvidence.get(prepareMatch[1])) throw new Error('Passing test evidence is required.');
+      if (!hasRequiredTestEvidence(testEvidence, prepareMatch[1])) throw new Error('Both required tests must pass.');
       const diff = await manager.diff(prepareMatch[1]);
       if (!diff.trim()) throw new Error('A non-empty diff is required.');
       const diffHash = hash(diff);
@@ -86,7 +87,7 @@ const server = http.createServer(async (req, res) => {
     const openMatch = /^\/v1\/workspaces\/([^/]+)\/open-pr$/.exec(req.url);
     if (req.method === 'POST' && openMatch) {
       const session = manager.get(openMatch[1]);
-      if (!session || !testEvidence.get(openMatch[1])) throw new Error('Workspace is not ready for a PR.');
+      if (!session || !hasRequiredTestEvidence(testEvidence, openMatch[1])) throw new Error('Workspace is not ready for a PR.');
       const diffHash = hash(await manager.diff(openMatch[1]));
       const metadataHash = hash(JSON.stringify({ title: input.title, body: input.body, base: 'main' }));
       verifyApproval({ token: input.token, expiresAt: input.expiresAt, runId: input.runId, diffHash, metadataHash, secret: config.approvalSecret });
@@ -106,4 +107,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(config.port, '127.0.0.1', () => console.log(`MnemCode workspace broker listening on 127.0.0.1:${config.port}`));
+server.listen(config.port, '0.0.0.0', () => console.log(`MnemCode workspace broker listening on 0.0.0.0:${config.port}`));
