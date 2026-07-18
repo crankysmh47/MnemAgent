@@ -17,7 +17,7 @@ tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 login_json="$(printf '{"accessCode":"%s"}' "$JUDGE_ACCESS_CODE")"
 curl --fail --silent --show-error -c "$tmp_dir/cookies" -H "Content-Type: application/json" -H "Origin: https://${MEMORY_DOMAIN}" --data "$login_json" "https://${MEMORY_DOMAIN}/judge/session" >"$tmp_dir/session.json"
-node -e "const s=require(process.argv[1]); if(!/^judge-[a-f0-9]{16}$/.test(s.namespace)||s.quota.chatTurnsRemaining!==3||s.quota.codingRunsRemaining!==1) process.exit(1)" "$tmp_dir/session.json"
+node -e "const s=require(process.argv[1]); if(!/^judge-[a-f0-9]{16}$/.test(s.namespace)||s.quota.chatTurnsRemaining!==30||s.quota.codingRunsRemaining!==5||s.quota.publicationsRemaining!==5) process.exit(1)" "$tmp_dir/session.json"
 curl --fail --silent --show-error -b "$tmp_dir/cookies" "https://${MEMORY_DOMAIN}/api/judge/session" >/dev/null
 curl --fail --silent --show-error "https://${MEMORY_DOMAIN}/" | grep -q 'data-judge-chat'
 echo "HTTPS, OpenClaw, signed judge session, sponsored quota, UI, archive policy, MCP, and broker checks passed."
