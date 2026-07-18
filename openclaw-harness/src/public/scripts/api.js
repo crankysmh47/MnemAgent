@@ -8,16 +8,7 @@ export async function requestJson(path, { signal } = {}) {
 export async function resolveUserId(locationSearch = '', storage) {
   const query = new URLSearchParams(locationSearch).get('user')?.trim();
   if (query) return query;
-  const storedValue = storage?.getItem?.('mnemos_user_id');
-  const stored = typeof storedValue === 'string' ? storedValue.trim() : '';
-  if (stored) return stored;
-  for (const path of ['/api/user/whoami', '/api/setup/default-user-id']) {
-    try {
-      const data = await requestJson(path);
-      if (typeof data?.user_id === 'string' && data.user_id.trim()) return data.user_id.trim();
-    } catch { /* try next identity source */ }
-  }
-  return '';
+  return 'demo-brain';
 }
 
 export function graphPath(userId, { query = '', limit, focusId } = {}) {

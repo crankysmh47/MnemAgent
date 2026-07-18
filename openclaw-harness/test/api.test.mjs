@@ -23,20 +23,21 @@ test('requestJson falls back to HTTP status for primitive error payloads', async
   await assert.rejects(requestJson('/broken'), /Request failed with HTTP 502/);
 });
 
-test('resolveUserId prioritizes query, storage, whoami, then setup', async () => {
-  globalThis.fetch = async (url) => response(url.includes('whoami') ? { user_id: 'who' } : { user_id: 'setup' });
+test('resolveUserId prioritizes an explicit archive and defaults every unqualified visit to demo-brain', async () => {
   const { resolveUserId } = await load();
   assert.equal(await resolveUserId('?user=query%20id', { getItem: () => 'stored' }), 'query id');
-  assert.equal(await resolveUserId('', { getItem: () => 'stored' }), 'stored');
-  assert.equal(await resolveUserId('', { getItem: () => '' }), 'who');
-  globalThis.fetch = async () => response({}, false, 503);
-  assert.equal(await resolveUserId('', { getItem: () => '' }), '');
+  assert.equal(await resolveUserId('', { getItem: () => 'private-judge-namespace' }), 'demo-brain');
 });
 
-test('resolveUserId ignores malformed non-string identity payloads', async () => {
-  globalThis.fetch = async (url) => response(url.includes('whoami') ? { user_id: 42 } : { user_id: 'setup-user' });
+test('resolveUserId lands an unqualified public visit on the populated demo archive', async () => {
+  globalThis.fetch = async () => response({ user_id: 'private-setup-user' });
   const { resolveUserId } = await load();
-  assert.equal(await resolveUserId('', { getItem: () => 99 }), 'setup-user');
+  assert.equal(await resolveUserId('', { getItem: () => '' }), 'demo-brain');
+});
+
+test('resolveUserId ignores non-string browser storage', async () => {
+  const { resolveUserId } = await load();
+  assert.equal(await resolveUserId('', { getItem: () => 99 }), 'demo-brain');
 });
 
 test('loadArchiveSnapshot encodes user and since, recovering partial failures', async () => {
