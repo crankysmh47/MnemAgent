@@ -13,7 +13,9 @@ test('local demo start hydrates the broker token from the GitHub CLI keyring', (
 });
 
 test('cloud verification enforces the published 30 / 5 / 5 judge allowance', () => {
-  assert.match(cloudVerify, /chatTurnsRemaining!==30/);
-  assert.match(cloudVerify, /codingRunsRemaining!==5/);
-  assert.match(cloudVerify, /publicationsRemaining!==5/);
+  assert.match(cloudVerify, /chatTurnsRemaining[^\n]+== 30/);
+  assert.match(cloudVerify, /codingRunsRemaining[^\n]+== 5/);
+  assert.match(cloudVerify, /publicationsRemaining[^\n]+== 5/);
+  assert.match(cloudVerify, /python3 -/);
+  assert.doesNotMatch(cloudVerify, /node -e/);
 });
