@@ -4,6 +4,19 @@ $Root = Split-Path -Parent $PSScriptRoot
 $Uid = "demo-brain"
 $Harness = "http://127.0.0.1:3000"
 
+# Keep the repository-scoped credential in the GitHub CLI keyring. Compose
+# receives it only through this process environment; nothing is written to disk.
+if (-not $env:JUDGE_GITHUB_TOKEN) {
+  if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+    throw "GitHub CLI authentication is required. Install gh and run: gh auth login"
+  }
+  $GitHubToken = (& gh auth token 2>$null).Trim()
+  if ($LASTEXITCODE -ne 0 -or $GitHubToken.Length -lt 20) {
+    throw "GitHub CLI authentication is required. Run: gh auth login"
+  }
+  $env:JUDGE_GITHUB_TOKEN = $GitHubToken
+}
+
 Write-Host "Starting MnemAgent stack..." -ForegroundColor Cyan
 Push-Location $Root
 docker compose up -d --build

@@ -81,8 +81,11 @@ Set the model keys in `.env`, then build and start:
 
 ```bash
 docker compose --profile judge-build build workspace-runner
+export JUDGE_GITHUB_TOKEN="$(gh auth token)"
 docker compose up -d --build
 ```
+
+On Windows, `./scripts/start-demo.ps1` reads the GitHub token from the authenticated `gh` keyring for the lifetime of the process, starts the stack, and seeds `demo-brain`. It never writes the token to the repository or `.env`.
 
 Open `http://localhost:3000/?user=demo-brain`. Local judge access defaults to `mnemcode-local-judge`; cloud mode refuses to start with missing judge secrets.
 
