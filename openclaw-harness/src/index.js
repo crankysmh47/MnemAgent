@@ -10,7 +10,7 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 const { DEMO_USER_ID, seedDemoBrain } = require("./demo-seed");
-const { canReadArchive, canMutateThroughHarness } = require("./cloud-policy");
+const { canReadArchive, canMutateThroughHarness, archiveQueryString } = require("./cloud-policy");
 const { randomBytes } = require("node:crypto");
 const { createJudgeAuth } = require("./judge-auth");
 const { createJudgeRunService } = require("./judge-run-service");
@@ -402,7 +402,10 @@ for (const route of ["graph", "events", "metrics"]) {
       if (CLOUD_MODE && !canReadArchive(req.params.uid, resolveSetupUserId(), sessionUserId)) {
         return res.status(403).json({ error: "Archive namespace is not available." });
       }
-      const query = new URLSearchParams(req.query).toString();
+      const query = archiveQueryString(req.query, {
+        privateJudge: Boolean(sessionUserId && sessionUserId === req.params.uid),
+        repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/WebPort",
+      });
       const suffix = query ? `?${query}` : "";
       const url = `${MNEMOS_URL}/api/${route}/${encodeURIComponent(req.params.uid)}${suffix}`;
       const resp = await axios.get(url, mnemosConfig({ timeout: 30000 }));
