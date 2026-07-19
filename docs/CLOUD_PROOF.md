@@ -6,6 +6,8 @@ This page collects the two pieces of deployment evidence required by the Qwen Gl
 
 **Public deployment:** [https://47-237-140-12.sslip.io/](https://47-237-140-12.sslip.io/)  
 **Captured:** July 19, 2026  
+**Verified application commit:** [`26b9f9c`](https://github.com/crankysmh47/MnemAgent/commit/26b9f9c)
+
 **Alibaba region:** Singapore (`ap-southeast-1`)  
 **ECS instance:** `i-t4n8uh9pht7faeiw232v` / `MnemAgentServer`  
 **Shape:** `ecs.e-c1m2.large`, 2 vCPU, 4 GiB  
@@ -75,4 +77,4 @@ On the ECS host:
 ./scripts/verify-cloud.sh
 ```
 
-The script checks HTTPS, OpenClaw, the signed judge session and 30/5/5 allowance, the populated UI, public archive policy, MCP health, and workspace broker health. Deployment steps and the current judging-window cost posture are in [DEPLOY_ALIBABA.md](DEPLOY_ALIBABA.md).
+The script checks HTTPS, OpenClaw, the signed seven-day judge session and 30/5/5 allowance, the populated UI, public archive policy, MCP health, and workspace broker health. Deployment steps and the current judging-window cost posture are in [DEPLOY_ALIBABA.md](DEPLOY_ALIBABA.md).
