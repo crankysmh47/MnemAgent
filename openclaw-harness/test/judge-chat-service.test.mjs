@@ -15,6 +15,7 @@ test('chat creates a fresh OpenClaw session while retaining the private memory n
   assert.equal(calls[0].agentId, 'judge-chat');
   assert.match(calls[0].message, /scope_type[^\n]*repository/i);
   assert.match(calls[0].message, /crankysmh47\/WebPort/);
+  assert.match(calls[0].message, /explicitly asks you to remember[\s\S]*must call memory_store before replying/i);
   assert.match(calls[0].message, /judge-private/);
   assert.equal(service.get(first.id, 'jss_owner').status, 'completed');
   assert.throws(() => service.get(first.id, 'jss_other'), /not found/i);

@@ -9,3 +9,16 @@ test('cloud policy exposes only read-only demo and configured judge archives', (
   assert.equal(policy.canMutateThroughHarness('POST', true), false);
   assert.equal(policy.canMutateThroughHarness('POST', false), true);
 });
+
+test('cloud policy exposes a signed session archive only to its owning judge', () => {
+  assert.equal(policy.canReadArchive('judge-a1b2', '', 'judge-a1b2'), true);
+  assert.equal(policy.canReadArchive('judge-other', '', 'judge-a1b2'), false);
+});
+
+test('signed judge archive defaults to the prepared repository scope plus core memory', () => {
+  assert.equal(
+    policy.archiveQueryString({}, { privateJudge: true, repository: 'crankysmh47/WebPort' }),
+    'scope_type=repository&scope_id=crankysmh47%2FWebPort&include_core=true',
+  );
+  assert.equal(policy.archiveQueryString({ q: 'green' }, { privateJudge: false }), 'q=green');
+});
