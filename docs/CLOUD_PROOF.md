@@ -26,6 +26,10 @@ Public health response captured from the deployed HTTPS endpoint:
 
 The public boundary exposes only Caddy on ports 80/443. The memory API, MCP server, Postgres database, OpenClaw harness, workspace broker, and runner control plane are private or loopback-only.
 
+### Live judge-flow verification
+
+On July 19, 2026, the deployed sponsored runtime completed a two-turn cross-session smoke test. The first fresh OpenClaw conversation stored this repository-scoped WebPort rule: preserve backward compatibility and add a regression test before changing behavior. A second fresh conversation was then asked what rule it had been given. It recovered both requirements and identified the `crankysmh47/WebPort` scope. Both live turns completed successfully; this was not a fixture or dry run.
+
 ## 2. Qwen Cloud code proof
 
 The production settings file contains Alibaba Cloud Model Studio's accepted international OpenAI-compatible base URL:
