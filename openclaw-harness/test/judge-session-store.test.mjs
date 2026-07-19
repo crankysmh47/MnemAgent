@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 import sessionModule from '../src/judge-session-store.js';
 
@@ -33,4 +36,65 @@ test('sponsored admission has a global session cap', () => {
   store.create({ sessionId: 'jss_one', namespace: 'judge-one' });
   store.create({ sessionId: 'jss_two', namespace: 'judge-two' });
   assert.throws(() => store.create({ sessionId: 'jss_three', namespace: 'judge-three' }), /capacity/i);
+});
+
+test('default sponsored sessions remain valid for seven days', () => {
+  let now = 1_000;
+  const store = createJudgeSessionStore({ now: () => now });
+  const session = store.create({ sessionId: 'jss_week', namespace: 'judge-week' });
+
+  assert.equal(session.expiresAt, 1_000 + (7 * 24 * 60 * 60 * 1000));
+  now = session.expiresAt - 1;
+  assert.equal(store.get('jss_week').namespace, 'judge-week');
+  now = session.expiresAt;
+  assert.throws(() => store.get('jss_week'), /expired/i);
+});
+
+test('persisted quotas survive store recreation without refreshing allowance', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mnemagent-judge-store-'));
+  const persistencePath = path.join(directory, 'sessions.json');
+  const options = { now: () => 1_000, persistencePath };
+  try {
+    const first = createJudgeSessionStore(options);
+    first.create({ sessionId: 'jss_persisted', namespace: 'judge-persisted' });
+    first.reserve('jss_persisted', 'chat');
+    first.settle('jss_persisted', 'chat');
+    first.consumePublication('jss_persisted');
+
+    const restored = createJudgeSessionStore(options);
+    assert.deepEqual(restored.get('jss_persisted').quota, {
+      chatTurnsRemaining: 29,
+      codingRunsRemaining: 5,
+      publicationsRemaining: 4,
+      reservedUsdRemaining: 0.54,
+    });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('store recreation refunds interrupted reservations and discards expired sessions', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mnemagent-judge-store-'));
+  const persistencePath = path.join(directory, 'sessions.json');
+  let now = 1_000;
+  const options = { now: () => now, ttlMs: 100, persistencePath };
+  try {
+    const first = createJudgeSessionStore(options);
+    first.create({ sessionId: 'jss_interrupted', namespace: 'judge-interrupted' });
+    first.reserve('jss_interrupted', 'coding');
+
+    const recovered = createJudgeSessionStore(options);
+    assert.deepEqual(recovered.get('jss_interrupted').quota, {
+      chatTurnsRemaining: 30,
+      codingRunsRemaining: 5,
+      publicationsRemaining: 5,
+      reservedUsdRemaining: 0.55,
+    });
+
+    now = 1_101;
+    const expired = createJudgeSessionStore(options);
+    assert.throws(() => expired.get('jss_interrupted'), /expired/i);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });

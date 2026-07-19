@@ -1,33 +1,49 @@
 # Judge guide
 
-Track: MemoryAgent. Allow about five minutes for the live path. The public tree and validated PR remain available without spending the live allowance.
+**Track:** Track 1 — MemoryAgent
+
+**Live URL:** [https://47-237-140-12.sslip.io/?user=demo-brain](https://47-237-140-12.sslip.io/?user=demo-brain)
+
+**Time:** about five minutes
+
+The landing page is populated and read-only, so the core memory design is visible before login or model spend.
 
 ## Five-minute test
 
-1. Open the submitted HTTPS URL. The public `demo-brain` tree should load without a login.
+1. Open the live URL. Confirm that the populated `demo-brain` tree appears.
 2. Search for `backend framework`, select a leaf, and inspect its relationship chain in the Memory Lens.
-3. Enter the supplied judge code in the MnemCode panel. The code creates a signed one-hour session and a new random memory namespace. It is not an API key.
-4. Send: `For WebPort, keep error messages user-safe and put detailed diagnostics only in server logs.` The first fresh OpenClaw session stores the durable convention.
-5. Send: `What error-message convention should you follow for WebPort?` This is a different OpenClaw session. Its answer should recall the prior convention, and the tree should show the stored memory.
-6. Start the WebPort task. Issue #14 is fixed so every judge sees the same bounded acceptance case. Watch Activity for issue, workspace, source-change, diff, and test events.
-7. Open Memory to see the repository-scoped fact retrieved for the run. Open Changes to inspect actual tests and the exact diff.
-8. Check the review box and select `Open draft PR`. Publication is unavailable until the evidence is complete and this approval is submitted.
+3. Enter the judge code supplied privately through Devpost. This code is not an API key. It creates a signed seven-day session and a random private namespace.
+4. Send: `For WebPort, keep error messages user-safe and put detailed diagnostics only in server logs.`
+5. Send: `What error-message convention should you follow for WebPort?` This is a different OpenClaw session. The response should recall the convention, and the MnemTree should show the new memory.
+6. Start the prepared WebPort issue #14 task. Watch Activity for issue inspection, workspace creation, memory retrieval, source changes, diff generation, and tests.
+7. Open Memory to see the repository-scoped guidance. Open Changes to inspect the exact patch and test output.
+8. If you want to exercise publication, check the review box and select **Open draft PR**. Nothing can publish before the run passes and this approval is submitted.
 
-Expected result: a draft PR URL. The agent cannot push to `main`, edit GitHub Actions, install packages, run a generic shell, or open a PR before tests and human approval.
+The allowance is 30 chat turns, five coding runs, and five draft-PR approvals. Seven days changes elapsed access only; it does not add model or publication quota.
 
-## What this proves
+## Expected result
 
-- Persistence: the correction survives a fresh OpenClaw session.
-- Scope: repository guidance does not alter core preferences or another repository.
-- Retrieval economy: no more than six relevant memories enter the model context.
-- Forgetting: low-value memories decay and cross the prune threshold; contradictions replace only the matching scoped belief.
-- Agency: the model reads an issue, chooses files, proposes a patch, runs tests, and stops at an approval boundary.
-- Observability: the UI shows ordered server events rather than a simulated terminal transcript.
+The agent should demonstrate all four layers of the product:
+
+- **Persistence:** the correction survives a fresh OpenClaw session.
+- **Scope:** repository guidance remains separate from core preferences and other repositories.
+- **Economy:** at most six relevant memories enter the model context.
+- **Agency:** the model reads the issue, chooses bounded files, writes a patch, runs tests, and stops at a human approval boundary.
+
+The workbench shows ordered server evidence, not a simulated terminal transcript.
+
+## Pre-validated path
+
+The reference run fixed [WebPort issue #14](https://github.com/crankysmh47/WebPort/issues/14) and produced [draft PR #15](https://github.com/crankysmh47/WebPort/pull/15). It retrieved repository memory, wrote the regression test first, changed only the source and test files, passed the focused and full unit commands, and used the repository owner's commit identity.
 
 ## Recovery
 
-- Empty tree: use `?user=demo-brain`.
-- Judge code rejected: wait for the organizer if the IP lockout was triggered after five attempts.
-- Model budget reached: the UI switches to the recorded replay and labels it clearly.
-- Spot interruption: no PR opens. Use the public draft PR #15 evidence while the owner restores the instance.
-- Test failure: no approval control appears. Public draft PR #15 contains the validated acceptance result.
+- **Empty tree:** reopen the URL with `?user=demo-brain`.
+- **Judge code rejected:** five failures lock that source IP for 30 minutes.
+- **Sponsored capacity reached:** use the public tree and validated PR; both require no live model call.
+- **Spot interruption:** no PR opens. The seven-day allowance is stored in a Docker volume and returns after the service is restored.
+- **Test failure:** the approval control remains unavailable; inspect the pre-validated PR instead.
+
+## What is intentionally unavailable
+
+Judges do not provide GitHub or model keys to the browser. The hosted broker owns a repository-limited token, and the sponsored model budget is server-side. General bring-your-own-key and arbitrary repository execution are future product capabilities, not hidden experimental paths in this submission.

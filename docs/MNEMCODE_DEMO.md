@@ -1,6 +1,6 @@
-# MnemCode demo
+# MnemCode: memory with consequences
 
-MnemCode turns MnemAgent's memory engine into a concrete coding-agent test. The use case is deliberately narrow: one repository, one workspace, one runner, and draft PRs only.
+MnemCode is the judge-facing coding workflow built on MnemAgent and OpenClaw. Its purpose is not to imitate a general cloud IDE. It gives one concrete answer to a more important question: **does remembered experience change what an agent does on a real task?**
 
 ## Run lifecycle
 
@@ -13,45 +13,58 @@ sequenceDiagram
   participant B as Broker
   participant R as Runner
   participant G as GitHub
-  J->>U: Teach one repository preference
+  J->>U: Teach a repository convention
   U->>O: Fresh chat session
-  O->>M: Store scoped memory
-  J->>U: Start prepared issue #14
+  O->>M: Store repository-scoped memory
+  J->>U: Start WebPort issue #14
   U->>O: Fresh coding session + private namespace
   O->>M: Retrieve repository + core memories
   O->>B: Read issue and bounded files
   O->>B: Apply bounded source edits
   B->>R: Fixed test command, no network
   R-->>B: Exit code + bounded output
-  B-->>U: Diff and test evidence
-  J->>U: Approve exact diff
+  B-->>U: Activity, memory, tests, exact diff
+  J->>U: Approve reviewed diff
   U->>B: Five-minute diff-bound token
-  B->>G: Push judge branch and open draft PR
+  B->>G: Open draft PR
 ```
 
-## WebPort acceptance case
+## Validated WebPort run
 
-The completed acceptance run is captured in [WebPort issue #14](https://github.com/crankysmh47/WebPort/issues/14) and [draft PR #15](https://github.com/crankysmh47/WebPort/pull/15):
+The acceptance path is preserved in [issue #14](https://github.com/crankysmh47/WebPort/issues/14) and [draft PR #15](https://github.com/crankysmh47/WebPort/pull/15).
 
-1. The server gives each judge a random private memory namespace and a small sponsored allowance.
-2. Chat uses a new OpenClaw session on every turn while retaining that namespace, so cross-session recall is visible before the coding task starts.
-3. The coding agent reads issue #14, retrieves repository memory, and creates one isolated workspace tied to that issue.
-4. It reads only bounded files, writes a regression test first, applies the implementation, and runs WebPort's fixed unit/validation commands.
-5. The workbench separates ordered activity, retrieved memory, tests, and the exact diff.
-6. A human reviews the evidence before the broker opens a draft PR.
+The agent:
 
-The constrained runner passed the focused numeric-command regression test and WebPort's complete unit test command before the branch was published. The resulting diff adds four source lines and 24 regression-test lines. The commit is authored only as `crankysmh47 <annankhan741@gmail.com>`.
+1. entered a random private memory namespace;
+2. stored and retrieved repository guidance through MnemAgent MCP;
+3. inspected the prepared issue and bounded source files;
+4. wrote the numeric-command regression test first;
+5. added the small implementation guard;
+6. passed the focused regression and complete unit command;
+7. exposed the retrieved memory, test output, and exact diff separately;
+8. waited for human approval before the broker opened a draft PR.
 
-Model: `deepseek-api/deepseek-v4-flash` in OpenClaw, sent as `deepseek-v4-flash` to the official DeepSeek API. The judge stack does not use the Qwen/DashScope key and does not accept an OpenRouter key.
+The published diff contains only the relevant source file and regression test. Its sole commit uses the repository owner's configured author identity.
+
+## Current public model path
+
+The sponsored judge workflow uses `deepseek-v4-flash` through the official DeepSeek API. It does not ask judges for a model key and does not expose an OpenRouter option. Qwen Cloud integration and Qwen benchmark evidence are documented separately.
 
 ## Hard limits
 
 - Five files and 500 changed lines per patch
 - 120 KB patch body
-- Fixed test command IDs only
-- One active coding run
-- No network in runner
-- Five-minute approval
-- 30 chat turns, 5 coding runs, and 5 draft publications per judge session
-- One-hour sponsored session, shown as action quotas rather than a misleading dollar estimate
-- Twelve sponsored sessions and a 2,000,000-token coding hard stop before replay mode
+- Fixed test-command identifiers and exact argv arrays
+- One active coding run per session
+- No network in the runner
+- Five-minute diff-bound publication approval
+- 30 chat turns, five coding runs, and five draft publications
+- Seven-day signed session; quotas persist across harness restarts
+- Twelve concurrent sponsored sessions
+- 2,000,000 measured coding-token ceiling before replay mode
+
+## Why the workflow is narrow
+
+Arbitrary repository execution would require broader token permissions, package-install policy, per-language sandbox images, and stronger multi-tenant isolation. Those are product tasks, not switches hidden from judges. The WebPort case is intentionally repeatable and reviewable.
+
+Broader one-click repository/task packs are in progress. The core MnemAgent MCP servers already work without MnemCode, so users can attach memory to a normal OpenClaw deployment and retain its wider integrations today.

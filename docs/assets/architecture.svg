@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">MnemAgent architecture</title>
+  <desc id="desc">A judge browser reaches MnemTree and MnemCode through Caddy on Alibaba ECS. OpenClaw connects to Qwen Cloud or the sponsored DeepSeek demo, MnemAgent MCP and Postgres memory, and an approval-gated coding broker.</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbf6e8"/>
+      <stop offset="1" stop-color="#edf0d8"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#596b45"/>
+    </marker>
+    <style>
+      .title{font:700 42px Georgia,serif;fill:#263622}.sub{font:20px Arial,sans-serif;fill:#617056}
+      .zone{fill:#f7f0dc;stroke:#b9aa7b;stroke-width:2;stroke-dasharray:8 8}.zone-label{font:700 18px Arial,sans-serif;fill:#806d3e;letter-spacing:2px}
+      .node{fill:#fffaf0;stroke:#71815b;stroke-width:3}.green{fill:#e1e8c9}.gold{fill:#f4dfb6}.blue{fill:#dce8e5}.red{fill:#eed8cd}
+      .label{font:700 21px Arial,sans-serif;fill:#263622;text-anchor:middle}.small{font:16px Arial,sans-serif;fill:#596b45;text-anchor:middle}
+      .line{fill:none;stroke:#596b45;stroke-width:4;marker-end:url(#arrow)}.dash{stroke-dasharray:10 8}.thin{stroke-width:3}
+    </style>
+  </defs>
+  <rect width="1600" height="900" rx="36" fill="url(#paper)"/>
+  <text x="80" y="76" class="title">MnemAgent — persistent memory that guides action</text>
+  <text x="80" y="112" class="sub">Qwen Cloud integration · Alibaba ECS deployment · OpenClaw + MCP · Postgres/pgvector</text>
+
+  <rect x="260" y="150" width="1280" height="650" rx="30" class="zone"/>
+  <text x="300" y="188" class="zone-label">ALIBABA CLOUD ECS · PRIVATE COMPOSE NETWORK</text>
+
+  <rect x="45" y="350" width="180" height="110" rx="24" class="node blue"/>
+  <text x="135" y="396" class="label">Judge</text><text x="135" y="425" class="small">browser</text>
+
+  <rect x="315" y="350" width="180" height="110" rx="24" class="node gold"/>
+  <text x="405" y="396" class="label">Caddy</text><text x="405" y="425" class="small">HTTPS boundary</text>
+
+  <rect x="560" y="290" width="220" height="110" rx="24" class="node green"/>
+  <text x="670" y="336" class="label">MnemTree</text><text x="670" y="365" class="small">inspect memory</text>
+  <rect x="560" y="440" width="220" height="110" rx="24" class="node green"/>
+  <text x="670" y="486" class="label">MnemCode</text><text x="670" y="515" class="small">review agent work</text>
+
+  <rect x="850" y="365" width="210" height="120" rx="28" class="node gold"/>
+  <text x="955" y="414" class="label">OpenClaw</text><text x="955" y="444" class="small">agent runtime</text>
+
+  <rect x="1135" y="220" width="240" height="105" rx="24" class="node blue"/>
+  <text x="1255" y="263" class="label">Qwen Cloud</text><text x="1255" y="291" class="small">primary integration</text>
+  <rect x="1135" y="355" width="240" height="105" rx="24" class="node red"/>
+  <text x="1255" y="398" class="label">DeepSeek</text><text x="1255" y="426" class="small">sponsored judge path</text>
+
+  <rect x="850" y="575" width="210" height="110" rx="24" class="node green"/>
+  <text x="955" y="620" class="label">MnemAgent MCP</text><text x="955" y="649" class="small">filtered memory tools</text>
+  <rect x="1135" y="555" width="240" height="110" rx="24" class="node green"/>
+  <text x="1255" y="600" class="label">Memory engine</text><text x="1255" y="629" class="small">retrieve · resolve · forget</text>
+  <rect x="1395" y="555" width="160" height="110" rx="24" class="node green"/>
+  <text x="1475" y="600" class="label">Postgres</text><text x="1475" y="629" class="small">+ pgvector</text>
+
+  <rect x="850" y="735" width="210" height="100" rx="24" class="node blue"/>
+  <text x="955" y="777" class="label">Broker</text><text x="955" y="806" class="small">signed tools</text>
+  <rect x="1135" y="735" width="205" height="100" rx="24" class="node blue"/>
+  <text x="1237" y="777" class="label">Runner</text><text x="1237" y="806" class="small">no network</text>
+  <rect x="1380" y="735" width="175" height="100" rx="24" class="node blue"/>
+  <text x="1467" y="777" class="label">GitHub</text><text x="1467" y="806" class="small">draft PR</text>
+
+  <path d="M225 405 H315" class="line"/><path d="M495 405 L560 345" class="line"/><path d="M495 405 L560 495" class="line"/>
+  <path d="M780 345 L850 405" class="line"/><path d="M780 495 L850 445" class="line"/>
+  <path d="M1060 400 L1135 285" class="line"/><path d="M1060 425 H1135" class="line dash"/>
+  <path d="M955 485 V575" class="line"/><path d="M1060 630 H1135" class="line"/><path d="M1375 610 H1395" class="line"/>
+  <path d="M955 485 V735" class="line thin"/><path d="M1060 785 H1135" class="line"/><path d="M1340 785 H1380" class="line"/>
+</svg>

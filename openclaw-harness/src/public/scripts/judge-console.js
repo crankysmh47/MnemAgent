@@ -51,7 +51,7 @@ function renderQuota(node, quota) {
     ['Chat', quota.chatTurnsRemaining],
     ['Code run', quota.codingRunsRemaining],
     ['Draft PR', quota.publicationsRemaining],
-    ['Session', '1 hour'],
+    ['Session', '7 days'],
   ];
   for (const [label, value] of entries) {
     const item = document.createElement('span');

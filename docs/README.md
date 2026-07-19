@@ -1,14 +1,16 @@
-# MnemAgent documentation
+# Documentation
 
-Start with these files for the hackathon submission:
+The root [README](../README.md) is the judge landing page. These documents contain the current implementation and evidence behind it.
 
-| File | Purpose |
+| Document | Purpose |
 | --- | --- |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Memory architecture, data flow, and core algorithms |
-| [JUDGE_GUIDE.md](JUDGE_GUIDE.md) | Three-minute and local judge walkthroughs |
-| [DEPLOY_ALIBABA.md](DEPLOY_ALIBABA.md) | Alibaba ECS deployment and proof steps |
-| [BENCHMARKS.md](BENCHMARKS.md) | Verified headline results and limitations |
-| [SECURITY.md](SECURITY.md) | Hackathon boundary and production identity path |
-| [SUBMISSION_CHECKLIST.md](SUBMISSION_CHECKLIST.md) | Repository and owner-supplied submission items |
+| [JUDGE_GUIDE.md](JUDGE_GUIDE.md) | Exact five-minute live path and recovery behavior |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System boundaries, algorithms, data flow, and scalability |
+| [CLOUD_PROOF.md](CLOUD_PROOF.md) | Alibaba ECS screenshot, live endpoint, and Qwen code evidence |
+| [BENCHMARKS.md](BENCHMARKS.md) | MnemBench and live Qwen results with limitations |
+| [MNEMCODE_DEMO.md](MNEMCODE_DEMO.md) | Agentic coding lifecycle and validated WebPort run |
+| [DEPLOY_ALIBABA.md](DEPLOY_ALIBABA.md) | Reproducible Alibaba Cloud deployment |
+| [SECURITY.md](SECURITY.md) | Threat model and judge-workspace controls |
+| [SUBMISSION_CHECKLIST.md](SUBMISSION_CHECKLIST.md) | Remaining owner actions before final submission |
 
-Assets live in [assets/](assets/). Superseded reports and internal review notes live in [archive/](archive/).
+Supporting benchmark records live under `docs/evidence/`. Product assets live under `docs/assets/`.

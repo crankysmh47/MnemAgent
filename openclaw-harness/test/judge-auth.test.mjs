@@ -17,6 +17,24 @@ test('judge auth signs secure cookies and verifies CSRF-bound sessions', () => {
   assert.equal(issued.sessionId, session.sessionId);
 });
 
+test('judge auth issues a seven-day session without changing its security flags', () => {
+  const now = 1_000_000;
+  const service = createJudgeAuth({
+    accessCode: 'correct horse battery staple',
+    sessionSecret: 's'.repeat(48),
+    secure: true,
+    now: () => now,
+  });
+
+  const issued = service.login({ accessCode: 'correct horse battery staple', ip: '127.0.0.1' });
+
+  assert.equal(issued.expiresAt, (now + (7 * 24 * 60 * 60)) * 1000);
+  assert.match(issued.cookie, /Max-Age=604800/);
+  assert.match(issued.cookie, /HttpOnly/);
+  assert.match(issued.cookie, /SameSite=Strict/);
+  assert.match(issued.cookie, /Secure/);
+});
+
 test('judge auth locks an IP after five failed attempts', () => {
   const service = createJudgeAuth({ accessCode: 'correct horse battery staple', sessionSecret: 's'.repeat(48), now: () => 1_000_000 });
   for (let attempt = 0; attempt < 4; attempt += 1) assert.throws(() => service.login({ accessCode: 'wrong', ip: '10.0.0.1' }), /invalid/i);
