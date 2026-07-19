@@ -21,18 +21,23 @@ python3 - "$tmp_dir/session.json" <<'PY'
 import json
 import re
 import sys
+import time
 
 with open(sys.argv[1], encoding="utf-8") as handle:
     session = json.load(handle)
 quota = session.get("quota", {})
+expected_ttl_ms = 7 * 24 * 60 * 60 * 1000
+remaining_ms = session.get("expiresAt", 0) - int(time.time() * 1000)
 valid = (
     re.fullmatch(r"judge-[a-f0-9]{16}", session.get("namespace", ""))
     and quota.get("chatTurnsRemaining") == 30
     and quota.get("codingRunsRemaining") == 5
     and quota.get("publicationsRemaining") == 5
+    and expected_ttl_ms - 60_000 <= remaining_ms <= expected_ttl_ms + 60_000
 )
 raise SystemExit(0 if valid else 1)
 PY
 curl --fail --silent --show-error -b "$tmp_dir/cookies" "https://${MEMORY_DOMAIN}/api/judge/session" >/dev/null
-curl --fail --silent --show-error "https://${MEMORY_DOMAIN}/" | grep -q 'data-judge-chat'
+curl --fail --silent --show-error "https://${MEMORY_DOMAIN}/" >"$tmp_dir/index.html"
+grep -q 'data-judge-chat' "$tmp_dir/index.html"
 echo "HTTPS, OpenClaw, signed judge session, sponsored quota, UI, archive policy, MCP, and broker checks passed."
