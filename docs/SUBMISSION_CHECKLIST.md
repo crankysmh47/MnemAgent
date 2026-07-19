@@ -21,22 +21,22 @@ Live Devpost schedule checked July 19, 2026: submissions close July 20 at 5:00 P
 ## Devpost draft
 
 - [x] Project exists as a draft.
-- [ ] Refined description and links saved after the final repository push.
+- [x] Refined description and links saved after the final repository push.
 - [ ] Submitter type, country, age, employee status, and project start/update answers verified by the owner.
-- [ ] Track 1 selected in the submission form.
-- [ ] Repository URL entered.
-- [ ] Direct Qwen code-proof URL entered.
-- [ ] `docs/assets/architecture.svg` uploaded to the architecture field.
-- [ ] `docs/assets/alibaba-ecs-workbench.png` uploaded to the Alibaba proof field.
+- [x] Track 1 selected in the submission form.
+- [x] Repository URL entered.
+- [x] Direct Alibaba Cloud API code-proof URL entered.
+- [x] `docs/assets/architecture.png` uploaded to the architecture field.
+- [x] `docs/assets/alibaba-ecs-workbench.png` uploaded to the Alibaba proof field.
 - [ ] Testing instructions include the private judge code; never place it in public docs.
-- [ ] AI tools and learning-level fields completed by the owner.
+- [x] AI tools and learning-level fields are populated.
 
 ## Final media and release
 
 - [ ] Record and publish the approximately three-minute public video.
 - [ ] Add the final video URL to Devpost and the README.
 - [ ] Test the submitted live URL in an incognito window.
-- [ ] Run the full local verification and `scripts/verify-cloud.sh` on the deployed commit.
+- [x] Run the full local verification and `scripts/verify-cloud.sh` on the deployed commit.
 - [ ] Tag the final release and record the commit in `docs/CLOUD_PROOF.md`.
 - [ ] Submit before July 20 at 5:00 PM EDT; do not wait for the deadline minute.
 - [ ] Optional public blog/social link added.

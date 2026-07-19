@@ -59,7 +59,7 @@ MnemCode is a proof surface, not a requirement. You can discard both MnemCode an
 
 ## Architecture
 
-![MnemAgent architecture](docs/assets/architecture.svg)
+![MnemAgent architecture](docs/assets/architecture.png)
 
 The normal Qwen path uses Alibaba Cloud Model Studio's OpenAI-compatible endpoint. The public sponsored judge path currently uses DeepSeek V4 Flash so judges can test without supplying a key; the two evidence paths are labelled separately throughout the repository.
 

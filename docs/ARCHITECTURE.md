@@ -2,7 +2,7 @@
 
 MnemAgent is a persistent memory control plane for OpenClaw. It is intentionally separate from the agent's model and tools: OpenClaw remains the agent runtime, while MnemAgent decides which beliefs deserve storage, which should be recalled now, which newer facts replace older ones, and which memories should fade.
 
-![MnemAgent architecture](assets/architecture.svg)
+![MnemAgent architecture](assets/architecture.png)
 
 ## System boundary
 
