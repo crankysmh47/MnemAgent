@@ -2,7 +2,7 @@
 
 ## Objective
 
-Make MnemBench an immediately visible core feature of MnemAgent, explain its evolution without conflating v1 and v2, remove the final obsolete WebPort wording, and preserve direct links to measured evidence.
+Make MnemBench an immediately visible core feature of MnemAgent, explain its evolution without conflating v1 and v2, remove the final obsolete repository wording, and preserve direct links to measured evidence.
 
 ## Product model
 
@@ -38,7 +38,7 @@ Update the root `README.md` so the four-part product model appears near the firs
 
 Update `docs/README.md` so `MNEMBENCH.md` appears before the detailed benchmark-results document. The navigation should let a judge understand the product role first, then inspect the measurements.
 
-Replace the final WebPort reference in `docs/DEMO_VIDEO_PRODUCTION_SCRIPT.md` with a positive check that the visible interface uses the current MnemBench task and terminology.
+Replace the final legacy-repository reference in `docs/DEMO_VIDEO_PRODUCTION_SCRIPT.md` with a positive check that the visible interface uses the current MnemBench task and terminology.
 
 ## Evidence discipline
 
@@ -52,9 +52,8 @@ Replace the final WebPort reference in `docs/DEMO_VIDEO_PRODUCTION_SCRIPT.md` wi
 
 After editing:
 
-1. Search the repository for case-insensitive `WebPort` references; the result must be empty in tracked product and documentation files.
+1. Search the repository for the retired repository name; the result must be empty in tracked product and documentation files.
 2. Check every new relative Markdown link resolves to an existing file.
 3. Run the repository's focused documentation and harness checks that do not require paid model calls.
 4. Review the final diff for accidental changes to benchmark evidence or credentials.
 5. Commit the pending judge activity-persistence fix and documentation changes intentionally, preserving the user's commit identity configuration, then push the `MnemCode` branch.
-

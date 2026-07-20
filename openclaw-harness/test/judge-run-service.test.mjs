@@ -23,6 +23,7 @@ test('run service returns immediately, binds ownership, and completes asynchrono
   assert.equal(calls[0].model, 'deepseek-api/deepseek-v4-flash');
   finish({ text: 'Issue selected: add path normalization tests', usageUsd: 0.01 });
   await service.wait(run.id);
+  assert.equal(service.latest('jss_owner').id, run.id);
   assert.deepEqual(service.events(run.id, 'jss_owner').map(event => event.type), ['run.started', 'model.started', 'assistant.message', 'run.completed']);
   assert.equal(service.get(run.id, 'jss_owner').status, 'completed');
   assert.throws(() => service.get(run.id, 'jss_other'), /not found/i);

@@ -1,6 +1,17 @@
 import { judgeApi } from './judge-api.js';
 
 const TERMINAL = new Set(['completed', 'failed']);
+const activityKey = namespace => `mnemagent:judge-activity:${namespace}`;
+
+function saveActivity(namespace, runId, state) {
+  if (!namespace || typeof localStorage === 'undefined') return;
+  localStorage.setItem(activityKey(namespace), JSON.stringify({ runId, state }));
+}
+
+function loadActivity(namespace) {
+  if (!namespace || typeof localStorage === 'undefined') return null;
+  try { return JSON.parse(localStorage.getItem(activityKey(namespace)) || 'null'); } catch { return null; }
+}
 
 export function reduceJudgeState(state, event, snapshot = {}) {
   const duplicate = event.id && state.events.some(existing => existing.id === event.id);
@@ -136,9 +147,11 @@ export async function createJudgeConsole({ root, api = judgeApi } = {}) {
   const model = root.querySelector('[data-model]');
   const quotaNode = root.querySelector('[data-sponsored-quota]');
   let runId = null;
+  let namespace = null;
   let state = { status: 'idle', events: [], quota: null, evidence: null };
 
   async function activateSession(session, { restored = false } = {}) {
+    namespace = session.namespace;
     accessForm.hidden = true;
     shell.hidden = false;
     renderQuota(quotaNode, session.quota);
@@ -147,6 +160,23 @@ export async function createJudgeConsole({ root, api = judgeApi } = {}) {
       for (const turn of session.chatHistory || []) {
         if (turn.message) addChat(chatLog, 'user', turn.message);
         if (turn.response) addChat(chatLog, 'assistant', turn.response);
+      }
+      if (session.latestRun) {
+        runId = session.latestRun.id;
+        state = { status: session.latestRun.status, events: [], quota: session.quota, evidence: session.latestRun.evidence };
+        for (const eventItem of session.latestRun.events || []) state = reduceJudgeState(state, eventItem, session.latestRun);
+        activity.replaceChildren();
+        state.events.forEach(eventItem => addActivity(activity, eventItem));
+        renderEvidence(root, session.latestRun.evidence);
+      } else {
+        const saved = loadActivity(session.namespace);
+        if (saved?.state) {
+          runId = saved.runId || null;
+          state = saved.state;
+          activity.replaceChildren();
+          for (const eventItem of state.events || []) addActivity(activity, eventItem);
+          renderEvidence(root, state.evidence || {});
+        }
       }
     }
     setText(status, restored ? 'Private workspace restored. Your memory and conversation are ready.' : 'Private workspace ready. Teach the agent a preference first.');
@@ -211,6 +241,7 @@ export async function createJudgeConsole({ root, api = judgeApi } = {}) {
         state.events.forEach(eventItem => addActivity(activity, eventItem));
         renderQuota(quotaNode, current.quota);
         renderEvidence(root, current.evidence);
+        saveActivity(namespace, runId, state);
       });
       if (snapshot.status === 'failed') throw new Error(snapshot.error || 'The coding run failed.');
       setText(status, snapshot.evidence?.readyForApproval ? 'Run complete. Review Memory and Changes, then approve the draft PR.' : 'Run complete. Evidence is available for review.');
@@ -227,6 +258,8 @@ export async function createJudgeConsole({ root, api = judgeApi } = {}) {
       const snapshot = await api.approve(runId, { confirmed: form.elements.confirmed.checked });
       renderQuota(quotaNode, snapshot.quota);
       renderEvidence(root, snapshot.evidence);
+      state = { ...state, evidence: snapshot.evidence, quota: snapshot.quota };
+      saveActivity(namespace, runId, state);
       setText(status, 'Draft PR opened. Publication remained gated until your explicit approval.');
     } catch (error) { setText(status, error.message); button.disabled = false; }
   });

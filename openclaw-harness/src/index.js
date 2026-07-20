@@ -135,6 +135,7 @@ app.get("/api/judge/session", (req, res) => {
   try {
     const identity = verifyJudge(req);
     const sponsored = judgeSessions.get(identity.sessionId);
+    const latestRun = judgeRuns.latest(identity.sessionId);
     res.json({
       authenticated: true,
       csrf: identity.csrf,
@@ -142,6 +143,11 @@ app.get("/api/judge/session", (req, res) => {
       expiresAt: sponsored.expiresAt,
       quota: sponsored.quota,
       chatHistory: judgeChats.list(identity.sessionId),
+      latestRun: latestRun ? {
+        ...latestRun,
+        events: judgeRuns.events(latestRun.id, identity.sessionId),
+        evidence: judgeEvidence.get(latestRun.id),
+      } : null,
     });
   }
   catch { res.status(401).json({ authenticated: false }); }
@@ -226,7 +232,7 @@ app.get("/api/judge/runs/:id", (req, res) => {
       enrichedCodingRuns.add(run.id);
       axios.get(`${MNEMOS_URL}/api/memory/search/${encodeURIComponent(identity.namespace)}`, mnemosConfig({
         timeout: 5_000,
-        params: { query: 'contradiction dimension score orientation regression tests repository rules', top_k: 4, scope_type: 'repository', scope_id: 'crankysmh47/MnemBench' },
+        params: { query: 'repository rules conventions preferences testing implementation', top_k: 10, scope_type: 'repository', scope_id: 'crankysmh47/MnemBench' },
       })).then(response => {
         for (const memory of response.data?.results || []) {
           const event = judgeEvidence.ingest(run.id, { type: 'memory.retrieved', detail: { scope: 'repository/crankysmh47/MnemBench', entity: memory.entity_source, relation: memory.relation, value: memory.entity_target } });

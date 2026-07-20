@@ -93,6 +93,10 @@ function createJudgeRunService({
       return safeRun(run);
     },
     get(id, ownerSessionId) { return safeRun(owned(id, ownerSessionId)); },
+    latest(ownerSessionId) {
+      const matches = [...runs.values()].filter(run => run.ownerSessionId === ownerSessionId);
+      return matches.length ? safeRun(matches.at(-1)) : null;
+    },
     events(id, ownerSessionId, afterId = null) { owned(id, ownerSessionId); return log.after(id, afterId); },
     wait(id) { const run = runs.get(id); if (!run) throw new Error('Judge run not found.'); return run.task; },
     appendEvidence(id, ownerSessionId, event) { owned(id, ownerSessionId); return emit(id, event.type, event.detail); },

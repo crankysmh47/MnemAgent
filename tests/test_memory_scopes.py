@@ -10,7 +10,7 @@ from storage.db_manager import get_db_connection, initialize_database
 def test_memory_scope_defaults_and_validates_repository_ids():
     assert MemoryScope().scope_type == "core"
     assert MemoryScope().scope_id == "core"
-    assert MemoryScope("repository", "crankysmh47/WebPort").scope_id == "crankysmh47/WebPort"
+    assert MemoryScope("repository", "crankysmh47/MnemBench").scope_id == "crankysmh47/MnemBench"
     with pytest.raises(ValueError):
         MemoryScope("repository", "../secret")
 

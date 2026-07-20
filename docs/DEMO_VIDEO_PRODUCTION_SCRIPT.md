@@ -39,7 +39,7 @@ Invoke-RestMethod http://localhost:3000/health
 docker compose ps
 ```
 
-Expected health status: `ok`. Confirm the populated tree appears, issue #1 opens publicly, chat responds, and no old WebPort wording remains in the visible interface.
+Expected health status: `ok`. Confirm the populated tree appears, issue #1 opens publicly, chat responds, and the visible interface names MnemBench as the prepared coding task.
 
 ### 3. Prepare one browser window
 

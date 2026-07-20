@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Establish MnemBench as a core MnemAgent feature, document its v1-to-v2 evolution, remove obsolete WebPort language, and ship the pending judge activity-persistence fix.
+**Goal:** Establish MnemBench as a core MnemAgent feature, document its v1-to-v2 evolution, remove obsolete repository language, and ship the pending judge activity-persistence fix.
 
 **Architecture:** Add one canonical product narrative that links to existing numerical evidence instead of copying it. Update the two navigation entry points and the recording checklist, then validate the already-written activity restoration changes independently before committing and pushing the branch.
 
@@ -63,11 +63,11 @@ Place `MNEMBENCH.md` before `BENCHMARKS.md` in `docs/README.md`, labeling the fi
 
 - [ ] **Step 3: Remove obsolete terminology**
 
-Replace the final WebPort sentence in `docs/DEMO_VIDEO_PRODUCTION_SCRIPT.md` with: `Confirm the populated tree appears, issue #1 opens publicly, chat responds, and the visible interface names MnemBench as the prepared coding task.`
+Replace the final legacy-repository sentence in `docs/DEMO_VIDEO_PRODUCTION_SCRIPT.md` with: `Confirm the populated tree appears, issue #1 opens publicly, chat responds, and the visible interface names MnemBench as the prepared coding task.`
 
 - [ ] **Step 4: Verify terminology and links**
 
-Run `rg -n -i "webport" README.md docs openclaw-harness config scripts workspace-broker mcp-memory-server`. Expected result: no matches. Run the repository-relative Markdown-link checker across the three modified navigation documents. Expected result: `broken_links=0`.
+Search the tracked product and documentation files for the retired repository name. Expected result: no matches. Run the repository-relative Markdown-link checker across the three modified navigation documents. Expected result: `broken_links=0`.
 
 ### Task 3: Judge activity persistence verification
 
