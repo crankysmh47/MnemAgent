@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { reduceJudgeState } from '../src/public/scripts/judge-console.js';
+import { reduceJudgeState, restoreJudgeSession } from '../src/public/scripts/judge-console.js';
 
 test('judge console preserves ordered activity and completion evidence', () => {
   let state = { status: 'idle', events: [] };
@@ -28,4 +28,10 @@ test('judge state keeps quota and separates real evidence for memory and changes
   assert.equal(state.quota.chatTurnsRemaining, 2);
   assert.equal(state.evidence.memories[0].value, 'Use user-safe errors.');
   assert.equal(state.evidence.readyForApproval, true);
+});
+
+test('judge console restores an authenticated session and tolerates an anonymous visit', async () => {
+  const session = { authenticated: true, namespace: 'judge-private', chatHistory: [{ message: 'hello', response: 'hi' }] };
+  assert.deepEqual(await restoreJudgeSession({ session: async () => session }), session);
+  assert.equal(await restoreJudgeSession({ session: async () => { throw new Error('unauthorized'); } }), null);
 });

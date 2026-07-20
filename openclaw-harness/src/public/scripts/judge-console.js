@@ -18,6 +18,15 @@ export function reduceJudgeState(state, event, snapshot = {}) {
   return next;
 }
 
+export async function restoreJudgeSession(api) {
+  try {
+    const session = await api.session();
+    return session?.authenticated ? session : null;
+  } catch {
+    return null;
+  }
+}
+
 function setText(node, value) { if (node) node.textContent = value == null ? '' : String(value); }
 
 function addActivity(list, event) {
@@ -129,6 +138,21 @@ export async function createJudgeConsole({ root, api = judgeApi } = {}) {
   let runId = null;
   let state = { status: 'idle', events: [], quota: null, evidence: null };
 
+  async function activateSession(session, { restored = false } = {}) {
+    accessForm.hidden = true;
+    shell.hidden = false;
+    renderQuota(quotaNode, session.quota);
+    if (restored) {
+      chatLog.replaceChildren();
+      for (const turn of session.chatHistory || []) {
+        if (turn.message) addChat(chatLog, 'user', turn.message);
+        if (turn.response) addChat(chatLog, 'assistant', turn.response);
+      }
+    }
+    setText(status, restored ? 'Private workspace restored. Your memory and conversation are ready.' : 'Private workspace ready. Teach the agent a preference first.');
+    await showPrivateTree(session.namespace);
+  }
+
   const scenarios = await api.scenarios();
   setText(model, scenarios.model || 'DeepSeek V4 Flash');
 
@@ -137,17 +161,16 @@ export async function createJudgeConsole({ root, api = judgeApi } = {}) {
     for (const panel of root.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== tab.dataset.tab;
   });
 
+  const restoredSession = await restoreJudgeSession(api);
+  if (restoredSession) await activateSession(restoredSession, { restored: true });
+
   accessForm.addEventListener('submit', async event => {
     event.preventDefault();
     const button = accessForm.querySelector('button');
     button.disabled = true;
     try {
       const session = await api.login(new FormData(accessForm).get('accessCode'));
-      accessForm.hidden = true;
-      shell.hidden = false;
-      renderQuota(quotaNode, session.quota);
-      setText(status, 'Private workspace ready. Teach the agent a preference first.');
-      await showPrivateTree(session.namespace);
+      await activateSession(session);
     } catch (error) { setText(status, error.message); button.disabled = false; }
   });
 
