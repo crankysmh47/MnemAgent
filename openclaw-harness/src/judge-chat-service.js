@@ -38,6 +38,11 @@ function createJudgeChatService({ model = process.env.JUDGE_MODEL || 'deepseek-a
       return publicTurn(turn);
     },
     get(id, ownerSessionId) { return publicTurn(owned(id, ownerSessionId)); },
+    list(ownerSessionId) {
+      return [...turns.values()]
+        .filter(turn => turn.ownerSessionId === ownerSessionId)
+        .map(publicTurn);
+    },
     wait(id) { const turn = turns.get(id); if (!turn) throw new Error('Judge chat turn not found.'); return turn.task; },
   };
 }

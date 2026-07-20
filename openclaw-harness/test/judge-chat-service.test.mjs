@@ -26,3 +26,15 @@ test('chat rejects empty and oversized messages', () => {
   assert.throws(() => service.create({ ownerSessionId: 'jss_owner', namespace: 'judge-private', message: '' }), /bounded/i);
   assert.throws(() => service.create({ ownerSessionId: 'jss_owner', namespace: 'judge-private', message: 'x'.repeat(2_001) }), /bounded/i);
 });
+
+test('chat history restores only the owning session in creation order', async () => {
+  const service = createJudgeChatService({ executor: async ({ message }) => ({ text: `reply:${message.slice(-5)}`, usageUsd: 0 }) });
+  const first = service.create({ ownerSessionId: 'jss_owner', namespace: 'judge-private', message: 'first' });
+  const second = service.create({ ownerSessionId: 'jss_owner', namespace: 'judge-private', message: 'second' });
+  service.create({ ownerSessionId: 'jss_other', namespace: 'judge-other', message: 'private' });
+  await Promise.all([service.wait(first.id), service.wait(second.id)]);
+
+  const history = service.list('jss_owner');
+  assert.deepEqual(history.map(turn => turn.message), ['first', 'second']);
+  assert.equal(history.every(turn => turn.ownerSessionId === undefined && turn.task === undefined), true);
+});

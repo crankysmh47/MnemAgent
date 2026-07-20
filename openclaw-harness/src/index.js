@@ -135,7 +135,13 @@ app.get("/api/judge/session", (req, res) => {
   try {
     const identity = verifyJudge(req);
     const sponsored = judgeSessions.get(identity.sessionId);
-    res.json({ authenticated: true, namespace: identity.namespace, expiresAt: sponsored.expiresAt, quota: sponsored.quota });
+    res.json({
+      authenticated: true,
+      namespace: identity.namespace,
+      expiresAt: sponsored.expiresAt,
+      quota: sponsored.quota,
+      chatHistory: judgeChats.list(identity.sessionId),
+    });
   }
   catch { res.status(401).json({ authenticated: false }); }
 });
