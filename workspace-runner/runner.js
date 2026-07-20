@@ -5,7 +5,9 @@ import { validateCommand } from './command-policy.js';
 export async function runAllowedCommand(request, { cwd, timeoutMs = 120_000 } = {}) {
   const { argv } = validateCommand(request);
   return await new Promise((resolve) => {
-    const child = spawn(argv[0], argv.slice(1), { cwd, shell: false, env: { PATH: process.env.PATH, HOME: '/tmp' } });
+    const env = { PATH: process.env.PATH, HOME: process.platform === 'win32' ? process.env.USERPROFILE : '/tmp' };
+    if (process.platform === 'win32') Object.assign(env, { SYSTEMROOT: process.env.SYSTEMROOT, TEMP: process.env.TEMP, TMP: process.env.TMP });
+    const child = spawn(argv[0], argv.slice(1), { cwd, shell: false, env });
     let output = '';
     const append = chunk => { if (output.length < 262_144) output += chunk.toString(); };
     child.stdout.on('data', append); child.stderr.on('data', append);

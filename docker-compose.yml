@@ -119,7 +119,7 @@ services:
     group_add:
       - "${DOCKER_GID:-0}"
     environment:
-      - JUDGE_DEMO_REPOSITORY=${JUDGE_DEMO_REPOSITORY:-crankysmh47/WebPort}
+      - JUDGE_DEMO_REPOSITORY=${JUDGE_DEMO_REPOSITORY:-crankysmh47/MnemBench}
       - JUDGE_GITHUB_TOKEN=${JUDGE_GITHUB_TOKEN:-}
       - WORKSPACE_HMAC_SECRET=${WORKSPACE_HMAC_SECRET:-local-development-hmac-secret-change-for-cloud-12345}
       - WORKSPACE_APPROVAL_SECRET=${WORKSPACE_APPROVAL_SECRET:-local-development-approval-secret-change-for-cloud-123}

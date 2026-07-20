@@ -142,8 +142,8 @@ app.get("/api/judge/session", (req, res) => {
 
 app.get("/api/judge/scenarios", (_req, res) => res.json({
   model: process.env.JUDGE_MODEL || "deepseek-api/deepseek-v4-flash",
-  repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/WebPort",
-  scenarios: [{ issueNumber: 14, title: "WebPort · missing head operand", outcome: "Repository recall, test-first fix, and approval-gated draft PR" }],
+  repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/MnemBench",
+  scenarios: [{ issueNumber: 1, title: "MnemBench · inverted contradiction score", outcome: "Repository recall, regression test, bounded fix, and approval-gated draft PR" }],
 }));
 
 app.post('/api/judge/internal/events', (req, res) => {
@@ -194,7 +194,7 @@ app.post("/api/judge/runs", (req, res) => {
         namespace: identity.namespace,
         sessionId: `judge-code-${randomBytes(12).toString('hex')}`,
         issueNumber: Number(req.body?.issueNumber),
-        message: String(req.body?.message || '').trim() || 'Solve WebPort issue #14 using the repository conventions you remember. Write the regression test first, implement the smallest missing-operand guard, run the focused and unit tests, and show the exact diff.',
+        message: String(req.body?.message || '').trim() || 'Solve MnemBench issue #1 using the repository conventions you remember. Write the regression test first, fix only the contradiction dimension aggregation, run both fixed Python test commands, and show the exact diff.',
       });
       res.status(202).json({ ...run, quota });
     } catch (error) {
@@ -219,10 +219,10 @@ app.get("/api/judge/runs/:id", (req, res) => {
       enrichedCodingRuns.add(run.id);
       axios.get(`${MNEMOS_URL}/api/memory/search/${encodeURIComponent(identity.namespace)}`, mnemosConfig({
         timeout: 5_000,
-        params: { query: 'head missing file operand command errors repository rules', top_k: 4, scope_type: 'repository', scope_id: 'crankysmh47/WebPort' },
+        params: { query: 'contradiction dimension score orientation regression tests repository rules', top_k: 4, scope_type: 'repository', scope_id: 'crankysmh47/MnemBench' },
       })).then(response => {
         for (const memory of response.data?.results || []) {
-          const event = judgeEvidence.ingest(run.id, { type: 'memory.retrieved', detail: { scope: 'repository/crankysmh47/WebPort', entity: memory.entity_source, relation: memory.relation, value: memory.entity_target } });
+          const event = judgeEvidence.ingest(run.id, { type: 'memory.retrieved', detail: { scope: 'repository/crankysmh47/MnemBench', entity: memory.entity_source, relation: memory.relation, value: memory.entity_target } });
           judgeRuns.appendInternal(run.id, event);
         }
       }).catch(() => {});
@@ -239,8 +239,8 @@ app.post('/api/judge/runs/:id/approve', async (req, res) => {
     if (req.body?.confirmed !== true || run.status !== 'completed' || !evidence.readyForApproval || evidence.pr) throw new Error('Run is not ready for publication.');
     const metadata = {
       runId: run.id,
-      title: 'fix: guard head when file operand is missing',
-      body: 'Closes #14.\n\nGenerated through the MnemAgent sponsored judge workflow after repository-scoped memory retrieval and constrained test execution.',
+      title: 'fix: correct inverted contradiction dimension score',
+      body: 'Closes #1.\n\nGenerated through the MnemAgent sponsored judge workflow after repository-scoped memory retrieval and constrained test execution.',
     };
     const approval = await brokerClient.prepare(evidence.workspaceId, metadata);
     const pr = await brokerClient.open(evidence.workspaceId, { ...metadata, token: approval.token, expiresAt: approval.expiresAt });
@@ -404,7 +404,7 @@ for (const route of ["graph", "events", "metrics"]) {
       }
       const query = archiveQueryString(req.query, {
         privateJudge: Boolean(sessionUserId && sessionUserId === req.params.uid),
-        repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/WebPort",
+        repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/MnemBench",
       });
       const suffix = query ? `?${query}` : "";
       const url = `${MNEMOS_URL}/api/${route}/${encodeURIComponent(req.params.uid)}${suffix}`;

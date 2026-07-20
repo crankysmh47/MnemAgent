@@ -4,10 +4,10 @@ import { hasRequiredTestEvidence, recordTestEvidence } from '../src/test-policy.
 
 test('publication requires both prepared scenario tests to pass most recently', () => {
   const evidence = new Map();
-  recordTestEvidence(evidence, 'ws_one', 'test-unit', 0);
+  recordTestEvidence(evidence, 'ws_one', 'python-unit', 0);
   assert.equal(hasRequiredTestEvidence(evidence, 'ws_one'), false);
-  recordTestEvidence(evidence, 'ws_one', 'numeric-command-test', 0);
+  recordTestEvidence(evidence, 'ws_one', 'python-scoring-test', 0);
   assert.equal(hasRequiredTestEvidence(evidence, 'ws_one'), true);
-  recordTestEvidence(evidence, 'ws_one', 'test-unit', 1);
+  recordTestEvidence(evidence, 'ws_one', 'python-unit', 1);
   assert.equal(hasRequiredTestEvidence(evidence, 'ws_one'), false);
 });

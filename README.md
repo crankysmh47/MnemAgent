@@ -1,117 +1,118 @@
 # MnemAgent
 
-> A persistent memory control plane for agents that learns what matters, replaces what changed, forgets what no longer helps, and shows its work.
+> Persistent, scoped memory for agents: remember what matters, replace what changed, forget what no longer helps, and show the evidence.
 
 [![Track](https://img.shields.io/badge/Qwen%20Global%20AI%20Hackathon-Track%201%3A%20MemoryAgent-6f7f52)](https://qwencloud-hackathon.devpost.com/)
 [![Live](https://img.shields.io/badge/live-Alibaba%20Cloud%20ECS-b36b3c)](https://47-237-140-12.sslip.io/?user=demo-brain)
 [![License: MIT](https://img.shields.io/badge/license-MIT-596b45)](LICENSE)
 
-<p align="center">
-  <img src="docs/assets/logo.jpg" alt="MnemAgent logo" width="150">
-</p>
-
-Agents do not become dependable by remembering everything. They become dependable by remembering the right things: a user's stable preferences, a project's conventions, the correction that replaced an old belief, and the unfinished intention that matters now. MnemAgent gives OpenClaw that selective, inspectable memory layer.
+<p align="center"><img src="docs/assets/logo.jpg" alt="MnemAgent logo" width="170"></p>
 
 ![Populated MnemTree and MnemCode judge workbench](docs/assets/visualizer.png)
 
-## Submission links
+## Judge start here
 
-| Start here | Link |
+**Submission track:** Track 1 — MemoryAgent
+
+| What judges need | Direct evidence |
 | --- | --- |
-| Live deployment | [Open the populated MnemTree](https://47-237-140-12.sslip.io/?user=demo-brain) |
-| Judge walkthrough | [Test the complete flow in about five minutes](docs/JUDGE_GUIDE.md) |
-| Architecture | [Diagram and engineering design](docs/ARCHITECTURE.md) |
-| Alibaba proof | [Running ECS evidence and Qwen Cloud code links](docs/CLOUD_PROOF.md) |
-| Benchmarks | [Live results, reproduction, and limitations](docs/BENCHMARKS.md) |
-| Agentic proof | [MnemCode and the validated WebPort PR](docs/MNEMCODE_DEMO.md) |
-| Open source | [MIT license](LICENSE) |
+| Live product | [Open the populated Alibaba Cloud deployment](https://47-237-140-12.sslip.io/?user=demo-brain) |
+| Alibaba Cloud proof | [ECS instance, public health, Qwen endpoint code, and topology](docs/CLOUD_PROOF.md) |
+| Architecture diagram | [System boundaries, memory lifecycle, and scale design](docs/ARCHITECTURE.md) |
+| Exact test path | [Five-minute judge guide](docs/JUDGE_GUIDE.md) |
+| Three-minute video | [One-take recording script](docs/DEMO_VIDEO_PRODUCTION_SCRIPT.md) |
+| Measured results | [MnemBench evidence and honest limitations](docs/BENCHMARKS.md) |
+| Agentic coding proof | [Public issue #1](https://github.com/crankysmh47/MnemBench/issues/1), [agent-created draft PR #2](https://github.com/crankysmh47/MnemBench/pull/2), and [MnemCode design](docs/MNEMCODE_DEMO.md) |
+| Source and license | This public repository and the [MIT License](LICENSE) |
 
-**Submission track:** Track 1 — MemoryAgent.
+The public page opens on `demo-brain`, a populated read-only archive. Judges can understand the memory model before entering the private code from Devpost or spending sponsored model capacity.
 
-## Judge it in five minutes
+## Three-minute product path
 
-1. Open the live URL. It lands on `demo-brain`, a populated, read-only archive—no setup or model spend required.
-2. Search for `backend framework`, select a leaf, and inspect the relationship chain in the Memory Lens.
-3. Enter the private judge code supplied in Devpost. This creates a random namespace valid for seven days, with 30 chat turns, five coding runs, and five draft-PR approvals.
-4. Teach a repository convention. Ask for it again: the second message runs in a fresh OpenClaw session, but the answer and growing tree retain the memory.
-5. Start the prepared WebPort task. Watch the agent inspect issue #14, retrieve scoped memory, edit bounded files, run fixed tests, and stop for review.
-6. Inspect the exact diff and test output. Only an explicit checkbox and approval can open a draft pull request.
+1. Search the populated MnemTree for `backend framework`, select a leaf, and inspect its relationship chain.
+2. Enter the private judge code from Devpost. The server creates a random namespace with a signed seven-day session.
+3. Tell the agent: `For MnemBench, keep every metric oriented so 1.0 means best behavior.`
+4. Ask the rule again. The reply comes from a fresh OpenClaw conversation, while MnemAgent retrieves the repository-scoped memory.
+5. Start public [MnemBench issue #1](https://github.com/crankysmh47/MnemBench/issues/1). The agent inspects the defect, retrieves the rule, adds a regression test, fixes the inverted contradiction score, and runs two fixed Python commands in a no-network container.
+6. Review Activity, Memory, Changes, and test output. A draft pull request can open only after both checks pass and a human explicitly approves the exact diff.
 
-The public tree and [validated draft PR #15](https://github.com/crankysmh47/WebPort/pull/15) remain available if the sponsored model allowance or spot instance is interrupted.
+Allowance per judge: 30 chat turns, five coding runs, and five draft-PR approvals. The session lasts seven days; the quota does not refresh with time.
 
-## One system, three kinds of proof
+## What the project proves
 
-### MnemTree — see what the agent remembers
+### MnemTree: inspect memory
 
-The visualizer turns memory into an inspectable living archive. Search scales beyond the first graph page; focused memories can be fetched outside the initial result; archives above 120 memories switch to hybrid rendering, and those above 500 become summary-first. The API never sends more than 150 individual memories and 120 ambient relationships in one graph response.
+The visualizer presents beliefs as a living tree rather than an opaque vector store. Search can retrieve memories outside the initial graph page. Large archives become progressively summarized: above 120 memories the renderer switches to a hybrid view, and above 500 it becomes summary-first. A graph response is capped at 150 memories and 120 ambient relationships.
 
-### MnemBench — measure whether memory helps
+### MnemBench: measure memory
 
-MnemBench exercises cross-session recall, contradiction handling, interference, prospective memory, overload resistance, learning, decay, and pruning. The current v2 suite lives under `eval/`; the original public v1 benchmark remains a [separate repository](https://github.com/crankysmh47/MnemBench).
+The original public [MnemBench v1 repository](https://github.com/crankysmh47/MnemBench) provides a portable benchmark and the public coding task. The expanded MnemBench v2 suite lives only in this repository under [`eval/`](eval/); it is not a second public repository.
 
-The conservative July 8 Postgres-backed v2 smoke run scored **66.7% vs 23.7%** average probe accuracy and **76.9% vs 38.5%** pass rate against the same stateless baseline. A separate live Qwen run's clearest result was project continuity: **91.7% vs 8.3%**. That scenario drives most of the aggregate gain; tied and weaker scenarios are documented rather than hidden. See [benchmark evidence](docs/BENCHMARKS.md).
+The conservative July 8 Postgres-backed v2 smoke run scored **66.7% versus 23.7%** average probe accuracy and **76.9% versus 38.5%** pass rate against the same stateless baseline. In a separate live Qwen run, project continuity scored **91.7% versus 8.3%**. Project continuity drives most of that run's aggregate gain; weaker and tied scenarios remain in the evidence. See [BENCHMARKS.md](docs/BENCHMARKS.md).
 
-### MnemCode — watch memory change an agent's work
+### MnemCode: use memory
 
-MnemCode is the bounded coding demonstration built on OpenClaw. In the acceptance run, the agent used repository-scoped memory while fixing [WebPort issue #14](https://github.com/crankysmh47/WebPort/issues/14), added a regression test first, passed the focused and full unit commands, and prepared [draft PR #15](https://github.com/crankysmh47/WebPort/pull/15). The runner has no network, receives no GitHub token, and cannot publish without human approval.
+MnemCode gives the agent one deliberately narrow, public coding task. The GitHub token stays in the private broker, never in the browser, model, or runner. The runner has no network and can edit only bounded source and test paths. It executes only:
 
-MnemCode is a proof surface, not a requirement. You can discard both MnemCode and MnemBench, attach the MnemAgent MCP servers to an ordinary OpenClaw deployment, and keep OpenClaw's wider integrations and tool ecosystem. Broader one-click repository packs are in progress; the current WebPort path is intentionally narrow and working.
+```text
+python -m pytest -q tests/test_scoring.py
+python -m pytest -q
+```
+
+The current task fixes a real benchmark integrity bug: a correctly resolved contradiction was inverted while aggregating the `contradiction_score`. The memory rule, regression test, source diff, and approval boundary are all visible in one judge workbench.
+
+The July 20 acceptance run used two fresh OpenClaw conversations, recovered the repository rule, added three regression tests, passed both fixed commands, and opened [draft PR #2](https://github.com/crankysmh47/MnemBench/pull/2) only after explicit approval.
+
+MnemCode and MnemBench are proof surfaces, not dependencies. A user can run ordinary OpenClaw with the MnemAgent MCP servers and retain OpenClaw's broader tool ecosystem.
 
 ## Architecture
 
 ![MnemAgent architecture](docs/assets/architecture.png)
 
-The normal Qwen path uses Alibaba Cloud Model Studio's OpenAI-compatible endpoint. The public sponsored judge path currently uses DeepSeek V4 Flash so judges can test without supplying a key; the two evidence paths are labelled separately throughout the repository.
+Each turn has two phases:
 
-MnemAgent processes each turn in two phases:
+1. **Waking:** hybrid vector and keyword retrieval, UCB exploration, scoped associative hops, and at most six beliefs injected into context.
+2. **Dreaming:** structured fact extraction, salience gating, scoped contradiction replacement, utility feedback, decay, pruning, and lifecycle events.
 
-1. **Waking:** vector and keyword retrieval, UCB exploration, scoped associative hops, and at most six beliefs injected into the model context.
-2. **Dreaming:** structured fact extraction from the same response, salience gating, scoped contradiction replacement, utility feedback, decay, pruning, and lifecycle events.
+Core memories use `core/core`. Project memories use `repository/owner/repository`. One scope cannot overwrite another. Retrieval reserves up to four repository memories and two core memories, so prompt overhead stays bounded as storage grows.
 
-Core memories (`core/core`) and repository memories (`repository/owner/repo`) cannot overwrite one another. Retrieval reserves up to four repository memories plus two core memories, keeping prompt overhead constant as the archive grows.
+The standard Qwen path uses Alibaba Cloud Model Studio's OpenAI-compatible endpoint. The public sponsored judge runtime currently uses DeepSeek V4 Flash so judges need no model key. Those evidence paths are labelled separately; no DeepSeek run is presented as a Qwen result.
 
-## Track 1 fit
+## Repository map
 
-| Requirement | MnemAgent mechanism |
+| Path | Start here when reviewing |
 | --- | --- |
-| Persistent, cross-session memory | Postgres semantic graph, episodic log, OpenClaw MCP tools, and stable user namespaces |
-| Accumulated experience | Every successful turn can consolidate durable beliefs and update their learned utility |
-| User preferences | Core and repository scopes separate global preferences from project-specific rules |
-| Efficient storage | A salience gate rejects low-conviction noise before it reaches the graph |
-| Limited-context recall | Hybrid retrieval and UCB exploration inject no more than six beliefs |
-| Timely forgetting | Inactive memories decay; nodes below the prune threshold are deleted |
-| Correcting stale facts | Scoped uniqueness replaces only the conflicting belief and records the lifecycle event |
-| Better decisions | MnemCode makes retrieved guidance visible beside the actual code diff and tests |
-
-## Cloud deployment
-
-The live submission runs on one Alibaba Cloud ECS pay-as-you-go spot instance in Singapore. Caddy is the only public service. OpenClaw, the MCP server, memory API, workspace broker, runner control plane, and Postgres/pgvector stay behind the Docker network or loopback boundary.
-
-- Public URL: [https://47-237-140-12.sslip.io/](https://47-237-140-12.sslip.io/)
-- Workbench screenshot and live checks: [docs/CLOUD_PROOF.md](docs/CLOUD_PROOF.md)
-- Qwen Cloud code proof: [mcp-memory-server/src/config.py](mcp-memory-server/src/config.py)
-- Reproduction: [docs/DEPLOY_ALIBABA.md](docs/DEPLOY_ALIBABA.md)
+| [`mcp-memory-server/`](mcp-memory-server/) | Memory API, retrieval, consolidation, decay, pruning, and storage |
+| [`mcp-server/`](mcp-server/) | MCP interface consumed by OpenClaw |
+| [`openclaw-harness/`](openclaw-harness/) | Judge UI, sponsored chat, MnemTree, quotas, and evidence stream |
+| [`eval/`](eval/) | Expanded MnemBench v2 scenarios and runners |
+| [`workspace-broker/`](workspace-broker/) | GitHub credentials, isolated workspaces, approvals, and PR publication |
+| [`workspace-runner/`](workspace-runner/) | Read-only, no-network fixed-command sandbox |
+| [`config/openclaw/`](config/openclaw/) | OpenClaw agent contracts and MCP wiring |
+| [`docs/evidence/`](docs/evidence/) | Stable benchmark records and submission evidence |
+| [`scripts/`](scripts/) | Local demo, cloud deployment, verification, and smoke tests |
 
 ## Run locally
 
-Requirements: Docker Engine/Desktop with Compose v2, Git, and roughly 8 GB of free memory.
+Requirements: Docker Desktop or Docker Engine with Compose v2, Git, GitHub CLI, and about 8 GB of free memory.
 
-```bash
+```powershell
 git clone https://github.com/crankysmh47/MnemAgent.git
 cd MnemAgent
 git switch MnemCode
-cp config/env.template .env
-# Add a supported model key to .env.
-docker compose --profile judge-build build workspace-runner
-export JUDGE_GITHUB_TOKEN="$(gh auth token)"  # optional MnemCode publication
-docker compose up -d --build
+Copy-Item config/env.template .env
+# Add a supported model key to .env, then authenticate GitHub CLI:
+gh auth login
+.\scripts\start-demo.ps1
 ```
 
-Open `http://localhost:3000/?user=demo-brain`. Local judge access defaults to `mnemcode-local-judge`; cloud mode refuses to start with placeholder or missing secrets.
+`start-demo.ps1` reads the GitHub token from the GitHub CLI keyring for this process. It does not write the token into the repository. Open `http://localhost:3000/?user=demo-brain`.
 
-Run the verification suites:
+Local judge access defaults to `mnemcode-local-judge`. Cloud mode refuses placeholder or missing secrets. Judges never need local setup or their own credentials; these commands are for maintainers reproducing the complete stack.
 
-```bash
+Run every verification suite:
+
+```powershell
 python -m pytest -q
 npm test --prefix openclaw-harness
 npm test --prefix workspace-broker
@@ -121,19 +122,15 @@ node openclaw-harness/scripts/check-visualizer.mjs
 
 ## Security boundary
 
-- Signed HttpOnly judge cookie, same-origin CSRF, IP lockout, and seven-day durable quota state
-- OpenClaw deny policy for host shell, filesystem, browser, and generic web tools
-- HMAC-authenticated broker requests with nonce and timestamp replay protection
-- Five-file/500-line patch bounds and fixed argv test commands
+- Signed HttpOnly judge cookie, same-origin CSRF protection, IP lockout, and durable seven-day quota state
+- OpenClaw denial of host shell, filesystem, browser, and generic web tools
+- HMAC-authenticated broker requests with timestamp and nonce replay protection
+- Five-file and 500-line patch limits
 - Non-root, read-only, no-network runner with dropped capabilities and resource limits
-- Five-minute approval token bound to the exact diff and PR metadata
-- Fine-grained GitHub token held only by the private broker
+- Five-minute approval token bound to the exact diff and pull-request metadata
+- Repository-limited GitHub token held only by the broker
 
-See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model.
-
-## What comes next
-
-The next product step is to make MnemCode's safety model available to more repositories through pre-reviewed task packs and configurable test policies. Other natural extensions include more MCP tool packs, managed Postgres/RDS, organization-scoped memory, and learned retention policies. The core memory MCP remains usable today without those additions.
+See [SECURITY.md](docs/SECURITY.md) for the threat model and [docs/README.md](docs/README.md) for the complete documentation index.
 
 ## License
 

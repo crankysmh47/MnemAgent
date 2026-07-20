@@ -3,7 +3,7 @@ const ALLOWED_TYPES = new Set([
   'issue.inspected', 'workspace.created', 'file.read', 'patch.applied', 'source.changed',
   'test.completed', 'diff.ready', 'memory.retrieved', 'workspace.cleaned',
 ]);
-const REQUIRED_TESTS = ['numeric-command-test', 'test-unit'];
+const REQUIRED_TESTS = ['python-scoring-test', 'python-unit'];
 
 function sanitizeEvidenceEvent(event) {
   if (!event || !ALLOWED_TYPES.has(event.type) || !event.detail || typeof event.detail !== 'object' || Array.isArray(event.detail)) throw new Error('Evidence event is invalid.');

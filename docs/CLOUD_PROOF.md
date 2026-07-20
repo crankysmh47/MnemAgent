@@ -28,7 +28,7 @@ The public boundary exposes only Caddy on ports 80/443. The memory API, MCP serv
 
 ### Live judge-flow verification
 
-On July 19, 2026, the deployed sponsored runtime completed a two-turn cross-session smoke test. The first fresh OpenClaw conversation stored this repository-scoped WebPort rule: preserve backward compatibility and add a regression test before changing behavior. A second fresh conversation was then asked what rule it had been given. It recovered both requirements and identified the `crankysmh47/WebPort` scope. Both live turns completed successfully; this was not a fixture or dry run.
+On July 19, 2026, the deployed sponsored runtime completed a two-turn cross-session smoke test against the earlier WebPort task. A fresh OpenClaw conversation stored a repository rule; a second fresh conversation recovered both requirements and the correct repository scope. Both turns were live rather than fixture or dry-run output. The submission has since moved its public coding task to [MnemBench issue #1](https://github.com/crankysmh47/MnemBench/issues/1); the cloud proof will name the new scope after the replacement acceptance run is deployed.
 
 ## 2. Qwen Cloud code proof
 
