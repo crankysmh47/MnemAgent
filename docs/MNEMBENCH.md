@@ -28,7 +28,7 @@ MnemBench v2 grew around those cases. It lives beside the memory engine so its s
 ## Version boundary
 
 - **MnemBench v1** is the public [`crankysmh47/MnemBench`](https://github.com/crankysmh47/MnemBench) repository. It remains the portable benchmark and hosts the public issue used by the MnemCode judge flow.
-- **MnemBench v2** is the expanded suite under this repository's [`eval/`](../eval/) directory. There is no separate public MnemBench v2 repository.
+- **MnemBench v2** is the expanded suite under this repository's [`eval/`](../eval/) directory. It can be found at the repo, [`crankysmh47/MnemBench-v2`](https://github.com/crankysmh47/MnemBench-v2).
 
 Keeping that boundary explicit matters. Results from one version should not be presented as results from the other, and a dry-run fixture should never be presented as a live model run.
 
