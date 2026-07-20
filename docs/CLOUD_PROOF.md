@@ -4,9 +4,10 @@ This page collects the two pieces of deployment evidence required by the Qwen Gl
 
 ## 1. Running Alibaba Cloud resource
 
-**Public deployment:** [https://47-237-140-12.sslip.io/](https://47-237-140-12.sslip.io/)  
-**Captured:** July 19, 2026  
-**Verified application commit:** [`26b9f9c`](https://github.com/crankysmh47/MnemAgent/commit/26b9f9c)
+**Public deployment:** [https://47-237-140-12.sslip.io/](https://47-237-140-12.sslip.io/)<br>
+**Console evidence captured:** July 19, 2026<br>
+**Release verified:** July 20, 2026<br>
+**Verified application commit:** [`e73a828`](https://github.com/crankysmh47/MnemAgent/commit/e73a828)
 
 **Alibaba region:** Singapore (`ap-southeast-1`)  
 **ECS instance:** `i-t4n8uh9pht7faeiw232v` / `MnemAgentServer`  
@@ -28,7 +29,9 @@ The public boundary exposes only Caddy on ports 80/443. The memory API, MCP serv
 
 ### Live judge-flow verification
 
-On July 19, 2026, the deployed sponsored runtime completed a two-turn cross-session smoke test against the earlier WebPort task. A fresh OpenClaw conversation stored a repository rule; a second fresh conversation recovered both requirements and the correct repository scope. Both turns were live rather than fixture or dry-run output. The submission has since moved its public coding task to [MnemBench issue #1](https://github.com/crankysmh47/MnemBench/issues/1); the cloud proof will name the new scope after the replacement acceptance run is deployed.
+On July 20, 2026, commit `e73a828` was deployed from the public `MnemCode` branch. The repository verifier passed HTTPS, OpenClaw, signed seven-day judge sessions, the sponsored 30-chat/5-run/5-PR allowance, populated demo UI, public archive policy, MCP health, and workspace-broker health. The public landing page opens on the 62-memory demo and presents [MnemBench issue #1](https://github.com/crankysmh47/MnemBench/issues/1) as the coding task.
+
+The matching end-to-end acceptance run used two fresh OpenClaw conversations: one stored the repository rule that every metric must be oriented so `1.0` means best, and the next recalled that rule while solving the issue. The isolated runner added three tests and passed both configured test gates before the approval boundary opened [draft PR #2](https://github.com/crankysmh47/MnemBench/pull/2). The PR is preserved as public evidence so judges can inspect the result without consuming sponsored capacity or creating a duplicate PR.
 
 ## 2. Qwen Cloud code proof
 
