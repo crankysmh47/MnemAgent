@@ -19,6 +19,7 @@
 | Live product | [Open the populated Alibaba Cloud deployment](https://47-237-140-12.sslip.io/?user=demo-brain) |
 | Alibaba Cloud proof | [ECS instance, public health, Qwen endpoint code, and topology](docs/CLOUD_PROOF.md) |
 | Architecture diagram | [System boundaries, memory lifecycle, and scale design](docs/ARCHITECTURE.md) |
+| Benchmark design | [How MnemBench evolved and what it evaluates](docs/MNEMBENCH.md) |
 | Exact test path | [Five-minute judge guide](docs/JUDGE_GUIDE.md) |
 | Three-minute video | [One-take recording script](docs/DEMO_VIDEO_PRODUCTION_SCRIPT.md) |
 | Measured results | [MnemBench evidence and honest limitations](docs/BENCHMARKS.md) |
@@ -26,6 +27,15 @@
 | Source and license | This public repository and the [MIT License](LICENSE) |
 
 The public page opens on `demo-brain`, a populated read-only archive. Judges can understand the memory model before entering the private code from Devpost or spending sponsored model capacity.
+
+## Four parts, one memory system
+
+| Part | Role |
+| --- | --- |
+| **MnemAgent** | Persistent memory engine and MCP tools for storage, scoped retrieval, revision, and forgetting |
+| **MnemTree** | Visual inspection of memories, relationships, scopes, and lifecycle events |
+| **MnemBench** | Repeatable evaluation of whether memory improves later behavior; see its [evolution and design](docs/MNEMBENCH.md) |
+| **MnemCode** | A constrained OpenClaw coding flow that shows recalled repository knowledge affecting an agent's work |
 
 ## Three-minute product path
 

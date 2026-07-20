@@ -7,8 +7,9 @@ Return to the [judge landing page](../README.md) if this is your first visit.
 1. [Alibaba Cloud deployment proof](CLOUD_PROOF.md) — ECS resource, public health, Qwen code path, and deployment topology.
 2. [Architecture](ARCHITECTURE.md) — components, trust boundaries, data flow, memory lifecycle, and scaling.
 3. [Judge guide](JUDGE_GUIDE.md) — exact live test with expected results and recovery steps.
-4. [MnemBench results](BENCHMARKS.md) — real runs, baselines, reproduction, and limitations.
-5. [MnemCode](MNEMCODE_DEMO.md) — public issue, constrained coding lifecycle, tests, and approval boundary.
+4. [MnemBench](MNEMBENCH.md) — benchmark evolution, version boundary, and evaluation design.
+5. [MnemBench results](BENCHMARKS.md) — real runs, baselines, reproduction, and limitations.
+6. [MnemCode](MNEMCODE_DEMO.md) — public issue, constrained coding lifecycle, tests, and approval boundary.
 
 ## Reproduce and review
 

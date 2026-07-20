@@ -149,6 +149,7 @@ test('judge workbench exposes sponsored chat and three functional evidence panel
   assert.doesNotMatch(html, /API key|GitHub token|OpenRouter/i);
   assert.doesNotMatch(html, /\$0\.10|reserved usd/i);
   assert.doesNotMatch(judgeConsoleSource, /\['Reserved'/);
-  assert.match(judgeApiSource, /session:\s*\(\)\s*=>\s*request\(['"]\/api\/judge\/session['"]\)/);
+  assert.match(judgeApiSource, /session:\s*async\s*\(\)\s*=>\s*\{[^}]*request\(['"]\/api\/judge\/session['"]\)/s);
+  assert.match(judgeApiSource, /csrf\s*=\s*data\.csrf\s*\|\|\s*['"]['"]/);
   assert.match(workbenchCss, /\.agent-workbench\s+\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
 });
