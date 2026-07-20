@@ -137,6 +137,7 @@ app.get("/api/judge/session", (req, res) => {
     const sponsored = judgeSessions.get(identity.sessionId);
     res.json({
       authenticated: true,
+      csrf: identity.csrf,
       namespace: identity.namespace,
       expiresAt: sponsored.expiresAt,
       quota: sponsored.quota,

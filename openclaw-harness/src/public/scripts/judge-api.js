@@ -12,7 +12,7 @@ async function request(path, options = {}) {
 export const judgeApi = {
   scenarios: () => request('/api/judge/scenarios'),
   login: async accessCode => { const data = await request('/judge/session', { method: 'POST', body: JSON.stringify({ accessCode }), headers: { 'X-CSRF-Token': '' } }); csrf = data.csrf; return data; },
-  session: () => request('/api/judge/session'),
+  session: async () => { const data = await request('/api/judge/session'); csrf = data.csrf || ''; return data; },
   chat: payload => request('/api/judge/chat', { method: 'POST', body: JSON.stringify(payload) }),
   chatTurn: id => request(`/api/judge/chat/${encodeURIComponent(id)}`),
   start: payload => request('/api/judge/runs', { method: 'POST', body: JSON.stringify(payload) }),
