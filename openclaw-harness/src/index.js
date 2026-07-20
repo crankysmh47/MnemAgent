@@ -10,7 +10,7 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 const { DEMO_USER_ID, seedDemoBrain } = require("./demo-seed");
-const { canReadArchive, canMutateThroughHarness, archiveQueryString } = require("./cloud-policy");
+const { canMutateThroughHarness, archiveAccessContext } = require("./cloud-policy");
 const { randomBytes } = require("node:crypto");
 const { createJudgeAuth } = require("./judge-auth");
 const { createJudgeRunService } = require("./judge-run-service");
@@ -396,17 +396,19 @@ for (const route of ["graph", "events", "metrics"]) {
   app.get(`/api/${route}/:uid`, async (req, res) => {
     try {
       let sessionUserId = null;
-      if (CLOUD_MODE) {
-        try { sessionUserId = verifyJudge(req).namespace; } catch { /* anonymous demo visit */ }
-      }
-      if (CLOUD_MODE && !canReadArchive(req.params.uid, resolveSetupUserId(), sessionUserId)) {
+      try { sessionUserId = verifyJudge(req).namespace; } catch { /* anonymous demo visit */ }
+      const access = archiveAccessContext({
+        cloudMode: CLOUD_MODE,
+        userId: req.params.uid,
+        judgeUserId: resolveSetupUserId(),
+        sessionUserId,
+        repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/MnemBench",
+        query: req.query,
+      });
+      if (!access.allowed) {
         return res.status(403).json({ error: "Archive namespace is not available." });
       }
-      const query = archiveQueryString(req.query, {
-        privateJudge: Boolean(sessionUserId && sessionUserId === req.params.uid),
-        repository: process.env.JUDGE_DEMO_REPOSITORY || "crankysmh47/MnemBench",
-      });
-      const suffix = query ? `?${query}` : "";
+      const suffix = access.queryString ? `?${access.queryString}` : "";
       const url = `${MNEMOS_URL}/api/${route}/${encodeURIComponent(req.params.uid)}${suffix}`;
       const resp = await axios.get(url, mnemosConfig({ timeout: 30000 }));
       res.json(resp.data);

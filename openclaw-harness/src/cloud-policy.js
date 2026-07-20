@@ -21,4 +21,12 @@ function archiveQueryString(query = {}, { privateJudge = false, repository = "" 
   return params.toString();
 }
 
-module.exports = { canReadArchive, canMutateThroughHarness, archiveQueryString };
+function archiveAccessContext({ cloudMode, userId, judgeUserId, sessionUserId, repository, query = {} }) {
+  const privateJudge = Boolean(sessionUserId && sessionUserId === userId);
+  return {
+    allowed: !cloudMode || canReadArchive(userId, judgeUserId, sessionUserId),
+    queryString: archiveQueryString(query, { privateJudge, repository }),
+  };
+}
+
+module.exports = { canReadArchive, canMutateThroughHarness, archiveQueryString, archiveAccessContext };
