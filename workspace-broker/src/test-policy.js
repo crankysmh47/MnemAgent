@@ -1,4 +1,4 @@
-const REQUIRED_TESTS = ['numeric-command-test', 'test-unit'];
+const REQUIRED_TESTS = ['python-scoring-test', 'python-unit'];
 
 export function recordTestEvidence(store, workspaceId, commandId, exitCode) {
   const workspace = store.get(workspaceId) || new Map();

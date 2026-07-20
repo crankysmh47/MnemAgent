@@ -10,4 +10,6 @@ test('accepts bounded source patches and rejects protected paths', () => {
   assert.throws(() => validatePatch(valid.replace('+++ b/src/config.js', '+++ b/../escape.js')), /not allowed/);
   const cppPatch = '--- a/src/core/fs_path.cpp\n+++ b/src/core/fs_path.cpp\n@@\n-old\n+new\n';
   assert.deepEqual(validatePatch(cppPatch).files, ['src/core/fs_path.cpp']);
+  const pythonPatch = '--- a/mnembench/scoring.py\n+++ b/mnembench/scoring.py\n@@\n-old\n+new\n--- /dev/null\n+++ b/tests/test_scoring.py\n@@\n+test\n';
+  assert.deepEqual(validatePatch(pythonPatch).files, ['mnembench/scoring.py', 'tests/test_scoring.py']);
 });

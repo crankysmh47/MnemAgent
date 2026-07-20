@@ -54,7 +54,7 @@
         <section data-judge-shell hidden>
           <div class="chat-log" data-chat-log aria-live="polite"><p class="chat-empty">Start by telling the agent one coding preference. Each reply uses a fresh agent session but the same private memory.</p></div>
           <form data-judge-chat><label for="judgeChatMessage">Chat with the memory agent</label><textarea id="judgeChatMessage" name="message" rows="2" maxlength="2000" placeholder="For this project, prefer user-safe error messages." required></textarea><button type="submit">Send fresh-session message</button></form>
-          <form data-judge-run><input data-scenario name="issueNumber" type="hidden" value="14"><label for="judgeMessage">Agent direction <span class="optional-label">optional</span></label><textarea id="judgeMessage" name="message" rows="2" maxlength="4000" placeholder="Apply the conventions I taught you."></textarea><button type="submit" data-run-coding>Run the WebPort task</button></form>
+          <form data-judge-run><input data-scenario name="issueNumber" type="hidden" value="1"><label for="judgeMessage">Agent direction <span class="optional-label">optional</span></label><textarea id="judgeMessage" name="message" rows="2" maxlength="4000" placeholder="Apply the conventions I taught you."></textarea><button type="submit" data-run-coding>Run the MnemBench task</button></form>
           <p class="agent-status" data-judge-status aria-live="polite">Private workspace ready.</p>
           <nav class="agent-tabs" aria-label="Agent evidence">
             <button type="button" data-tab="activity" aria-selected="true">Activity</button>
@@ -65,7 +65,7 @@
           <section data-panel="memory" hidden><div class="evidence-empty" data-memory-empty>Retrieved memories appear here during the coding run.</div><ul class="memory-evidence" data-memory-evidence></ul></section>
           <section data-panel="changes" hidden><div class="evidence-empty" data-changes-empty>Tests and the exact patch appear here before publication.</div><ul class="test-evidence" data-test-evidence></ul><pre class="diff-evidence" data-diff></pre><form class="approve-form" data-approve-pr hidden><label><input name="confirmed" type="checkbox" required> I reviewed the evidence above.</label><button type="submit">Open draft PR</button></form><a class="pr-link" data-pr-link hidden target="_blank" rel="noopener noreferrer">View draft PR</a></section>
         </section>
-        <aside class="validated-replay"><strong>Validated public evidence</strong><span>WebPort draft PR #15 shows this exact constrained, test-first run if the live allowance is exhausted.</span><a href="https://github.com/crankysmh47/WebPort/pull/15" target="_blank" rel="noopener noreferrer">Inspect draft PR #15</a></aside>
+        <aside class="validated-replay"><strong>Validated public evidence</strong><span>MnemBench draft PR #2 preserves the constrained, test-first acceptance run if live capacity is unavailable.</span><a href="https://github.com/crankysmh47/MnemBench/pull/2" target="_blank" rel="noopener noreferrer">Inspect draft PR #2</a></aside>
       </aside>
     </main>
     <section id="observationMargin" class="observation-margin memory-lens" aria-label="Memory Lens">

@@ -15,8 +15,8 @@ async function startFixtureServer() {
   app.get('/api/graph/:uid', (_req, res) => res.json(GRAPH_FIXTURE));
   app.get('/api/judge/scenarios', (_req, res) => res.json({
     model: 'deepseek-api/deepseek-v4-flash',
-    repository: 'crankysmh47/WebPort',
-    scenarios: [{ issueNumber: 0, title: 'Audit WebPort', outcome: 'Tested draft PR' }],
+    repository: 'crankysmh47/MnemBench',
+    scenarios: [{ issueNumber: 1, title: 'Fix inverted contradiction score', outcome: 'Test-first bounded fix' }],
   }));
   app.get('/api/metrics/:uid', (_req, res) => res.json(METRICS_FIXTURE));
   app.get('/api/events/:uid', (_req, res) => res.json(EVENTS_FIXTURE));

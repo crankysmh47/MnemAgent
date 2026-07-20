@@ -1,13 +1,5 @@
-const SAFE_JS_PATH = /^(?:src|test)\/[A-Za-z0-9_.-]{1,80}\.js$/;
-
 export function validateCommand({ commandId, testNamePattern } = {}) {
-  if (commandId === 'test' && testNamePattern === undefined) return { argv: ['npm', 'test'] };
-  if (commandId === 'test-unit' && testNamePattern === undefined) return { argv: ['npm', 'run', 'test:unit'] };
-  if (commandId === 'validate-fs' && testNamePattern === undefined) return { argv: ['npm', 'run', 'validate:fs'] };
-  if (commandId === 'test-integration' && testNamePattern === undefined) return { argv: ['npm', 'run', 'test:integration'] };
-  if (commandId === 'numeric-command-test' && testNamePattern === undefined) return { argv: ['node', 'tests/unit/numeric_commands_test.mjs'] };
-  if (commandId === 'node-check' && SAFE_JS_PATH.test(testNamePattern || '')) {
-    return { argv: ['node', '--check', testNamePattern] };
-  }
+  if (commandId === 'python-scoring-test' && testNamePattern === undefined) return { argv: ['python', '-m', 'pytest', '-q', 'tests/test_scoring.py'] };
+  if (commandId === 'python-unit' && testNamePattern === undefined) return { argv: ['python', '-m', 'pytest', '-q'] };
   throw new Error('Command is not allowed in the judge workspace.');
 }

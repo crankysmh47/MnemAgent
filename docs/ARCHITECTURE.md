@@ -1,245 +1,198 @@
-# MnemAgent Architecture
+# Architecture
 
-> Memory that earns its place. — Qwen Global AI Hackathon, Track 1: MemoryAgent
+MnemAgent is a persistent memory control plane for OpenClaw. It is intentionally separate from the agent's model and tools: OpenClaw remains the agent runtime, while MnemAgent decides which beliefs deserve storage, which should be recalled now, which newer facts replace older ones, and which memories should fade.
 
-## Judge-facing topology
+![MnemAgent architecture](assets/architecture.png)
 
-The current submission adds a memory-aware coding path to the memory engine described below. The browser is read-only until a judge session is established. OpenClaw can reach only filtered MnemAgent and MnemCode MCP tools. The HMAC-authenticated broker owns GitHub credentials and starts a no-network runner. Human approval is bound to the exact diff and PR metadata for five minutes.
-
-Core and repository beliefs are distinct database scopes. The active uniqueness contract is `(user_id, scope_type, scope_id, entity_source, relation)`, and retrieval reserves up to four slots for the active repository plus two for core memory.
-
-## The Core Problem
-
-Standard RAG-based memory agents have two fatal flaws:
-
-1. **Proactive Interference** — stale facts sit alongside current ones in the same flat store and get injected indiscriminately. The agent confidently recalls outdated information.
-2. **Naive Storage** — everything gets stored, garbage included, and pruning happens after the fact. The graph bloats with low-conviction throwaway remarks.
-
-MnemAgent solves both at the architectural level, not as patches.
-
-## The Two-Phase Engine
-
-```
-                    ┌─────────────────────────────┐
-  User Message ───▶ │      WAKING PHASE            │
-                    │  (synchronous, hot path)      │
-                    │  • Embed query                │
-                    │  • UCB-scored retrieval        │
-                    │  • RWR associative hops        │
-                    │  • Assemble model payload      │
-                    │  • Return response to user     │
-                    └─────────────┬───────────────┘
-                                  │ response returned
-                                  ▼
-                    ┌─────────────────────────────┐
-                    │      DREAMING PHASE           │
-                    │  (asynchronous, background)   │
-                    │  • Extract <memory_update>    │
-                    │  • Salience auction gate      │
-                    │  • Contradiction resolution   │
-                    │  • Utility feedback (Q_i)     │
-                    │  • Synaptic decay             │
-                    │  • Hard prune dead nodes      │
-                    │  • Cloud sync (every 50 turns)│
-                    └─────────────────────────────┘
-```
-
-## The Four Pillars
-
-### Pillar 1 — Salience Auction (Ingestion Gate)
-
-Before any fact is written to the semantic graph, it is scored on three axes:
-
-| Axis | What it measures | How |
-|------|-----------------|-----|
-| **Novelty** | Does this extend or contradict existing knowledge? | Query semantic_graph for existing (user_id, entity, relation) triple |
-| **Utility** | Would knowing this change future responses? | Category: system_state > preference > persona |
-| **Conviction** | Was this stated with certainty or casually? | Extracted from the model's `<memory_update>` JSON (0.0–1.0) |
-
-**Storage rule:** `Store if: conviction >= 0.4 OR category == 'system_state'`
-
-What gets rejected: "Maybe we'll try Tailwind sometime" (conviction ~0.2), "I'm thinking perhaps TypeScript?" (~0.15), "Let's try Vue eventually" (~0.25).
-
-### Pillar 2 — Dual-Output Chain-of-Thought Extraction
-
-The system prompt asks the configured chat model to emit structured `<memory_update>` XML before its conversational response:
-
-```xml
-<memory_update>{"entity":"backend_framework","relation":"prefers","value":"express","category":"system_state","conviction":0.95}</memory_update>
-Understood. We'll use Express for the backend.
-```
-
-The interceptor strips the XML block before the user sees it, then passes the extracted JSON to the Dreaming phase asynchronously. **Zero additional LLM calls** — both the response and the extracted facts come from a single API call.
-
-### Pillar 3 — UCB Retrieval (Upper Confidence Bound)
-
-Memory retrieval is treated as a Multi-Armed Bandit problem:
-
-```
-Score_i = Q_i + c × √(ln(T) / (N_i + 1))
-```
-
-| Variable | Meaning |
-|----------|---------|
-| Q_i | base_utility_q — learned usefulness from feedback loop |
-| T | total episodic turns for this user (always ≥ 1) |
-| N_i | injection_count — how many times this belief has been retrieved |
-| c | 0.3 — exploration constant |
-
-This guarantees exploration: given enough turns, every non-pruned memory will eventually be retrieved. The math forces dormant memories to surface regardless of semantic similarity to the current query.
-
-**Retrieval pipeline:** Embed → KNN top 20 → UCB score → take top 4 → RWR associative hop → cap at 6 total facts.
-
-### Pillar 4 — Closed-Loop Feedback
-
-After the model responds, the system checks whether each injected memory actually influenced the response using proximity regex (both entity terms within 100 characters of each other):
-
-```
-If belief shaped the response:  Q_i = min(1.0, Q_i + 0.05), influence_count++
-If belief was injected but ignored: Q_i = max(0.0, Q_i - 0.01)
-Always: injection_count++
-```
-
-The asymmetry (+0.05 reward vs -0.01 penalty) prevents the system from penalizing exploratory UCB retrievals too aggressively.
-
-## The Memory Stores
-
-| Tier | Store | Scope | Purpose |
-|------|-------|-------|---------|
-| 1 | Working Memory | In-process, last 3 turns | Short-term conversational context |
-| 2 | Episodic Memory | episodic_logs table, session-scoped | Source material for consolidation, UCB T calculation |
-| 3 | Semantic Memory | semantic_graph table, global per user | Long-term beliefs — what gets injected into prompts |
-| 4 | Vector Index | `vec_memory` pgvector table | KNN semantic search over stored belief embeddings |
-| 5 | Event Log | memory_events table | Lifecycle events for the visualizer |
-
-## The Forgetting System
-
-**Synaptic Downscaling:** Every dreaming cycle, nodes inactive > 45 minutes are decayed × 0.85. After ~8 hours of inactivity, a node crosses the prune threshold.
-
-**Hard Pruning:** `DELETE FROM semantic_graph WHERE node_weight < 0.1` — irreversible. Prevents infinite graph bloat.
-
-## Contradiction Resolution
-
-The scoped unique constraint handles atomic overwrites. A new fact replaces only the matching user, scope, entity, and relation. Repository corrections cannot overwrite core memory or another repository.
-
-## Data Flow (Turn by Turn)
-
-```
-User sends message
-  → main.py ChatRequest
-  → /memory command? → execute command, return
-  → get_total_turns(user_id) → T (≥1)
-  → build_optimized_qwen_payload()
-    → get_embedding(user_input) → float[384]
-    → KNN on vec_memory → top 20 candidates
-    → UCB score each → sort → top 4
-    → RWR/single-entity hop → 1-2 more
-    → Deduplicate → max 6 facts
-    → UPDATE last_accessed, boost node_weight
-    → Fetch last 3 episodic turns
-    → Assemble system prompt + messages array
-  → call_qwen_api(payload)
-  → strip_memory_tags(raw) → clean_response to user
-  → asyncio.create_task(_run_dreaming_phase(...))
-    → evaluate_memory_utility_feedback()
-    → consolidate_and_prune_memory() [if memory_dict]
-    → log_episodic_turn()
-    → cloud_sync.sync_to_cloud() [every 50 turns]
-```
-
-## Key Design Decisions
-
-- **Postgres + pgvector runtime** - multi-user cloud deployment, transactional belief updates, vector search in the same database, and a direct path to Alibaba RDS.
-- **T is per-user, not global** — prevents new users from inheriting inflated UCB exploration from power users
-- **Asymmetric feedback** — rewards (+0.05) > penalties (-0.01) so exploration isn't punished
-- **Proximity regex, not substring** — "Python" in snake context doesn't credit programming preference
-- **Max 6 injected facts** — O(1) token overhead regardless of graph size
-- **Reject at ingestion, not decay later** — garbage never touches the graph
-
-## System Prompt Template
-
-The agent receives memory context injected into a structured system prompt:
-
-```
-[MEMORY CONTEXT — Retrieved from long-term storage]
-- backend_framework prefers express (Q: 0.95, confidence: HIGH)
-- code_style prefers minimal-comments (Q: 0.72, confidence: CONFIDENT)
-- deadline is march-15 (Q: 0.60, confidence: FADING)
-```
-
-And is instructed to output new persistent facts inside `<memory_update>` tags with conviction scoring before its visible response.
-
-## API Surface
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/health` | GET | Service health |
-| `/chat` | POST | Memory-augmented chat |
-| `/api/memory/store` | POST | Direct fact storage (salience-gated) |
-| `/api/memory/search/{uid}` | GET | Search beliefs by keyword |
-| `/api/memory/dump/{uid}` | GET | Full brain state |
-| `/api/memory/stats/{uid}` | GET | UCB optimization table |
-| `/api/graph/{uid}` | GET | Visualizer graph data (beliefs + edges) |
-| `/api/events/{uid}` | GET | Lifecycle event stream |
-| `/api/metrics/{uid}` | GET | Aggregate metrics + UCB timeline |
-| `/api/user/bind` | POST | Channel → user_id binding |
-## Cue-Triggered Prospective Memory
-
-MnemAgent supports a small form of human-like prospective memory: intentions that fire when a cue appears, not after a wall-clock timer expires.
-
-Example:
-
-```text
-When I ask about deployment, remind me to check the OSS snapshot.
-```
-
-The deterministic extractor stores:
-
-```json
-{"entity":"when_asked_about_deployment","relation":"remind","value":"check the OSS snapshot","category":"system_state","conviction":1.0}
-```
-
-During the waking phase, MnemAgent scans the user's current prompt for due cues and injects a separate prospective reminder block:
-
-```text
-[DUE PROSPECTIVE REMINDERS]
-- When the user asks about deployment: remind them to check the OSS snapshot
-```
-
-This avoids timed reminders. OpenClaw does not need to track wall-clock time, there is no scheduler overhead, and the feature still tests a memory capability most agent benchmarks ignore: remembering to do the right thing when the relevant context returns.
-
-## Cloud Multi-User Posture
-
-MnemAgent now uses Postgres/pgvector as the product runtime backend. The SQLite adapter remains only as a legacy/test fallback for isolated unit tests that need disposable file-backed databases.
-
-Security controls for cloud mode:
-
-- optional `MNEMAGENT_API_TOKEN` bearer auth on chat, memory, graph, metrics, and binding endpoints;
-- token forwarding from the OpenClaw MCP server and visualizer harness;
-- Postgres schema with row-level security policies keyed by `mnemagent.user_id`;
-- prompt-injection memory firewall that rejects extracted writes from obvious memory-rule override attempts.
-## Bounded archive reads
-
-The graph endpoint is bounded independently of archive size. It returns at most 150 individual beliefs and 120 ambient relationships, plus total counts and category summaries. Archives use three presentation modes: individual through 120 memories, hybrid from 121 through 500, and summary-first above 500. Search and focused-node requests can reveal a memory outside the initial page without loading the whole archive into Python or the browser.
-
-The visualizer mirrors that contract. It lays out only returned memories, reports rendered and total counts separately, and sends debounced search text to the server. This removes the old end-to-end quadratic path where both edge construction and collision resolution operated over every stored belief.
-
-## Alibaba deployment boundary
+## System boundary
 
 ```mermaid
 flowchart LR
-  J["Judge browser"] -->|"HTTPS :443"| C["Caddy on Alibaba ECS"]
-  C --> V["MnemTree + judge workbench"]
-  V --> O["OpenClaw judge agents"]
+  J["Judge browser"] -->|"HTTPS"| C["Caddy on Alibaba ECS"]
+  C --> U["MnemTree + MnemCode"]
+  U --> O["OpenClaw"]
   O --> M["MnemAgent MCP"]
-  O -->|"signed structured tools"| B["Workspace broker"]
-  M --> A["Memory API"]
-  V --> A
+  M --> A["FastAPI memory engine"]
   A --> P[("Postgres + pgvector")]
-  O --> D["DeepSeek V4 Flash"]
+  O --> Q["Qwen Cloud"]
+  O -. "sponsored public demo" .-> D["DeepSeek V4 Flash"]
+  O --> B["Signed workspace broker"]
   B --> R["No-network runner"]
   B --> G["GitHub draft PR API"]
   A -. "optional snapshot" .-> S[("Alibaba OSS")]
 ```
 
-Only Caddy publishes a public application route. The API, MCP, broker, runner control plane, and PostgreSQL remain private. Anonymous visitors can inspect only `demo-brain`; a signed one-hour judge session unlocks fresh-session chat and one approval-gated coding run in a random private namespace. Memory mutations travel through OpenClaw and MCP, while the browser never receives model or GitHub credentials.
+Qwen Cloud is the primary hackathon integration path. The public deployment uses a small sponsored DeepSeek allowance so judges can interact without bringing a key. Both paths call the same provider-neutral memory engine; their results are never mixed in the evidence.
+
+## One turn, two phases
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant O as OpenClaw
+  participant M as MnemAgent
+  participant P as Postgres/pgvector
+  participant L as Configured model
+  U->>O: Message
+  O->>M: Retrieve scoped memories
+  M->>P: Vector + keyword candidates
+  P-->>M: Bounded beliefs
+  M-->>O: Up to six memories
+  O->>L: Prompt + memory context
+  L-->>O: Reply + memory updates
+  O-->>U: Clean visible reply
+  O->>M: Store durable updates
+  M->>P: Gate, resolve, score, decay, log
+```
+
+### Waking phase
+
+The synchronous path must stay small:
+
+1. Embed the current query or use deterministic keyword fallback.
+2. Fetch a bounded candidate set from pgvector and keyword search.
+3. Rank candidates with learned utility plus Upper Confidence Bound exploration.
+4. Follow a small number of associative edges.
+5. Inject no more than six active beliefs.
+
+The exploration score is:
+
+```text
+score_i = Q_i + c * sqrt(ln(T) / (N_i + 1))
+```
+
+- `Q_i`: learned usefulness of belief `i`
+- `T`: episodic turns for this user
+- `N_i`: how often the belief has been injected
+- `c`: exploration constant, currently `0.3`
+
+This gives useful memories priority without permanently starving a dormant but potentially important belief.
+
+### Dreaming phase
+
+The visible response and structured memory updates come from the same model response, avoiding a second model call on the normal chat path. The background phase:
+
+1. Parses one or more structured memory updates.
+2. Rejects low-conviction noise before storage.
+3. Replaces a conflicting belief only inside the same scope.
+4. Updates retrieval utility using whether injected beliefs influenced the answer.
+5. Decays inactive memories and prunes nodes below the threshold.
+6. Appends lifecycle events for MnemTree.
+
+The default storage rule is:
+
+```text
+store when conviction >= 0.4 or category == system_state
+```
+
+## Memory model
+
+| Tier | Store | Role |
+| --- | --- | --- |
+| Working | Last three turns in process | Immediate conversational continuity |
+| Episodic | `episodic_logs` | Session history and UCB turn count |
+| Semantic | `semantic_graph` | Durable beliefs eligible for recall |
+| Vector | pgvector column/index | Semantic candidate search |
+| Event | `memory_events` | Stored, recalled, revised, faded, and pruned events |
+
+The active belief identity is:
+
+```text
+(user_id, scope_type, scope_id, entity_source, relation)
+```
+
+That uniqueness contract makes contradiction handling atomic. A repository correction cannot overwrite a core preference or a fact from another repository.
+
+## Scope-aware coding memory
+
+MnemCode uses two scopes:
+
+- `core/core`: stable user preferences that should follow the person.
+- `repository/owner/repo`: conventions and corrections that apply only to one codebase.
+
+Repository retrieval reserves up to four slots for the active repository and two for core memory. Prompt overhead therefore remains constant even when the archive contains thousands of beliefs.
+
+## Forgetting
+
+MnemAgent does not treat deletion as failure. Inactive nodes decay by `0.85` after the configured inactivity window. Beliefs below `0.1` are pruned. A contradiction immediately supersedes the matching scoped belief and records both the old and new value in the event log.
+
+This addresses three different problems:
+
+- **Noise:** rejected before insertion by the salience gate.
+- **Staleness:** replaced atomically by scoped contradiction resolution.
+- **Disuse:** gradually reduced through decay and eventual pruning.
+
+## Scalable MnemTree API
+
+The graph endpoint performs bounded reads independent of archive size:
+
+- at most 150 individual beliefs;
+- at most 120 ambient relationships;
+- total counts and category summaries returned separately;
+- individual mode through 120 memories;
+- hybrid mode from 121 through 500;
+- summary-first mode above 500;
+- debounced search can retrieve a focused memory outside the initial page.
+
+The browser lays out only returned nodes. It does not run collision or edge algorithms over the complete archive.
+
+## MnemCode control plane
+
+```mermaid
+sequenceDiagram
+  participant J as Judge
+  participant O as OpenClaw
+  participant M as MnemAgent MCP
+  participant B as Workspace broker
+  participant R as No-network runner
+  participant G as GitHub
+  J->>O: Start prepared issue
+  O->>M: Retrieve core + repository memory
+  O->>B: Read issue and bounded files
+  O->>B: Apply bounded patch
+  B->>R: Run allowlisted argv
+  R-->>B: Exit code + bounded output
+  B-->>J: Memory, activity, tests, exact diff
+  J->>B: Approve diff-bound token
+  B->>G: Open draft PR
+```
+
+OpenClaw cannot call a host shell, browser, generic web tool, or host filesystem. It receives filtered memory and repository MCP tools. The broker alone sees the fine-grained GitHub token. The runner has no network and receives neither provider nor GitHub credentials.
+
+## Seven-day judge identity
+
+The browser receives a signed HttpOnly, SameSite=Strict cookie and a separate CSRF value. Both the cookie and server-side allowance expire after seven days. The allowance is atomically persisted in a Docker volume, so restarts do not invalidate active judges or replenish spent quota.
+
+Persisted state contains only random session IDs, random namespaces, expiry, remaining quota, and in-flight counters. Interrupted reservations are refunded on recovery because their corresponding run state did not complete. Cookie signing and same-origin checks remain the identity boundary.
+
+## Cloud deployment boundary
+
+Only Caddy publishes a port. The following stay on the Compose network or loopback:
+
+- OpenClaw harness
+- MnemAgent MCP server
+- FastAPI memory engine
+- Postgres/pgvector
+- workspace broker
+- runner control plane
+
+Alibaba OSS snapshots are optional. Postgres remains the system of record in the current deployment, with a direct path to managed Alibaba RDS later.
+
+## Failure behavior
+
+- Model failure returns a bounded error and does not invent a successful memory write.
+- A failed chat/coding launch releases its reserved allowance.
+- A failed test run never produces an approval token.
+- Approval expires after five minutes and is bound to the exact diff and PR metadata.
+- Spot interruption blocks new runs before shutdown; no draft PR opens without complete evidence.
+- Public anonymous requests can read only `demo-brain`.
+
+## Why the pieces are separate
+
+MnemTree, MnemBench, and MnemCode are proof surfaces around the same memory MCP:
+
+- MnemTree answers, “What does the agent believe?”
+- MnemBench answers, “Does that memory improve behavior?”
+- MnemCode answers, “Does remembered experience change a real agentic action safely?”
+
+None is required to use the core. An ordinary OpenClaw deployment can connect directly to the MCP servers and retain the rest of its integrations.

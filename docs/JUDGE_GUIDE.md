@@ -1,33 +1,52 @@
 # Judge guide
 
-Track: MemoryAgent. Allow about five minutes for the live path. The public tree and validated PR remain available without spending the live allowance.
+**Track:** Track 1 — MemoryAgent
 
-## Five-minute test
+**Live URL:** [https://47-237-140-12.sslip.io/?user=demo-brain](https://47-237-140-12.sslip.io/?user=demo-brain)
 
-1. Open the submitted HTTPS URL. The public `demo-brain` tree should load without a login.
+**Time:** about five minutes
+**Credentials:** only the private judge code supplied in Devpost
+
+The landing page is populated and read-only. You can inspect the product before authenticating or using sponsored model capacity.
+
+## Test the complete flow
+
+1. Open the live URL. Confirm that the populated `demo-brain` tree appears.
 2. Search for `backend framework`, select a leaf, and inspect its relationship chain in the Memory Lens.
-3. Enter the supplied judge code in the MnemCode panel. The code creates a signed one-hour session and a new random memory namespace. It is not an API key.
-4. Send: `For WebPort, keep error messages user-safe and put detailed diagnostics only in server logs.` The first fresh OpenClaw session stores the durable convention.
-5. Send: `What error-message convention should you follow for WebPort?` This is a different OpenClaw session. Its answer should recall the prior convention, and the tree should show the stored memory.
-6. Start the WebPort task. Issue #14 is fixed so every judge sees the same bounded acceptance case. Watch Activity for issue, workspace, source-change, diff, and test events.
-7. Open Memory to see the repository-scoped fact retrieved for the run. Open Changes to inspect actual tests and the exact diff.
-8. Check the review box and select `Open draft PR`. Publication is unavailable until the evidence is complete and this approval is submitted.
+3. Enter the private judge code from Devpost. This is not an API key. It creates a signed seven-day session and a random private memory namespace.
+4. Send: `For MnemBench, keep every metric oriented so 1.0 means best behavior.`
+5. Send: `What scoring convention should you follow for MnemBench?`
+6. Confirm that the second reply recalls the convention. Each message uses a fresh OpenClaw conversation, so recall comes through MnemAgent rather than shared chat history.
+7. Open the private MnemTree and locate the new repository-scoped memory.
+8. Start the prepared [MnemBench issue #1](https://github.com/crankysmh47/MnemBench/issues/1) task.
+9. Watch Activity for issue inspection, workspace creation, memory retrieval, test creation, the bounded source fix, and both Python test commands.
+10. Open Memory to see the exact repository rule. Open Changes to inspect the patch and test output.
+11. Optional: check the review box and choose **Open draft PR**. Publication remains disabled until the exact diff passes both checks and receives explicit approval.
 
-Expected result: a draft PR URL. The agent cannot push to `main`, edit GitHub Actions, install packages, run a generic shell, or open a PR before tests and human approval.
+The allowance is 30 chat turns, five coding runs, and five draft-PR approvals. Seven days changes elapsed access only; it does not add quota.
 
-## What this proves
+## Expected evidence
 
-- Persistence: the correction survives a fresh OpenClaw session.
-- Scope: repository guidance does not alter core preferences or another repository.
-- Retrieval economy: no more than six relevant memories enter the model context.
-- Forgetting: low-value memories decay and cross the prune threshold; contradictions replace only the matching scoped belief.
-- Agency: the model reads an issue, chooses files, proposes a patch, runs tests, and stops at an approval boundary.
-- Observability: the UI shows ordered server events rather than a simulated terminal transcript.
+- **Persistence:** the rule survives a fresh OpenClaw conversation.
+- **Scope:** the rule is stored under `repository/crankysmh47/MnemBench`, separate from core preferences.
+- **Economy:** no more than six memories enter model context.
+- **Agency:** the model reads a public issue, writes a regression test, fixes real code, runs tests, and explains the result.
+- **Control:** the runner has no network or GitHub token, and publication requires a human decision.
+
+The Activity view contains ordered server events. It is not a simulated terminal transcript.
+
+## Pre-validated public result
+
+The July 20 acceptance run solved issue #1 and produced [draft PR #2](https://github.com/crankysmh47/MnemBench/pull/2). It retrieved the MnemBench metric-orientation rule across fresh sessions, added three regression tests, changed one scoring expression, passed both fixed Python commands, and used only the repository owner's commit identity.
 
 ## Recovery
 
-- Empty tree: use `?user=demo-brain`.
-- Judge code rejected: wait for the organizer if the IP lockout was triggered after five attempts.
-- Model budget reached: the UI switches to the recorded replay and labels it clearly.
-- Spot interruption: no PR opens. Use the public draft PR #15 evidence while the owner restores the instance.
-- Test failure: no approval control appears. Public draft PR #15 contains the validated acceptance result.
+- **Empty tree:** reopen the URL with `?user=demo-brain`.
+- **Judge code rejected:** five failures lock that source IP for 30 minutes.
+- **Sponsored capacity reached:** inspect the populated tree, public issue, [validated draft PR #2](https://github.com/crankysmh47/MnemBench/pull/2), and benchmark records.
+- **Spot interruption:** no PR opens. Durable quota state returns when the service restarts.
+- **Test failure:** approval remains unavailable. The Changes view preserves the red output for inspection.
+
+## Credential boundary
+
+Judges do not paste GitHub or model keys into the browser. The hosted broker owns a repository-limited token, while the sponsored model budget stays server-side. General bring-your-own-key and arbitrary repository execution remain future capabilities, not hidden experimental paths.

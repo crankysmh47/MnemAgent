@@ -51,7 +51,7 @@ function renderQuota(node, quota) {
     ['Chat', quota.chatTurnsRemaining],
     ['Code run', quota.codingRunsRemaining],
     ['Draft PR', quota.publicationsRemaining],
-    ['Session', '1 hour'],
+    ['Session', '7 days'],
   ];
   for (const [label, value] of entries) {
     const item = document.createElement('span');
@@ -180,7 +180,7 @@ export async function createJudgeConsole({ root, api = judgeApi } = {}) {
     state = { status: 'running', events: [], quota: state.quota, evidence: null };
     setText(status, 'The agent is recalling conventions and opening an isolated workspace…');
     try {
-      const created = await api.start({ issueNumber: 14, message: String(new FormData(runForm).get('message') || '') });
+      const created = await api.start({ issueNumber: 1, message: String(new FormData(runForm).get('message') || '') });
       runId = created.id;
       const snapshot = await poll(api.run, runId, current => {
         for (const eventItem of current.events || []) state = reduceJudgeState(state, eventItem, current);

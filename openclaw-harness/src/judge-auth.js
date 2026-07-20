@@ -1,6 +1,6 @@
 const { createHmac, randomBytes, timingSafeEqual } = require('node:crypto');
 
-const SESSION_SECONDS = 60 * 60;
+const SESSION_SECONDS = 7 * 24 * 60 * 60;
 const LOCK_SECONDS = 30 * 60;
 
 function safeEqual(left, right) {

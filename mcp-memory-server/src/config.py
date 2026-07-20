@@ -50,7 +50,7 @@ class Settings:
     LLM_BASE_URL: str = field(
         default_factory=lambda: _env_str(
             "LLM_BASE_URL",
-            _env_str("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            _env_str("QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
         )
     )
     ANTHROPIC_API_KEY: str = field(
@@ -67,7 +67,7 @@ class Settings:
     QWEN_BASE_URL: str = field(
         default_factory=lambda: _env_str(
             "QWEN_BASE_URL",
-            _env_str("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            _env_str("LLM_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
         )
     )
     ALIBABA_CLOUD_ACCESS_KEY_ID: str = field(

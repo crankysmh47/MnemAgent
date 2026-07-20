@@ -35,7 +35,7 @@ const tools = [
   ['list_workspace_files', 'List bounded regular-file paths in the active workspace', { workspaceId: { type: 'string' } }],
   ['apply_workspace_patch', 'Validate and apply a bounded unified patch', { workspaceId: { type: 'string' }, patch: { type: 'string' } }],
   ['replace_workspace_text', 'Replace one exact, unique, bounded source fragment', { workspaceId: { type: 'string' }, path: { type: 'string' }, oldText: { type: 'string' }, newText: { type: 'string' } }],
-  ['run_workspace_tests', 'Run one fixed no-network test command', { workspaceId: { type: 'string' }, commandId: { type: 'string', enum: ['test','test-unit','validate-fs','test-integration','numeric-command-test'] } }],
+  ['run_workspace_tests', 'Run one fixed no-network test command', { workspaceId: { type: 'string' }, commandId: { type: 'string', enum: ['python-scoring-test','python-unit'] } }],
   ['show_workspace_diff', 'Show the current bounded workspace diff', { workspaceId: { type: 'string' } }],
   ['cleanup_workspace', 'Delete the active workspace', { workspaceId: { type: 'string' } }],
 ].map(([name, description, properties]) => ({ name, description, inputSchema: { type: 'object', properties, additionalProperties: false } }));

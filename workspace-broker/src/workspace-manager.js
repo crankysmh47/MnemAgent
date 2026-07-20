@@ -67,7 +67,7 @@ export function createWorkspaceManager({ root, allowedRepository, clone, runnerI
     async replaceText(id, { path: relativePath, oldText, newText } = {}) {
       const session = sessions.get(id);
       if (!session) throw new Error('Workspace not found.');
-      if (typeof relativePath !== 'string' || !/^(?:src|include|test|tests|public|tools)\/[A-Za-z0-9_./-]+\.(?:js|mjs|cjs|cpp|cc|c|h|hpp|css|html|json)$/.test(relativePath) || relativePath.includes('..')) throw new Error('Workspace path is invalid.');
+      if (typeof relativePath !== 'string' || !/^(?:(?:src|include|test|tests|public|tools)\/[A-Za-z0-9_./-]+\.(?:js|mjs|cjs|cpp|cc|c|h|hpp|css|html|json|py)|mnembench\/[A-Za-z0-9_./-]+\.py)$/.test(relativePath) || relativePath.includes('..')) throw new Error('Workspace path is invalid.');
       if (typeof oldText !== 'string' || typeof newText !== 'string' || !oldText || oldText.length > 10_000 || newText.length > 12_000) throw new Error('Replacement is outside the bounded edit policy.');
       if (newText.split('\n').length > 200) throw new Error('Replacement exceeds 200 lines.');
       const workspace = await realpath(session.path);

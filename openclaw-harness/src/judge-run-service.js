@@ -44,7 +44,7 @@ function createJudgeRunService({
   model = process.env.JUDGE_MODEL || 'deepseek-api/deepseek-v4-flash',
   hardBudgetTokens = Number(process.env.JUDGE_MODEL_HARD_TOKEN_BUDGET || 2_000_000),
   executor = openClawExecutor,
-  replayText = 'Validated public evidence: WebPort issue #14 was solved with repository memory, a test-first source guard, and two passing test commands. Draft PR: https://github.com/crankysmh47/WebPort/pull/15',
+  replayText = 'Validated public evidence: MnemBench issue #1 was solved with repository memory, three regression tests, one bounded scoring fix, and two passing Python commands. Draft PR: https://github.com/crankysmh47/MnemBench/pull/2',
 } = {}) {
   const runs = new Map();
   const log = createJudgeEventLog();
@@ -62,15 +62,15 @@ function createJudgeRunService({
       if (!/^jss_[A-Za-z0-9_-]{3,100}$/.test(String(ownerSessionId || ''))) throw new Error('A judge owner session is required.');
       if (!/^judge-[A-Za-z0-9_-]{3,100}$/.test(String(namespace || ''))) throw new Error('A private judge namespace is required.');
       if (!/^[A-Za-z0-9_-]{3,100}$/.test(String(sessionId || ''))) throw new Error('A valid OpenClaw session ID is required.');
-      if (Number(issueNumber) !== 14) throw new Error('Only prepared issue 14 is available.');
+      if (Number(issueNumber) !== 1) throw new Error('Only prepared issue 1 is available.');
       if (!String(message || '').trim() || String(message).length > 4_000) throw new Error('A bounded run direction is required.');
       if (activeRunId) throw new Error('A coding run is already active.');
       const id = `run_${randomUUID()}`;
       const mode = spentTokens >= hardBudgetTokens ? 'replay' : 'live';
-      const run = { id, ownerSessionId, namespace, sessionId, issueNumber: 14, model, mode, status: 'running', createdAt: new Date().toISOString(), usageUsd: 0, usageTokens: { input: 0, output: 0, total: 0 } };
+      const run = { id, ownerSessionId, namespace, sessionId, issueNumber: 1, model, mode, status: 'running', createdAt: new Date().toISOString(), usageUsd: 0, usageTokens: { input: 0, output: 0, total: 0 } };
       runs.set(id, run);
       activeRunId = id;
-      emit(id, 'run.started', { issueNumber: 14, mode });
+      emit(id, 'run.started', { issueNumber: 1, mode });
       run.task = (async () => {
         try {
           emit(id, mode === 'live' ? 'model.started' : 'replay.started', { model });

@@ -72,6 +72,7 @@ services:
     volumes:
       - ./openclaw-harness/src/public:/app/src/public:ro
       - ./config/openclaw:/app/config/openclaw:ro
+      - judge-session-state:/app/data
     environment:
       - MNEMOS_URL=http://mnemos-memory:8000
       - MNEMOS_DEFAULT_USER_ID=${MNEMOS_DEFAULT_USER_ID:-}
@@ -83,6 +84,7 @@ services:
       - JUDGE_MAX_SPONSORED_SESSIONS=${JUDGE_MAX_SPONSORED_SESSIONS:-12}
       - JUDGE_ACCESS_CODE=${JUDGE_ACCESS_CODE:-mnemcode-local-judge}
       - JUDGE_SESSION_SECRET=${JUDGE_SESSION_SECRET:-local-development-session-secret-change-for-cloud-123456}
+      - JUDGE_SESSION_STORE_PATH=/app/data/judge-sessions.json
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - OPENCLAW_CONFIG_PATH=/app/config/openclaw/openclaw.json
       - MNEMAGENT_MCP_URL=${MNEMAGENT_MCP_URL:-http://mnemos-mcp:8001/mcp}
@@ -117,7 +119,7 @@ services:
     group_add:
       - "${DOCKER_GID:-0}"
     environment:
-      - JUDGE_DEMO_REPOSITORY=${JUDGE_DEMO_REPOSITORY:-crankysmh47/WebPort}
+      - JUDGE_DEMO_REPOSITORY=${JUDGE_DEMO_REPOSITORY:-crankysmh47/MnemBench}
       - JUDGE_GITHUB_TOKEN=${JUDGE_GITHUB_TOKEN:-}
       - WORKSPACE_HMAC_SECRET=${WORKSPACE_HMAC_SECRET:-local-development-hmac-secret-change-for-cloud-12345}
       - WORKSPACE_APPROVAL_SECRET=${WORKSPACE_APPROVAL_SECRET:-local-development-approval-secret-change-for-cloud-123}
@@ -160,3 +162,5 @@ volumes:
   mnemos-postgres:
   judge-workspaces:
     name: mnemagent-judge-workspaces
+  judge-session-state:
+    name: mnemagent-judge-session-state

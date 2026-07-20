@@ -1,14 +1,20 @@
-# MnemAgent documentation
+# Judge evidence index
 
-Start with these files for the hackathon submission:
+Return to the [judge landing page](../README.md) if this is your first visit.
 
-| File | Purpose |
-| --- | --- |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Memory architecture, data flow, and core algorithms |
-| [JUDGE_GUIDE.md](JUDGE_GUIDE.md) | Three-minute and local judge walkthroughs |
-| [DEPLOY_ALIBABA.md](DEPLOY_ALIBABA.md) | Alibaba ECS deployment and proof steps |
-| [BENCHMARKS.md](BENCHMARKS.md) | Verified headline results and limitations |
-| [SECURITY.md](SECURITY.md) | Hackathon boundary and production identity path |
-| [SUBMISSION_CHECKLIST.md](SUBMISSION_CHECKLIST.md) | Repository and owner-supplied submission items |
+## Required submission evidence
 
-Assets live in [assets/](assets/). Superseded reports and internal review notes live in [archive/](archive/).
+1. [Alibaba Cloud deployment proof](CLOUD_PROOF.md) — ECS resource, public health, Qwen code path, and deployment topology.
+2. [Architecture](ARCHITECTURE.md) — components, trust boundaries, data flow, memory lifecycle, and scaling.
+3. [Judge guide](JUDGE_GUIDE.md) — exact live test with expected results and recovery steps.
+4. [MnemBench results](BENCHMARKS.md) — real runs, baselines, reproduction, and limitations.
+5. [MnemCode](MNEMCODE_DEMO.md) — public issue, constrained coding lifecycle, tests, and approval boundary.
+
+## Reproduce and review
+
+- [Alibaba deployment guide](DEPLOY_ALIBABA.md)
+- [Security model](SECURITY.md)
+- [Three-minute one-take recording script](DEMO_VIDEO_PRODUCTION_SCRIPT.md)
+- [Owner submission checklist](SUBMISSION_CHECKLIST.md)
+- [`evidence/`](evidence/) — stable raw and summarized benchmark records
+- [`assets/`](assets/) — official logo, current visualizer, architecture diagram, and ECS screenshot

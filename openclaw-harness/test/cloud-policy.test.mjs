@@ -17,8 +17,25 @@ test('cloud policy exposes a signed session archive only to its owning judge', (
 
 test('signed judge archive defaults to the prepared repository scope plus core memory', () => {
   assert.equal(
-    policy.archiveQueryString({}, { privateJudge: true, repository: 'crankysmh47/WebPort' }),
-    'scope_type=repository&scope_id=crankysmh47%2FWebPort&include_core=true',
+    policy.archiveQueryString({}, { privateJudge: true, repository: 'crankysmh47/MnemBench' }),
+    'scope_type=repository&scope_id=crankysmh47%2FMnemBench&include_core=true',
   );
   assert.equal(policy.archiveQueryString({ q: 'green' }, { privateJudge: false }), 'q=green');
+});
+
+test('local signed judge archive receives repository scope just like cloud', () => {
+  assert.deepEqual(
+    policy.archiveAccessContext({
+      cloudMode: false,
+      userId: 'judge-a1b2',
+      judgeUserId: '',
+      sessionUserId: 'judge-a1b2',
+      repository: 'crankysmh47/MnemBench',
+      query: {},
+    }),
+    {
+      allowed: true,
+      queryString: 'scope_type=repository&scope_id=crankysmh47%2FMnemBench&include_core=true',
+    },
+  );
 });

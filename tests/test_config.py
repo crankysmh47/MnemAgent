@@ -15,6 +15,19 @@ def test_settings_loads_defaults() -> None:
     assert settings.EMBEDDING_DIM == 384
 
 
+def test_qwen_cloud_default_uses_devpost_accepted_international_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    monkeypatch.delenv("QWEN_BASE_URL", raising=False)
+
+    cfg = Settings()
+
+    expected = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    assert cfg.LLM_BASE_URL == expected
+    assert cfg.QWEN_BASE_URL == expected
+
+
 def test_settings_masks_secrets() -> None:
     text = repr(settings)
     assert "sk-" not in text or "***masked***" in text

@@ -1,57 +1,65 @@
-# MnemCode demo
+# MnemCode: public agentic coding proof
 
-MnemCode turns MnemAgent's memory engine into a concrete coding-agent test. The use case is deliberately narrow: one repository, one workspace, one runner, and draft PRs only.
+MnemCode demonstrates why persistent memory matters after retrieval: the remembered convention changes how an agent edits a real repository.
 
-## Run lifecycle
+## Prepared public task
+
+- Repository: [crankysmh47/MnemBench](https://github.com/crankysmh47/MnemBench)
+- Issue: [#1 — Fix inverted contradiction dimension score](https://github.com/crankysmh47/MnemBench/issues/1)
+- Defect: a correctly resolved contradiction receives `1.0`, then aggregation incorrectly subtracts it from `1.0` and reports failure.
+- Required memory: every MnemBench metric must use `1.0` for best behavior and `0.0` for failure.
+- Required change: add a regression test, then remove only the incorrect aggregation inversion.
+- Verified result: [draft PR #2](https://github.com/crankysmh47/MnemBench/pull/2), created by the approval-gated judge workflow on July 20.
+
+This is a real benchmark-integrity defect. It is small enough for a deterministic judge run and meaningful enough to show that repository memory affects an engineering decision.
+
+The acceptance run added three tests for perfect, stale-only, and partial contradiction resolution. `python-scoring-test` and `python-unit` both passed before publication became available.
+
+## Execution path
 
 ```mermaid
 sequenceDiagram
   participant J as Judge
-  participant U as Workbench
+  participant U as MnemCode UI
   participant O as OpenClaw
-  participant M as MnemAgent
-  participant B as Broker
-  participant R as Runner
+  participant M as MnemAgent MCP
+  participant B as Workspace broker
+  participant R as No-network runner
   participant G as GitHub
-  J->>U: Teach one repository preference
-  U->>O: Fresh chat session
-  O->>M: Store scoped memory
-  J->>U: Start prepared issue #14
-  U->>O: Fresh coding session + private namespace
-  O->>M: Retrieve repository + core memories
-  O->>B: Read issue and bounded files
-  O->>B: Apply bounded source edits
-  B->>R: Fixed test command, no network
-  R-->>B: Exit code + bounded output
-  B-->>U: Diff and test evidence
-  J->>U: Approve exact diff
-  U->>B: Five-minute diff-bound token
-  B->>G: Push judge branch and open draft PR
+
+  J->>U: Start MnemBench issue #1
+  U->>O: New constrained coding session
+  O->>M: Retrieve repository-scoped rules
+  O->>B: Inspect issue and create workspace
+  O->>B: Add regression test and bounded fix
+  B->>R: Run focused pytest command
+  B->>R: Run full pytest command
+  R-->>U: Test evidence
+  B-->>U: Exact diff and approval token
+  J->>U: Explicitly approve exact diff
+  U->>B: Approval-bound publication request
+  B->>G: Push owner-authored branch and open draft PR
 ```
 
-## WebPort acceptance case
+## Fixed runner commands
 
-The completed acceptance run is captured in [WebPort issue #14](https://github.com/crankysmh47/WebPort/issues/14) and [draft PR #15](https://github.com/crankysmh47/WebPort/pull/15):
+The model cannot choose arbitrary shell commands. The broker accepts only these identifiers:
 
-1. The server gives each judge a random private memory namespace and a small sponsored allowance.
-2. Chat uses a new OpenClaw session on every turn while retaining that namespace, so cross-session recall is visible before the coding task starts.
-3. The coding agent reads issue #14, retrieves repository memory, and creates one isolated workspace tied to that issue.
-4. It reads only bounded files, writes a regression test first, applies the implementation, and runs WebPort's fixed unit/validation commands.
-5. The workbench separates ordered activity, retrieved memory, tests, and the exact diff.
-6. A human reviews the evidence before the broker opens a draft PR.
+```text
+python-scoring-test -> python -m pytest -q tests/test_scoring.py
+python-unit         -> python -m pytest -q
+```
 
-The constrained runner passed the focused numeric-command regression test and WebPort's complete unit test command before the branch was published. The resulting diff adds four source lines and 24 regression-test lines. The commit is authored only as `crankysmh47 <annankhan741@gmail.com>`.
+The runner image contains Python, pytest, and the benchmark's runtime dependency before a judge session begins. Runtime networking and package installation are unavailable.
 
-Model: `deepseek-api/deepseek-v4-flash` in OpenClaw, sent as `deepseek-v4-flash` to the official DeepSeek API. The judge stack does not use the Qwen/DashScope key and does not accept an OpenRouter key.
+## Edit and publication boundaries
 
-## Hard limits
+- Repository allowlist: only `crankysmh47/MnemBench`
+- Editable Python paths: `mnembench/*.py` and `tests/*.py`
+- Patch limit: five files and 500 changed lines
+- Runner: non-root, read-only container, no network, dropped Linux capabilities
+- Token location: private broker only
+- Publication: both fixed checks plus a five-minute approval token bound to the exact diff and PR metadata
+- Git identity: repository owner only
 
-- Five files and 500 changed lines per patch
-- 120 KB patch body
-- Fixed test command IDs only
-- One active coding run
-- No network in runner
-- Five-minute approval
-- 30 chat turns, 5 coding runs, and 5 draft publications per judge session
-- One-hour sponsored session, shown as action quotas rather than a misleading dollar estimate
-- Twelve sponsored sessions and a 2,000,000-token coding hard stop before replay mode
+Arbitrary repository execution would need broader token permissions, language-specific runner images, dependency-install policy, and stronger multi-tenant isolation. The submission exposes one honest, repeatable task rather than implying those controls already exist.

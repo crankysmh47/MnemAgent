@@ -22,6 +22,6 @@
   "llm": {
     "provider": "qwen",
     "model": "qwen-plus",
-    "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    "api_base": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
   }
 }
